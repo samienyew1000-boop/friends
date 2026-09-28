@@ -480,7 +480,7 @@
       provider: 'SPRIBE',
       multiplier: '97.0% RTP',
       category: 'Crash Game',
-      image: 'assets/game_aviator.png',
+      image: 'assets/game_aviator.gif',
       url: 'game/aviator/index.html',
       desc: 'Watch the red plane ascend! Cash out before it flies away to win massive multipliers!'
     },
@@ -489,7 +489,7 @@
       provider: 'Habesha Gaming',
       multiplier: 'Instant Draw 80',
       category: 'Keno & Lottery',
-      image: 'assets/game_fast_keno.png',
+      image: 'assets/game_fast_keno.gif',
       url: 'game/fast keno/index.html',
       desc: 'Fast paced 80-ball instant lottery. Pick your lucky numbers and win up to 10,000x!'
     },

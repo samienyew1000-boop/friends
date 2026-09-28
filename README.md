@@ -70,8 +70,8 @@ friends/
 │   ├── banner_2.jpg           # Carousel slide 2
 │   ├── banner_3.jpg           # Carousel slide 3
 │   ├── banner_4.jpg           # Carousel slide 4
-│   ├── game_aviator.png       # Aviator (Spribe)
-│   ├── game_fast_keno.png     # Fast Keno 80
+│   ├── game_aviator.gif       # Aviator (Spribe) [Animated GIF]
+│   ├── game_fast_keno.gif     # Fast Keno 80 [Animated GIF]
 │   ├── game_jetx.png          # JetX
 │   ├── game_rocket_star.png   # Rocket Star
 │   ├── game_aviafly.png       # Aviafly
