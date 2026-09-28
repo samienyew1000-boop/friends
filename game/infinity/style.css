@@ -1,0 +1,497 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #040b18;
+  color: #eaf2ff;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+}
+
+.inf-root {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.inf-frame {
+  width: min(1240px, 100%);
+  height: min(720px, 100%);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(8, 18, 40, 0.9), rgba(4, 9, 22, 0.98));
+  border: 1px solid rgba(113, 217, 255, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.inf-menu {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+}
+.inf-menu span {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  margin: 2px 0;
+  border-radius: 999px;
+}
+
+.inf-logo {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 900;
+  font-size: 64px;
+  letter-spacing: -0.03em;
+  color: rgba(74, 167, 255, 0.22);
+  text-shadow: 0 0 0 rgba(255, 255, 255, 0.2);
+  z-index: 8;
+  pointer-events: none;
+}
+
+.inf-top-right {
+  position: absolute;
+  right: 18px;
+  top: 60px;
+  z-index: 9;
+  text-align: right;
+}
+.inf-balance {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.inf-balance-unit {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 700;
+}
+.inf-clock {
+  margin-top: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+}
+
+.inf-content {
+  position: absolute;
+  inset: 0;
+  padding-top: 140px;
+  padding-bottom: 120px;
+  display: flex;
+  gap: 0;
+}
+
+.inf-chart-area {
+  flex: 1;
+  position: relative;
+  margin-left: 0;
+  background:
+    radial-gradient(circle at 30% 45%, rgba(113, 217, 255, 0.12), transparent 46%),
+    radial-gradient(circle at 80% 70%, rgba(74, 167, 255, 0.1), transparent 52%),
+    linear-gradient(180deg, rgba(4, 12, 30, 0.86), rgba(4, 9, 22, 0.98));
+  overflow: hidden;
+  border-top: 1px solid rgba(113, 217, 255, 0.16);
+}
+
+.inf-chart-area::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(to right, rgba(113, 217, 255, 0.08) 1px, transparent 1px),
+    repeating-linear-gradient(to bottom, rgba(113, 217, 255, 0.08) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.inf-chart-area canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.inf-timeframe-bar {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 9px 7px 12px;
+  border: 1px solid rgba(113, 217, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(3, 12, 28, 0.72);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.inf-timeframe-label {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inf-timeframe-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.inf-timeframe-btn {
+  min-width: 34px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.68);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.inf-timeframe-btn:hover {
+  border-color: rgba(113, 217, 255, 0.55);
+  color: #eafaff;
+  transform: translateY(-1px);
+}
+
+.inf-timeframe-btn.active {
+  border-color: rgba(47, 224, 255, 0.85);
+  background: linear-gradient(180deg, rgba(47, 224, 255, 0.34), rgba(13, 189, 70, 0.2));
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(47, 224, 255, 0.18);
+}
+
+.inf-coefficient {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  font-size: 88px;
+  color: rgba(245, 252, 255, 0.96);
+  text-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  letter-spacing: -0.02em;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.inf-right-panel {
+  width: 300px;
+  border-left: 1px solid rgba(113, 217, 255, 0.18);
+  background: rgba(6, 14, 32, 0.88);
+  backdrop-filter: blur(10px);
+  padding: 18px 16px;
+  z-index: 7;
+}
+
+.inf-right-head {
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin-bottom: 14px;
+}
+
+.inf-right-columns {
+  display: grid;
+  grid-template-columns: 0.9fr 0.9fr 1.1fr 1fr 1fr;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.inf-right-columns span {
+  white-space: nowrap;
+}
+
+.inf-right-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inf-bet-row {
+  display: grid;
+  grid-template-columns: 0.9fr 0.9fr 1.1fr 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.86);
+}
+.inf-bet-row .pill {
+  justify-self: start;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+  font-weight: 800;
+}
+.inf-bet-row .pill.pending {
+  color: #4bb8ff;
+  border-color: rgba(75, 184, 255, 0.25);
+}
+.inf-bet-row .pill.win {
+  color: #24d77b;
+  border-color: rgba(36, 215, 123, 0.25);
+}
+.inf-bet-row .pill.lose {
+  color: #ff526b;
+  border-color: rgba(255, 82, 107, 0.25);
+}
+
+.inf-bottom-left {
+  position: absolute;
+  left: 16px;
+  bottom: 18px;
+  z-index: 9;
+}
+
+.inf-history-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.inf-bottom-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: min(850px, 94vw);
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr 1.5fr;
+  gap: 14px;
+  align-items: end;
+  justify-content: center;
+}
+
+.inf-stake-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inf-stake-wrap label {
+  padding-left: 4px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inf-stake {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 10px;
+}
+
+.inf-step {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inf-stake input {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 22px;
+  font-weight: 900;
+  text-align: center;
+  outline: none;
+}
+
+.inf-quick-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.inf-quick {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inf-trade-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 52px 34px;
+  gap: 8px;
+}
+
+.inf-trade-btn,
+.inf-cashout-btn {
+  border-radius: 14px;
+  font-weight: 1000;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease;
+}
+
+.inf-trade-btn:hover:not(:disabled),
+.inf-cashout-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.12);
+}
+
+.inf-trade-btn:disabled,
+.inf-cashout-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.inf-trade-btn.buy {
+  border: 1px solid rgba(36, 215, 123, 0.5);
+  background: linear-gradient(180deg, #35e98a, #0caa59);
+  color: #031a10;
+  box-shadow: 0 12px 24px rgba(36, 215, 123, 0.16);
+}
+
+.inf-trade-btn.sell {
+  border: 1px solid rgba(255, 82, 107, 0.5);
+  background: linear-gradient(180deg, #ff7185, #d52242);
+  color: #25030a;
+  box-shadow: 0 12px 24px rgba(255, 82, 107, 0.14);
+}
+
+.inf-cashout-btn {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(245, 195, 62, 0.5);
+  background: linear-gradient(180deg, #f9d66b, #c58a12);
+  color: #211500;
+}
+
+.inf-history-panel {
+  position: absolute;
+  left: 16px;
+  bottom: 84px;
+  width: 320px;
+  max-height: 340px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.33);
+  overflow: hidden;
+  z-index: 11;
+  display: none;
+  backdrop-filter: blur(12px);
+}
+
+.inf-history-panel.open {
+  display: block;
+}
+
+.inf-history-head {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 900;
+}
+
+.inf-history-close {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.inf-history-list {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.inf-history-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.inf-history-item .res {
+  justify-self: end;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.22);
+  font-weight: 900;
+}
+.inf-history-item .res.win { color: #24d77b; border-color: rgba(36, 215, 123, 0.25); }
+.inf-history-item .res.lose { color: #ff526b; border-color: rgba(255, 82, 107, 0.25); }
+
+@media (max-width: 980px) {
+  .inf-frame { height: 100%; }
+  .inf-right-panel { width: 260px; }
+  .inf-logo { font-size: 54px; }
+  .inf-coefficient { font-size: 70px; }
+  .inf-bottom-controls { grid-template-columns: 1fr 1fr; grid-template-areas: "stake quick" "trade trade"; }
+  .inf-stake-wrap { grid-area: stake; }
+  .inf-quick-row { grid-area: quick; }
+  .inf-trade-actions { grid-area: trade; }
+}
+
+@media (max-width: 720px) {
+  .inf-content { flex-direction: column; padding-top: 130px; padding-bottom: 190px; }
+  .inf-right-panel { width: 100%; border-left: 0; border-top: 1px solid rgba(113, 217, 255, 0.18); }
+  .inf-coefficient { font-size: 56px; top: 40%; }
+  .inf-timeframe-bar { left: 10px; right: 10px; justify-content: space-between; gap: 8px; }
+  .inf-timeframe-label { display: none; }
+  .inf-timeframe-buttons { width: 100%; justify-content: space-between; gap: 4px; }
+  .inf-timeframe-btn { flex: 1; min-width: 0; }
+  .inf-bottom-controls { width: min(94vw, 520px); gap: 8px; bottom: 10px; }
+  .inf-trade-actions { grid-template-rows: 46px 30px; }
+  .inf-quick-row { gap: 8px; }
+  .inf-step, .inf-stake input, .inf-quick { height: 46px; }
+}
+

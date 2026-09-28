@@ -104,7 +104,7 @@
 
   // --- State Management ---
   const state = {
-    balance: parseFloat(localStorage.getItem('habesha_balance') || '0.00'),
+    balance: typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : parseFloat(localStorage.getItem('habesha_balance') || '1000.00'),
     isBalanceHidden: localStorage.getItem('habesha_balance_hidden') === 'true',
     favorites: JSON.parse(localStorage.getItem('habesha_favorites') || '[]'),
     activeSlide: 0,
@@ -162,19 +162,26 @@
 
   // --- Balance Updates ---
   function updateBalanceDisplay() {
+    if (typeof window.HabeshaWallet !== 'undefined') {
+      state.balance = window.HabeshaWallet.get();
+    }
     if (state.isBalanceHidden) {
       balanceText.textContent = '••••••';
       eyeIcon.innerHTML = `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
       `;
     } else {
-      balanceText.textContent = state.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      balanceText.textContent = typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.format(state.balance) : state.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       eyeIcon.innerHTML = `
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
       `;
     }
-    localStorage.setItem('habesha_balance', state.balance.toString());
+    if (typeof window.HabeshaWallet !== 'undefined') {
+      window.HabeshaWallet.set(state.balance);
+    } else {
+      localStorage.setItem('habesha_balance', state.balance.toString());
+    }
     localStorage.setItem('habesha_balance_hidden', state.isBalanceHidden.toString());
   }
 
@@ -474,6 +481,7 @@
       multiplier: '97.0% RTP',
       category: 'Crash Game',
       image: 'assets/game_aviator.png',
+      url: 'game/aviator/index.html',
       desc: 'Watch the red plane ascend! Cash out before it flies away to win massive multipliers!'
     },
     'fast_keno': {
@@ -482,6 +490,7 @@
       multiplier: 'Instant Draw 80',
       category: 'Keno & Lottery',
       image: 'assets/game_fast_keno.png',
+      url: 'game/fast keno/index.html',
       desc: 'Fast paced 80-ball instant lottery. Pick your lucky numbers and win up to 10,000x!'
     },
     'jetx': {
@@ -490,6 +499,7 @@
       multiplier: 'Up to 25,000x',
       category: 'Crash Game',
       image: 'assets/game_jetx.png',
+      url: 'game/infinity/index.html',
       desc: 'The supersonic jet rocket is ready for takeoff. Eject before explosion to secure profits!'
     },
     'rocket_star': {
@@ -498,6 +508,7 @@
       multiplier: '98.5% RTP',
       category: 'Provably Fair',
       image: 'assets/game_rocket_star.png',
+      url: 'game/infinity/index.html',
       desc: 'Launch through the cosmos with certified cryptographic fairness verification.'
     },
     'aviafly': {
@@ -506,6 +517,7 @@
       multiplier: 'Instant Flight',
       category: 'Crash Arcade',
       image: 'assets/game_aviafly.png',
+      url: 'game/aviator/index.html',
       desc: 'The fearless chicken pilot navigates through spark storms. Soar high and cash out!'
     },
     'fish_road': {
@@ -513,6 +525,7 @@
       provider: 'SeaGames',
       multiplier: 'Casual Arcade',
       image: 'assets/game_fish_road.png',
+      url: 'game/fish/index.html',
       desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
     },
     'chicken_road': {
@@ -521,6 +534,7 @@
       multiplier: 'Cross & Win',
       category: 'Instant Game',
       image: 'assets/game_chicken_road.png',
+      url: 'game/chicken road/index.html',
       desc: 'Cross the perilous road step by step. Each step boosts your win multiplier!'
     },
     'bingo': {
@@ -529,6 +543,7 @@
       multiplier: 'Live Rooms',
       category: 'Bingo 90',
       image: 'assets/game_bingo.png',
+      url: 'game/bingo/index.html',
       desc: 'Authentic Ethiopian community bingo room with automated voice and quick payouts.'
     },
     'plinko': {
@@ -537,9 +552,21 @@
       multiplier: 'Up to 1,000x',
       category: 'Plinko',
       image: 'assets/game_plinko.png',
+      url: 'game/bingo star/index.html',
       desc: 'Drop golden balls down the peg pyramid for multipliers up to 1,000x your stake!'
     }
   };
+
+  let activeGameUrl = 'game/aviator/index.html';
+  const launchFullGameBtn = document.getElementById('launchFullGameBtn');
+  if (launchFullGameBtn) {
+    launchFullGameBtn.addEventListener('click', () => {
+      if (activeGameUrl) {
+        sound.playClick();
+        window.location.href = activeGameUrl;
+      }
+    });
+  }
 
   const gameModalTitle = document.getElementById('gameModalTitle');
   const gameModalProvider = document.getElementById('gameModalProvider');
@@ -634,6 +661,7 @@
       const gameId = card.dataset.game;
       const info = gameData[gameId];
       if (info) {
+        activeGameUrl = info.url || 'game/aviator/index.html';
         gameModalTitle.textContent = info.title;
         gameModalProvider.textContent = info.provider;
         gameModalCategory.textContent = info.category || 'Featured';
@@ -731,6 +759,12 @@
 
   // --- Initial Setup ---
   updateBalanceDisplay();
+  if (typeof window.HabeshaWallet !== 'undefined') {
+    window.HabeshaWallet.subscribe((newBal) => {
+      state.balance = newBal;
+      updateBalanceDisplay();
+    });
+  }
   renderDots();
   startAutoSlide();
 

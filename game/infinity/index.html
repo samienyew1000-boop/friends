@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#040b18" />
+    <title>Infinity</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="inf-root">
+        <a href="../../index.html" style="position:absolute;top:10px;left:10px;z-index:99;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,0.6);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:700;border:1px solid rgba(255,255,255,0.2);" title="Back to Lobby">&larr; Lobby</a>
+
+        <div class="inf-logo" aria-hidden="true" style="margin-left:80px;">infinity</div>
+
+        <div class="inf-top-right">
+          <div class="inf-balance">
+            <span class="inf-balance-amount" id="balance">1000.00</span>
+            <span class="inf-balance-unit">ETB</span>
+          </div>
+          <div class="inf-clock" id="clock">--:--:--</div>
+        </div>
+
+        <div class="inf-content">
+          <div class="inf-chart-area" id="chart-area">
+            <div class="inf-timeframe-bar" aria-label="Chart timeframe">
+              <span class="inf-timeframe-label">Timeframe</span>
+              <div class="inf-timeframe-buttons" role="group" aria-label="Select chart timeframe">
+                <button type="button" class="inf-timeframe-btn active" data-timeframe="1" aria-pressed="true">1s</button>
+                <button type="button" class="inf-timeframe-btn" data-timeframe="2" aria-pressed="false">2s</button>
+                <button type="button" class="inf-timeframe-btn" data-timeframe="3" aria-pressed="false">3s</button>
+                <button type="button" class="inf-timeframe-btn" data-timeframe="4" aria-pressed="false">4s</button>
+                <button type="button" class="inf-timeframe-btn" data-timeframe="5" aria-pressed="false">5s</button>
+              </div>
+            </div>
+            <canvas id="chart"></canvas>
+            <div class="inf-coefficient" id="coefficient">1.00x</div>
+          </div>
+
+          <aside class="inf-right-panel" aria-label="Open positions">
+            <div class="inf-right-head">Open Position</div>
+            <div class="inf-right-columns">
+              <span>Side</span>
+              <span>Amount</span>
+              <span>Entry</span>
+              <span>Live P/L</span>
+              <span>Status</span>
+            </div>
+            <div class="inf-right-rows" id="my-bets"></div>
+          </aside>
+        </div>
+
+        <div class="inf-bottom-left">
+          <button type="button" class="inf-history-toggle" id="history-toggle">^ History</button>
+        </div>
+
+        <div class="inf-bottom-controls">
+          <div class="inf-stake-wrap">
+            <label for="bet">Amount (Birr)</label>
+            <div class="inf-stake">
+              <button type="button" class="inf-step" id="minus">-</button>
+              <input id="bet" type="number" min="1" max="1000" step="1" value="10" inputmode="numeric" />
+              <button type="button" class="inf-step" id="plus">+</button>
+            </div>
+          </div>
+          <div class="inf-quick-row">
+            <button type="button" class="inf-quick" id="allin">ALL IN</button>
+            <button type="button" class="inf-quick" id="x2">x2</button>
+          </div>
+          <div class="inf-trade-actions">
+            <button type="button" class="inf-trade-btn buy" id="buy">BUY</button>
+            <button type="button" class="inf-trade-btn sell" id="sell">SELL</button>
+            <button type="button" class="inf-cashout-btn" id="cashout" disabled>CASHOUT</button>
+          </div>
+        </div>
+
+        <div class="inf-history-panel" id="history-panel" aria-label="History">
+          <div class="inf-history-head">
+            <span>History</span>
+            <button type="button" class="inf-history-close" id="history-close">Close</button>
+          </div>
+          <div class="inf-history-list" id="history-bets"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../shared-balance.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0e0e0e" />
+    <meta name="description" content="Aviator multiplier game" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Aviator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script>window.aviatorDesktop={isDesktop:true};window.aviatorEmbedded=true;</script>
+    <link rel="stylesheet" href="./assets/style.css" />
+    <style>
+      .lobby-back{position:fixed;top:12px;left:12px;z-index:9999;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;text-decoration:none;font:600 .85rem "DM Sans","Segoe UI",sans-serif;border:1px solid rgba(255,255,255,.12)}
+      .lobby-back:hover{background:rgba(0,0,0,.72)}
+    </style>
+  </head>
+  <body>
+    <a class="lobby-back" href="../../index.html" title="Back to Lobby">&larr; Lobby</a>
+    <div id="root"></div>
+
+    <!-- Shared Balance Engine & Aviator Bridge -->
+    <script src="../shared-balance.js"></script>
+    <script>
+      (function() {
+        function syncAviator() {
+          if (!window.HabeshaWallet) return;
+          var curBal = window.HabeshaWallet.get();
+          try {
+            var raw = localStorage.getItem('aviator_offline_users');
+            var users = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(users) || users.length === 0) {
+              users = [{
+                id: 'offline-admin',
+                username: 'admin',
+                displayName: 'Player',
+                role: 'admin',
+                balance: curBal,
+                password: 'admin',
+                createdAt: new Date().toISOString()
+              }];
+            } else {
+              users.forEach(function(u) { u.balance = curBal; });
+            }
+            localStorage.setItem('aviator_offline_users', JSON.stringify(users));
+          } catch(e) {}
+        }
+
+        var origSetItem = localStorage.setItem.bind(localStorage);
+        localStorage.setItem = function(key, val) {
+          origSetItem(key, val);
+          if (key === 'aviator_offline_users' && window.HabeshaWallet) {
+            try {
+              var parsed = JSON.parse(val);
+              if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].balance === 'number') {
+                var newBal = parsed[0].balance;
+                if (window.HabeshaWallet.get() !== newBal) {
+                  window.HabeshaWallet.set(newBal);
+                }
+              }
+            } catch(e) {}
+          }
+        };
+
+        syncAviator();
+
+        if (window.HabeshaWallet) {
+          window.HabeshaWallet.subscribe(function(newBal) {
+            try {
+              var raw = localStorage.getItem('aviator_offline_users');
+              var users = raw ? JSON.parse(raw) : [];
+              if (Array.isArray(users) && users[0] && users[0].balance !== newBal) {
+                users[0].balance = newBal;
+                origSetItem('aviator_offline_users', JSON.stringify(users));
+              }
+            } catch(e) {}
+          });
+        }
+      })();
+    </script>
+    <script src="./assets/game.js"></script>
+  </body>
+</html>

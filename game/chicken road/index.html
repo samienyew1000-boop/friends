@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Chicken Road</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;600;700;800&family=Noto+Sans:wght@500;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-left">
+        <a class="icon-btn" href="../../index.html" aria-label="ተመለስ" title="ወደ ዋናው ሎቢ ተመለስ">
+          <i data-lucide="chevron-left"></i>
+        </a>
+        <div class="logo-wrap">
+          <img class="logo-img" src="asset/10002.png" alt="" />
+          <div>
+            <h1 class="logo-title">CHICKEN <span>2</span> ROAD</h1>
+            <div class="live-line">
+              <span class="live-dot"></span>
+              <span>LIVE WINS</span>
+              <span class="muted">ONLINE: <strong id="online-count">9511</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="win-ticker" id="win-ticker">Coral Unlik... +20000.00 ETB</div>
+
+      <div class="topbar-right">
+        <label class="practice-toggle" title="ልምምድ">
+          <span>ልምምድ</span>
+          <input type="checkbox" id="practice-toggle" />
+          <i></i>
+        </label>
+        <button type="button" class="icon-btn" id="btn-fav" aria-label="ተወዳጅ">
+          <i data-lucide="heart"></i>
+        </button>
+        <button type="button" class="icon-btn" id="btn-sound" aria-label="ድምፅ">
+          <i data-lucide="volume-2"></i>
+        </button>
+        <button type="button" class="icon-btn" id="btn-refresh" aria-label="አድስ">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+        <button type="button" class="icon-btn" id="btn-full" aria-label="ሙሉ ማያ">
+          <i data-lucide="maximize"></i>
+        </button>
+        <button type="button" class="text-link" id="btn-help">How to play?</button>
+        <div class="balance-box">
+          <strong id="balance">1000.00</strong>
+          <span>ETB</span>
+        </div>
+        <button type="button" class="deposit-btn" id="btn-deposit">ገንዘብ አስገባ</button>
+        <button type="button" class="icon-btn" id="btn-menu" aria-label="ምናሌ">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <canvas id="game" width="1400" height="520" aria-label="Chicken Road"></canvas>
+      <div class="toast" id="toast" hidden></div>
+    </main>
+
+    <footer class="panel">
+      <section class="panel-bet">
+        <div class="bet-row">
+          <button type="button" class="minmax" id="bet-min">MIN</button>
+          <input id="bet-input" type="number" min="1" max="1000" step="1" value="50" inputmode="numeric" />
+          <button type="button" class="minmax" id="bet-max">MAX</button>
+        </div>
+        <div class="presets">
+          <button type="button" data-bet="30">30 ETB</button>
+          <button type="button" data-bet="50">50 ETB</button>
+          <button type="button" data-bet="150">150 ETB</button>
+          <button type="button" data-bet="300">300 ETB</button>
+        </div>
+      </section>
+
+      <section class="panel-diff">
+        <p class="chance-label">Chance of being shot down <strong id="fail-chance">4%</strong></p>
+        <h2>Difficulty</h2>
+        <div class="diff-bar" role="tablist">
+          <button type="button" class="diff-btn is-active" data-diff="easy">Easy</button>
+          <button type="button" class="diff-btn" data-diff="medium">Medium</button>
+          <button type="button" class="diff-btn" data-diff="hard">Hard</button>
+          <button type="button" class="diff-btn" data-diff="hardcore">Hardcore</button>
+        </div>
+        <div class="auto-row">
+          <label class="auto-check">
+            <input type="checkbox" id="auto-toggle" />
+            Auto cash out
+          </label>
+          <div class="auto-field">
+            <input id="auto-mult" type="number" min="1.01" max="10000" step="0.01" value="1.50" />
+            <span>×</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-actions">
+        <button type="button" class="cash-btn" id="btn-cashout" disabled>
+          CASH OUT
+          <span id="cashout-amount">0.00 ETB</span>
+        </button>
+        <button type="button" class="play-btn" id="btn-go">GO</button>
+      </section>
+    </footer>
+  </div>
+
+  <div class="modal" id="help-modal" hidden>
+    <div class="modal-card">
+      <h3>How to play?</h3>
+      <ol>
+        <li>Choose your bet and difficulty.</li>
+        <li>Press <strong>GO</strong> to send the chicken across the road.</li>
+        <li>Each safe crossing increases the multiplier.</li>
+        <li>The chicken can be shot down while crossing; the bet is lost.</li>
+        <li>Cars stop when the chicken is resting on a tile.</li>
+        <li>Press <strong>CASH OUT</strong> before the next crossing fails.</li>
+        <li>Auto cash out stops the round at your selected multiplier.</li>
+      </ol>
+      <button type="button" class="play-btn" id="help-close">Got it</button>
+    </div>
+  </div>
+
+  <script src="../shared-balance.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

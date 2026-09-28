@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a1030" />
+    <title>Fish</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="fish-root">
+      <div class="fish-frame">
+        <!-- Top bar -->
+        <header class="fish-top" style="position:relative;">
+          <a href="../../index.html" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,0.6);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:700;border:1px solid rgba(255,255,255,0.2);margin-right:8px;" title="Back to Lobby">&larr; Lobby</a>
+          <div class="fish-logo" aria-hidden="true">Fish</div>
+
+          <div class="fish-risk">
+            <div class="fish-risk-title">RISK LEVEL</div>
+            <div class="fish-risk-tabs" id="risk-tabs">
+              <button type="button" class="fish-risk-tab is-active" data-risk="low">Low</button>
+              <button type="button" class="fish-risk-tab" data-risk="medium">Medium</button>
+              <button type="button" class="fish-risk-tab" data-risk="high">High</button>
+            </div>
+          </div>
+
+          <div class="fish-top-right">
+            <button type="button" class="fish-buy-bonus" id="buy-bonus">
+              <span class="fish-buy-bonus-shell"></span>
+              <span class="fish-buy-bonus-text">BUY<br />BONUS</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Sea scene -->
+        <main class="fish-sea" id="sea">
+          <div class="fish-rays" aria-hidden="true"></div>
+
+          <div class="fish-cliff fish-cliff--left" aria-hidden="true"></div>
+          <div class="fish-cliff fish-cliff--right" aria-hidden="true"></div>
+
+          <div class="fish-corals" aria-hidden="true">
+            <span class="fish-coral fish-coral--l1"></span>
+            <span class="fish-coral fish-coral--l2"></span>
+            <span class="fish-coral fish-coral--r1"></span>
+            <span class="fish-coral fish-coral--r2"></span>
+          </div>
+
+          <div class="fish-weeds" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="fish-bubbles" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="fish-arena" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+
+          <div class="fish-poles" id="poles"></div>
+
+          <div class="fish-win" id="win-msg" hidden>
+            <div class="fish-win-label">You Win</div>
+            <div class="fish-win-amount" id="win-amount">0 Fun</div>
+          </div>
+        </main>
+
+        <!-- Bottom controls -->
+        <footer class="fish-controls">
+          <button type="button" class="fish-bet-btn" id="bet-left" aria-label="Throw rings (left)">
+            <span class="fish-bet-btn-ring r1"></span>
+            <span class="fish-bet-btn-ring r2"></span>
+            <span class="fish-bet-btn-ring r3"></span>
+          </button>
+
+          <div class="fish-controls-mid">
+            <div class="fish-stake-row">
+              <div class="fish-stake-bar">
+                <button type="button" class="fish-step" id="minus">−</button>
+                <input id="bet" type="number" min="1" max="6000" step="1" value="6" inputmode="numeric" />
+                <button type="button" class="fish-step" id="plus">+</button>
+              </div>
+              <button type="button" class="fish-auto" id="auto-bet">AUTO BET</button>
+            </div>
+            <div class="fish-quick-row">
+              <button type="button" class="fish-quick" data-add="6">+ 6</button>
+              <button type="button" class="fish-quick" data-add="60">+ 60</button>
+              <button type="button" class="fish-quick" data-add="120">+ 120</button>
+              <button type="button" class="fish-quick" id="allin">ALL IN</button>
+            </div>
+          </div>
+
+          <button type="button" class="fish-bet-btn" id="bet-right" aria-label="Throw rings (right)">
+            <span class="fish-bet-btn-ring r1"></span>
+            <span class="fish-bet-btn-ring r2"></span>
+            <span class="fish-bet-btn-ring r3"></span>
+          </button>
+        </footer>
+
+        <!-- Right side panel -->
+        <aside class="fish-side" id="side-panel">
+          <div class="fish-side-balance">
+            <span class="fish-side-balance-amount" id="balance">10000.00</span>
+            <span class="fish-side-balance-unit">FUN</span>
+            <span class="fish-side-clock" id="clock">--:--</span>
+          </div>
+          <div class="fish-side-tabs">
+            <button type="button" class="fish-side-tab is-active" data-tab="players">Players</button>
+            <button type="button" class="fish-side-tab" data-tab="my">My</button>
+          </div>
+          <div class="fish-side-columns">
+            <span>Player</span>
+            <span>Bet</span>
+            <span>Odd</span>
+            <span>Win</span>
+            <span>Time</span>
+          </div>
+          <div class="fish-side-rows" id="side-rows"></div>
+        </aside>
+
+        <button type="button" class="fish-side-toggle" id="side-toggle" aria-label="Toggle panel">≡</button>
+      </div>
+
+      <!-- Bonus game modal -->
+      <div class="fish-bonus" id="bonus-modal" hidden>
+        <div class="fish-bonus-card">
+          <div class="fish-bonus-title">GOLDEN RING BONUS</div>
+          <div class="fish-bonus-sub">Pick a shell to reveal your prize</div>
+          <div class="fish-bonus-grid" id="bonus-grid"></div>
+          <div class="fish-bonus-result" id="bonus-result"></div>
+          <button type="button" class="fish-bonus-close" id="bonus-close" hidden>COLLECT</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../shared-balance.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
