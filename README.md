@@ -4,7 +4,7 @@ A high-fidelity, responsive mobile mini-app UI built for **Habesha Games** (Ethi
 
 Designed to run seamlessly inside **Telegram Mini Apps (TMA)**, mobile browsers, and desktop web previews.
 
-![Habesha Games Preview](assets/hero_banner_1.png)
+![Habesha Games Preview](assets/hero_banner_1.jpg)
 
 ## ✨ Features
 
@@ -65,8 +65,8 @@ Or simply open `index.html` directly in any modern browser!
 ```
 friends/
 ├── assets/
-│   ├── logo.png               # Crowned Lion logo
-│   ├── hero_banner_1.png      # Original "የድል ጊዜ" hero banner
+│   ├── logo.jpg               # Crowned Lion logo
+│   ├── hero_banner_1.jpg      # Habesha Games hero banner
 │   ├── banner_2.jpg           # Carousel slide 2
 │   ├── banner_3.jpg           # Carousel slide 3
 │   ├── banner_4.jpg           # Carousel slide 4
