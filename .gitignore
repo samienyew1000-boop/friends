@@ -12,7 +12,15 @@ desktop.ini
 *.sln
 *.sw?
 
+# Environment & Secrets (Never commit credentials)
+.env
+.env.*
+!.env.example
+secrets.json
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+__pycache__/
+*.pyc

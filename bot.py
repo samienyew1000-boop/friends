@@ -1,0 +1,142 @@
+"""
+Habesha Games - Telegram Bot Runner for @Friends64_BOT
+Runs polling and sends interactive messages with WebApp button.
+Reads credentials safely from environment variables or .env file.
+"""
+
+import os
+import sys
+import time
+import json
+import logging
+import urllib.request
+import urllib.parse
+from pathlib import Path
+
+# Load environment variables from .env file if available
+def load_env():
+    env_file = Path(__file__).resolve().parent / ".env"
+    if env_file.exists():
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), val.strip())
+
+load_env()
+
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://samienyew1000-boop.github.io/friends/")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+if not TOKEN or TOKEN == "your_bot_token_here":
+    logging.error("ERROR: TELEGRAM_BOT_TOKEN is not set.")
+    logging.info("Please set the TELEGRAM_BOT_TOKEN environment variable or add it to a .env file.")
+    sys.exit(1)
+
+def api_call(method, payload=None):
+    url = f"https://api.telegram.org/bot{TOKEN}/{method}"
+    headers = {"Content-Type": "application/json"}
+    data = json.dumps(payload).encode("utf-8") if payload else None
+    req = urllib.request.Request(url, data=data, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logging.error(f"API Error ({method}): {e}")
+        return None
+
+def send_welcome(chat_id, first_name="Player"):
+    welcome_text = (
+        f"🦁 <b>እንኳን ወደ Habesha Games በደህና መጡ!</b>\n"
+        f"<b>Welcome, {first_name}!</b>\n\n"
+        f"🎮 <b>Featured Games:</b>\n"
+        f"• ✈️ <b>Aviator (Spribe)</b> - Soar & Cash Out\n"
+        f"• 🎱 <b>Fast Keno</b> - 80 Ball Instant Draw\n"
+        f"• 🚀 <b>JetX</b> & <b>Rocket Star</b> - Provably Fair\n"
+        f"• 🐔 <b>Aviafly</b> & <b>Fish Road</b>\n\n"
+        f"💰 <b>Payment Methods:</b>\n"
+        f"• <b>Telebirr</b> (Instant)\n"
+        f"• <b>CBE Birr</b> (Commercial Bank of Ethiopia)\n"
+        f"• <b>M-Pesa</b> & <b>Awash Bank</b>\n\n"
+        f"🎁 Use promo code <code>HABESHA100</code> to claim +100 ETB!\n\n"
+        f"Tap the button below to launch the Mini App:"
+    )
+
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🎮 Play Habesha Games (Open Mini App)",
+                    "web_app": {"url": WEBAPP_URL}
+                }
+            ],
+            [
+                {
+                    "text": "💳 Quick Deposit (Telebirr/CBE)",
+                    "web_app": {"url": WEBAPP_URL}
+                },
+                {
+                    "text": "🎟️ Promo Code",
+                    "web_app": {"url": WEBAPP_URL}
+                }
+            ],
+            [
+                {
+                    "text": "👥 Channel & Community",
+                    "url": "https://t.me/habeshagames"
+                },
+                {
+                    "text": "🎧 24/7 Support",
+                    "url": "https://t.me/Friends64_BOT"
+                }
+            ]
+        ]
+    }
+
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": welcome_text,
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    })
+
+def main():
+    logging.info("Starting Habesha Games Telegram Bot runner...")
+    offset = 0
+
+    # Ensure menu button is configured
+    api_call("setChatMenuButton", {
+        "menu_button": {
+            "type": "web_app",
+            "text": "🎮 Play Games",
+            "web_app": {"url": WEBAPP_URL}
+        }
+    })
+
+    while True:
+        try:
+            updates = api_call("getUpdates", {"offset": offset, "timeout": 20})
+            if updates and updates.get("ok"):
+                for update in updates.get("result", []):
+                    offset = update["update_id"] + 1
+                    msg = update.get("message")
+                    if msg:
+                        chat_id = msg["chat"]["id"]
+                        first_name = msg["from"].get("first_name", "Player")
+                        text = msg.get("text", "")
+
+                        logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
+                        send_welcome(chat_id, first_name)
+            time.sleep(1)
+        except KeyboardInterrupt:
+            logging.info("Bot stopped.")
+            break
+        except Exception as e:
+            logging.error(f"Polling loop error: {e}")
+            time.sleep(3)
+
+if __name__ == "__main__":
+    main()
