@@ -28,6 +28,7 @@ load_env()
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://samienyew1000-boop.github.io/friends/")
+ADMIN_URL = os.environ.get("ADMIN_URL", "https://samienyew1000-boop.github.io/friends/admin/")
 ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
@@ -92,6 +93,12 @@ def send_welcome(chat_id, first_name="Player"):
             ],
             [
                 {
+                    "text": "🛡️ Admin Control Center",
+                    "web_app": {"url": ADMIN_URL}
+                }
+            ],
+            [
+                {
                     "text": "💳 Quick Deposit (Telebirr/CBE)",
                     "web_app": {"url": WEBAPP_URL}
                 },
@@ -120,9 +127,53 @@ def send_welcome(chat_id, first_name="Player"):
         "reply_markup": keyboard
     })
 
+
+def send_admin_menu(chat_id):
+    admin_text = (
+        "🛡️ <b>Habesha Games | Control Center</b>\n\n"
+        "Welcome to the Operator Dashboard. From here you can manage:\n"
+        "• 🎮 <b>Games & Margins</b> - Set house edge & toggle games online/paused\n"
+        "• ♙ <b>Players Directory</b> - Monitor player balances & export CSV\n"
+        "• ✈️ <b>Bot Messages</b> - Queue Telegram announcements & broadcasts\n"
+        "• ▤ <b>Financial Records</b> - Inspect Telebirr, CBE & game transactions\n"
+        "• ⚙️ <b>Settings</b> - Master maintenance toggle & platform configuration\n\n"
+        "Tap below to launch the Control Center:"
+    )
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🛡️ Open Admin Control Center",
+                    "web_app": {"url": ADMIN_URL}
+                }
+            ],
+            [
+                {
+                    "text": "🎮 Return to Player Mini App",
+                    "web_app": {"url": WEBAPP_URL}
+                }
+            ]
+        ]
+    }
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": admin_text,
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    })
+
 def main():
     logging.info("Starting Habesha Games Telegram Bot runner...")
     offset = 0
+
+    # Configure Telegram commands menu
+    api_call("setMyCommands", {
+        "commands": [
+            {"command": "start", "description": "🎮 Launch Habesha Games Mini App"},
+            {"command": "admin", "description": "🛡️ Open Admin Control Center"},
+            {"command": "deposit", "description": "💳 Deposit Birr (Telebirr/CBE)"}
+        ]
+    })
 
     # Ensure menu button is configured
     api_call("setChatMenuButton", {
@@ -146,7 +197,9 @@ def main():
                         text = msg.get("text", "")
 
                         logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
-                        if text.startswith("/broadcast ") and is_admin(msg.get("from", {}).get("id")):
+                        if text.startswith("/admin"):
+                            send_admin_menu(chat_id)
+                        elif text.startswith("/broadcast ") and is_admin(msg.get("from", {}).get("id")):
                             send_text_message(chat_id, "Broadcast delivery is enabled only through the protected admin worker. Use the admin queue API to target registered users.")
                         elif text.startswith("/send ") and is_admin(msg.get("from", {}).get("id")):
                             parts = text.split(" ", 2)
