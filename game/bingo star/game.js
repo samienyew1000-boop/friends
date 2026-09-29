@@ -257,7 +257,7 @@ function highlightPaytablePattern(patId) {
 }
 
 // --- Ticket Rendering & Evaluation ---
-function renderTickets() {
+function renderTickets(justHitBall = null) {
   const container = $("ticketsContainer");
   if (!container) return;
   container.innerHTML = "";
@@ -318,6 +318,9 @@ function renderTickets() {
       const isHit = hitsSet.has(num);
       if (isHit && t.active) {
         cell.classList.add("is-hit");
+        if (num === justHitBall) {
+          cell.classList.add("just-hit");
+        }
       }
       cell.innerHTML = `<span>${num}</span>`;
       gridBody.appendChild(cell);
@@ -562,14 +565,17 @@ function showBigBallCallout(num) {
   const spinBtn = $("spinBtn");
 
   if (spinBtn) spinBtn.classList.add("hidden");
-  if (callout) callout.classList.remove("hidden");
-  if (calloutNum) calloutNum.textContent = String(num);
-
-  // Restart pop animation
   if (callout) {
-    callout.style.animation = "none";
-    callout.offsetHeight; // trigger reflow
-    callout.style.animation = "";
+    callout.classList.remove("hidden");
+    callout.classList.remove("animating");
+    void callout.offsetWidth; // trigger reflow for smooth re-animation
+    callout.classList.add("animating");
+  }
+  if (calloutNum) {
+    calloutNum.textContent = String(num);
+    calloutNum.classList.remove("num-animating");
+    void calloutNum.offsetWidth; // trigger reflow
+    calloutNum.classList.add("num-animating");
   }
 }
 
@@ -641,8 +647,8 @@ async function startRound() {
     [ballPool[i], ballPool[j]] = [ballPool[j], ballPool[i]];
   }
 
-  // Draw 30 balls
-  const delay = isTurbo ? 35 : 120;
+  // Draw 30 balls at a pleasant, readable bingo tempo
+  const delay = isTurbo ? 160 : 480;
 
   for (let step = 0; step < DRAW_BALLS_COUNT; step++) {
     const nextBall = ballPool.pop();
@@ -652,14 +658,14 @@ async function startRound() {
     showBigBallCallout(nextBall);
     renderDrawnBall(nextBall, false);
 
-    // Check hit on tickets
+    // Check hit on active tickets
     let hadHit = false;
     tickets.forEach(t => {
       if (t.active && t.numbers.includes(nextBall)) hadHit = true;
     });
     if (hadHit) sfxHit();
 
-    renderTickets();
+    renderTickets(nextBall);
 
     const { totalWin } = calculateTotalWinnings();
     if (totalWin > 0) {
@@ -742,14 +748,14 @@ async function drawExtraBall() {
   });
   if (hadHit) sfxHit();
 
-  renderTickets();
+  renderTickets(extraBall);
 
   const { totalWin, hasBonusStar } = calculateTotalWinnings();
   roundWonAmount = totalWin;
   if (hasBonusStar) pendingBonusActive = true;
   updateFloatingWinBadge(roundWonAmount);
 
-  await new Promise(r => setTimeout(r, isTurbo ? 80 : 250));
+  await new Promise(r => setTimeout(r, isTurbo ? 200 : 500));
 
   // If hit Bingo or max extras reached or out of eligible patterns, conclude
   if (roundWonAmount >= getBetPerTicket() * 2000 || extrasDrawnCount >= MAX_EXTRA_BALLS) {
