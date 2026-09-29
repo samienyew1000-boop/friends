@@ -28,6 +28,9 @@ load_env()
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://samienyew1000-boop.github.io/friends/")
+ADMIN_USER_IDS = {
+    value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
+}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -47,6 +50,20 @@ def api_call(method, payload=None):
     except Exception as e:
         logging.error(f"API Error ({method}): {e}")
         return None
+
+def is_admin(user_id):
+    return str(user_id) in ADMIN_USER_IDS
+
+
+def send_text_message(chat_id, text):
+    """Send a plain HTML-safe text message through Telegram."""
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    })
+
 
 def send_welcome(chat_id, first_name="Player"):
     welcome_text = (
@@ -129,7 +146,18 @@ def main():
                         text = msg.get("text", "")
 
                         logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
-                        send_welcome(chat_id, first_name)
+                        if text.startswith("/broadcast ") and is_admin(msg.get("from", {}).get("id")):
+                            send_text_message(chat_id, "Broadcast delivery is enabled only through the protected admin worker. Use the admin queue API to target registered users.")
+                        elif text.startswith("/send ") and is_admin(msg.get("from", {}).get("id")):
+                            parts = text.split(" ", 2)
+                            if len(parts) < 3:
+                                send_text_message(chat_id, "Usage: /send <chat_id> <message>")
+                            else:
+                                target_chat_id, message = parts[1], parts[2]
+                                result = send_text_message(target_chat_id, message)
+                                send_text_message(chat_id, "✅ Message sent." if result and result.get("ok") else "❌ Telegram could not deliver that message.")
+                        else:
+                            send_welcome(chat_id, first_name)
             time.sleep(1)
         except KeyboardInterrupt:
             logging.info("Bot stopped.")

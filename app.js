@@ -558,9 +558,32 @@
   };
 
   let activeGameUrl = 'game/aviator/index.html';
+  let activeGameId = 'aviator';
+  function gameAvailable(id) {
+    return !window.HabeshaWallet || window.HabeshaWallet.isGameEnabled(id);
+  }
+  function syncGameAvailability() {
+    document.querySelectorAll('.game-card').forEach((card) => {
+      const available = gameAvailable(card.dataset.game);
+      card.classList.toggle('game-paused', !available);
+      card.setAttribute('aria-disabled', String(!available));
+      card.title = available ? '' : 'Temporarily unavailable';
+    });
+    if (gameModal && !gameModal.classList.contains('hidden') && !gameAvailable(activeGameId)) {
+      closeModal(gameModal);
+      showToast('This game is temporarily unavailable', 'error');
+    }
+  }
+  if (window.HabeshaWallet?.subscribeAdminConfig) {
+    window.HabeshaWallet.subscribeAdminConfig(syncGameAvailability);
+  }
   const launchFullGameBtn = document.getElementById('launchFullGameBtn');
   if (launchFullGameBtn) {
     launchFullGameBtn.addEventListener('click', () => {
+      if (!gameAvailable(activeGameId)) {
+        showToast('This game is temporarily unavailable', 'error');
+        return;
+      }
       if (activeGameUrl) {
         sound.playClick();
         window.location.href = activeGameUrl;
@@ -583,7 +606,7 @@
   let currentMultiplier = 1.0;
 
   function runSimGame() {
-    if (simRunning) return;
+    if (simRunning || !gameAvailable(activeGameId)) return;
     simRunning = true;
     currentMultiplier = 1.0;
     sound.playCrashFly();
@@ -659,8 +682,13 @@
       }
 
       const gameId = card.dataset.game;
+      if (!gameAvailable(gameId)) {
+        showToast('This game is temporarily unavailable', 'error');
+        return;
+      }
       const info = gameData[gameId];
       if (info) {
+        activeGameId = gameId;
         activeGameUrl = info.url || 'game/aviator/index.html';
         gameModalTitle.textContent = info.title;
         gameModalProvider.textContent = info.provider;
@@ -758,6 +786,7 @@
   }
 
   // --- Initial Setup ---
+  syncGameAvailability();
   updateBalanceDisplay();
   if (typeof window.HabeshaWallet !== 'undefined') {
     window.HabeshaWallet.subscribe((newBal) => {

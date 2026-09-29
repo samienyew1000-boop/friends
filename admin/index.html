@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07111f">
+  <title>Habesha Games | Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="Habesha Games Control Center">
+        <span class="brand-mark">HG</span>
+        <span><strong>Habesha</strong><small>Control Center</small></span>
+      </a>
+      <div class="sidebar-label">Workspace</div>
+      <nav class="side-nav" aria-label="Admin navigation">
+        <button class="nav-item active" data-section="overview"><span>◈</span> Overview</button>
+        <button class="nav-item" data-section="games"><span>✦</span> Games & margins</button>
+        <button class="nav-item" data-section="players"><span>♙</span> Players</button>
+        <button class="nav-item" data-section="messages"><span>✈</span> Bot messages</button>
+        <button class="nav-item" data-section="transactions"><span>▤</span> Transactions</button>
+        <button class="nav-item" data-section="settings"><span>⚙</span> Settings</button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="system-status"><i></i><span><strong>All systems operational</strong><small>Local control bridge active</small></span></div>
+        <a class="return-link" href="../index.html">← Back to player app</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mark">HG</span><strong>Habesha Admin</strong></div>
+        <div class="topbar-actions"><span class="live-pill"><i></i> Live control</span><span class="admin-avatar">SA</span><span class="admin-name">Super admin</span></div>
+      </header>
+
+      <div class="content-wrap">
+        <section class="page-section active" id="section-overview">
+          <div class="page-heading"><div><p class="eyebrow">Tuesday, September 29, 2026</p><h1>Good morning, Sam</h1><p class="muted">Here is what is happening across your games today.</p></div><button class="primary-btn" id="refreshDashboard">↻ Refresh data</button></div>
+          <div class="stat-grid">
+            <article class="stat-card accent-teal"><div class="stat-icon">₿</div><div><span>Gross betting volume</span><strong id="statVolume">ETB 0</strong><small id="statVolumeMeta">Across all recorded activity</small></div></article>
+            <article class="stat-card accent-violet"><div class="stat-icon">↗</div><div><span>House profit</span><strong id="statProfit">ETB 0</strong><small id="statProfitMeta">Estimated from configured margins</small></div></article>
+            <article class="stat-card accent-gold"><div class="stat-icon">♙</div><div><span>Active players</span><strong id="statPlayers">0</strong><small>Players with recorded activity</small></div></article>
+            <article class="stat-card accent-blue"><div class="stat-icon">⌁</div><div><span>Games online</span><strong id="statGames">0 / 9</strong><small id="statGamesMeta">All game switches healthy</small></div></article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="panel chart-panel"><div class="panel-heading"><div><h2>House performance</h2><p class="muted">Projected margin from recorded stakes</p></div><select id="chartRange" class="select-control"><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></div><div class="chart-wrap"><div class="chart-y"><span>ETB 5k</span><span>ETB 3k</span><span>ETB 1k</span><span>ETB 0</span></div><div class="chart" id="performanceChart"><div class="chart-grid"></div><svg viewBox="0 0 700 240" preserveAspectRatio="none" aria-label="House performance chart"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#19c6b4" stop-opacity=".35"/><stop offset="1" stop-color="#19c6b4" stop-opacity="0"/></linearGradient></defs><path id="chartArea" fill="url(#chartFill)"></path><path id="chartLine" fill="none" stroke="#21d3bf" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg><div id="chartLabels" class="chart-labels"></div></div></div></article>
+            <article class="panel"><div class="panel-heading"><div><h2>Game health</h2><p class="muted">Availability and margin status</p></div><button class="text-btn" data-section-link="games">Manage all →</button></div><div id="gameHealthList" class="health-list"></div></article>
+          </div>
+          <div class="dashboard-grid lower-grid"><article class="panel"><div class="panel-heading"><div><h2>Recent activity</h2><p class="muted">Latest local wallet records</p></div><button class="text-btn" data-section-link="transactions">View ledger →</button></div><div id="recentActivity" class="activity-list"></div></article><article class="panel quick-panel"><h2>Quick controls</h2><p class="muted">Operator switches for the whole platform.</p><label class="switch-row"><span><strong>Global margin</strong><small>Apply the default margin to new games</small></span><input type="checkbox" id="globalMarginToggle"><i class="toggle"></i></label><label class="switch-row"><span><strong>Maintenance mode</strong><small>Temporarily pause all player games</small></span><input type="checkbox" id="maintenanceToggle"><i class="toggle"></i></label><button class="outline-btn full" data-section-link="settings">Open platform settings</button></article></div>
+        </section>
+
+        <section class="page-section" id="section-games"><div class="page-heading"><div><p class="eyebrow">Revenue controls</p><h1>Games & margins</h1><p class="muted">Control availability and configure the house margin for every game.</p></div><button class="primary-btn" id="saveGameSettings">Save changes</button></div><div class="notice"><span>ⓘ</span><p><strong>Margin controls are policy settings.</strong> They are stored locally for this static control center and should be enforced by your authoritative game server before settlement.</p></div><div class="margin-overview panel"><div><span class="muted">Default house margin</span><strong id="globalMarginValue">3.5%</strong></div><input id="globalMarginRange" type="range" min="0" max="25" step="0.1" value="3.5"><div class="range-endpoints"><span>0%</span><span>25%</span></div></div><div id="gameControls" class="game-control-list"></div></section>
+
+        <section class="page-section" id="section-players"><div class="page-heading"><div><p class="eyebrow">Player operations</p><h1>Players</h1><p class="muted">Review local player identities and wallet activity available to this browser.</p></div><button class="outline-btn" id="exportPlayers">Export CSV</button></div><div class="panel table-panel"><div class="table-toolbar"><input id="playerSearch" class="search-input" placeholder="Search player, username or ID…"><span class="result-count" id="playerCount">0 players</span></div><div class="table-scroll"><table><thead><tr><th>Player</th><th>Identity</th><th>Balance</th><th>Activity</th><th>Last seen</th><th>Status</th></tr></thead><tbody id="playersTable"></tbody></table></div></div></section>
+
+        <section class="page-section" id="section-messages"><div class="page-heading"><div><p class="eyebrow">Telegram operations</p><h1>Bot messages</h1><p class="muted">Prepare and queue text broadcasts for your Telegram bot.</p></div><span class="beta-badge">Local queue</span></div><div class="message-layout"><article class="panel composer"><div class="panel-heading"><div><h2>Compose a message</h2><p class="muted">The queue is ready for a server-side bot worker to deliver.</p></div><span class="char-count" id="charCount">0 / 4096</span></div><label class="field-label">Audience<select id="messageAudience" class="select-control"><option value="all">All registered players</option><option value="active">Active players</option><option value="selected">A selected chat ID</option></select></label><label class="field-label hidden" id="chatIdField">Telegram chat ID<input id="messageChatId" class="text-input" placeholder="e.g. 123456789" inputmode="numeric"></label><label class="field-label">Message<textarea id="messageText" rows="8" maxlength="4096" placeholder="Write your announcement…"></textarea></label><div class="composer-actions"><button class="outline-btn" id="clearMessage">Clear</button><button class="primary-btn" id="queueMessage">Queue message ✈</button></div><p class="form-help">Security note: never place your Telegram bot token in this page. Delivery requires a protected backend worker.</p></article><article class="panel"><div class="panel-heading"><div><h2>Message queue</h2><p class="muted">Pending and recently queued broadcasts</p></div><button class="text-btn" id="clearQueue">Clear completed</button></div><div id="messageQueue" class="queue-list"></div></article></div></section>
+
+        <section class="page-section" id="section-transactions"><div class="page-heading"><div><p class="eyebrow">Financial records</p><h1>Transactions</h1><p class="muted">Inspect wallet records shared by the games in this browser.</p></div><button class="outline-btn" id="exportTransactions">Export CSV</button></div><div class="panel table-panel"><div class="table-toolbar"><select id="transactionFilter" class="select-control"><option value="all">All transaction types</option><option value="stake">Stakes</option><option value="win">Wins</option><option value="deposit">Deposits</option><option value="withdraw">Withdrawals</option></select><span class="result-count" id="transactionCount">0 records</span></div><div class="table-scroll"><table><thead><tr><th>Reference</th><th>Player</th><th>Type</th><th>Game / method</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody id="transactionsTable"></tbody></table></div></div></section>
+
+        <section class="page-section" id="section-settings"><div class="page-heading"><div><p class="eyebrow">Platform configuration</p><h1>Settings</h1><p class="muted">Configure shared operator defaults used by the control center.</p></div><button class="primary-btn" id="saveSettings">Save settings</button></div><div class="settings-grid"><article class="panel form-panel"><h2>Global controls</h2><p class="muted">These switches are published to player pages through shared browser storage.</p><label class="field-label">Default margin (%)<input id="settingsMargin" class="text-input" type="number" min="0" max="25" step="0.1"></label><label class="switch-row"><span><strong>Enable default margin</strong><small>Games may override this with their own margin setting.</small></span><input type="checkbox" id="settingsMarginToggle"><i class="toggle"></i></label><label class="switch-row"><span><strong>Maintenance mode</strong><small>Disable every game until this is switched off.</small></span><input type="checkbox" id="settingsMaintenanceToggle"><i class="toggle"></i></label></article><article class="panel form-panel"><h2>Data tools</h2><p class="muted">Use these tools carefully when testing the local control center.</p><button class="outline-btn full" id="seedDemoData">Load demo reporting data</button><button class="danger-btn full" id="resetAdminData">Reset admin configuration</button><p class="form-help">Resetting does not modify the player wallet, game files, or Telegram bot credentials.</p></article></div></section>
+      </div>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -60,6 +60,21 @@ Or simply open `index.html` directly in any modern browser!
 
 ---
 
+## 🛡️ Admin Control Center
+
+Open [`admin/index.html`](admin/index.html) to access the responsive operator dashboard. It includes:
+
+- Overview cards for betting volume, projected house profit, players, online games, performance chart, game health, activity, and quick controls.
+- Per-game availability switches and independent margin sliders, plus a global default margin and maintenance mode.
+- Player and transaction tables with local ledger search, filters, and CSV export.
+- A Telegram message composer with audience selection and a local delivery queue.
+
+The dashboard publishes its policy configuration under `habesha_admin_config_v1`. Player pages load that configuration through [`game/shared-balance.js`](game/shared-balance.js) and react to game pause/maintenance changes in [`app.js`](app.js). This browser-based bridge is suitable for UI and local preview; authoritative margin enforcement and real message delivery must be implemented in a protected server-side service.
+
+For the bot runner, set `TELEGRAM_ADMIN_USER_IDS` in [`.env`](.env) and use the protected `/send <chat_id> <message>` command. Keep `TELEGRAM_BOT_TOKEN` server-side; the frontend queue intentionally does not contain credentials.
+
+---
+
 ## 📂 Project Structure
 
 ```

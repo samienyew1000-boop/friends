@@ -6,7 +6,15 @@
   'use strict';
 
   const STORAGE_KEY = 'habesha_balance';
+  const ADMIN_CONFIG_KEY = 'habesha_admin_config_v1';
   const DEFAULT_BALANCE = 1000.0;
+  const DEFAULT_ADMIN_CONFIG = {
+    globalMargin: 3.5,
+    globalMarginEnabled: true,
+    maintenanceMode: false,
+    games: {},
+    updatedAt: null,
+  };
 
   // Helper to safely round to 2 decimals
   function round2(val) {
@@ -164,6 +172,38 @@
     });
   }
 
+  // Read the shared operator configuration. This is intentionally a policy/config
+  // layer only; it does not alter random outcomes or settle player bets.
+  function getAdminConfig() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY) || 'null');
+      if (!saved || typeof saved !== 'object') return { ...DEFAULT_ADMIN_CONFIG, games: {} };
+      return {
+        ...DEFAULT_ADMIN_CONFIG,
+        ...saved,
+        globalMargin: Math.min(100, Math.max(0, Number(saved.globalMargin) || 0)),
+        games: saved.games && typeof saved.games === 'object' ? saved.games : {},
+      };
+    } catch (e) {
+      return { ...DEFAULT_ADMIN_CONFIG, games: {} };
+    }
+  }
+
+  function isGameEnabled(gameId) {
+    const config = getAdminConfig();
+    const game = config.games[String(gameId)] || {};
+    return config.maintenanceMode !== true && game.enabled !== false;
+  }
+
+  function subscribeAdminConfig(callback) {
+    if (typeof callback !== 'function') return;
+    const notify = () => callback(getAdminConfig());
+    window.addEventListener('storage', (event) => {
+      if (event.key === ADMIN_CONFIG_KEY) notify();
+    });
+    window.addEventListener('habesha_admin_config_updated', notify);
+  }
+
   // Format currency display
   function format(amount) {
     const val = amount !== undefined ? amount : get();
@@ -176,12 +216,16 @@
   // Expose API
   const HabeshaWallet = {
     KEY: STORAGE_KEY,
+    ADMIN_CONFIG_KEY: ADMIN_CONFIG_KEY,
     get: get,
     set: set,
     modify: modify,
     has: has,
     format: format,
     subscribe: subscribe,
+    getAdminConfig: getAdminConfig,
+    isGameEnabled: isGameEnabled,
+    subscribeAdminConfig: subscribeAdminConfig,
     syncLegacyStorages: syncLegacyStorages
   };
 
