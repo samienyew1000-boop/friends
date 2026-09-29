@@ -65,8 +65,8 @@
   let currentBet = 6;
   let selectedSide = "buy"; // "buy" or "sell"
   let tradeDurationSec = 5.0; // default 5s countdown
-  let chartMode = "line"; // "line" or "candles"
-  let selectedTimeframe = 1;
+  let chartMode = "candles"; // Candlestick chart by default
+  let selectedTimeframe = 1; // 1-second timeframe/interval
 
   let activeTrade = null; // currently active countdown trade
   let recentTrades = []; // recently finished trades (to show trail "from where to where it went")
@@ -211,7 +211,7 @@
 
   function getCandles() {
     if (!points.length) return [];
-    const intervalMs = selectedTimeframe * 1000;
+    const intervalMs = selectedTimeframe * 1000; // 1s interval
     const candles = [];
     let candle = null;
 
@@ -232,7 +232,59 @@
         candle.close = point.coeff;
       }
     }
-    return candles.slice(-40);
+    // Return last 32 visible 1-second candles
+    return candles.slice(-32);
+  }
+
+  function drawCandles() {
+    const candles = getCandles();
+    if (!candles.length) return;
+
+    const count = candles.length;
+    const candleWidth = Math.max(6, Math.min(14, (cw * TRAIL_END_RATIO) / Math.max(1, count) * 0.70));
+
+    for (let i = 0; i < count; i++) {
+      const c = candles[i];
+      const x = (i / (count - 1 || 1)) * cw * TRAIL_END_RATIO;
+      const bodyTop = yForCoeff(Math.max(c.open, c.close));
+      const bodyBottom = yForCoeff(Math.min(c.open, c.close));
+      const bodyHeight = Math.max(2, bodyBottom - bodyTop);
+      const wickTop = yForCoeff(c.high);
+      const wickBottom = yForCoeff(c.low);
+      const rising = c.close >= c.open;
+      const color = rising ? "#22c55e" : "#ef4444";
+
+      ctx.save();
+      // Wick
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1.2, candleWidth * 0.15);
+      ctx.beginPath();
+      ctx.moveTo(x, wickTop);
+      ctx.lineTo(x, wickBottom);
+      ctx.stroke();
+
+      // Candle Body
+      ctx.fillStyle = color;
+      ctx.shadowColor = rising ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)";
+      ctx.shadowBlur = 6;
+      ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+      ctx.restore();
+    }
+
+    // Glow at live candle
+    if (candles.length > 0) {
+      const lastCandle = candles[candles.length - 1];
+      const lastX = ( (count - 1) / (count - 1 || 1) ) * cw * TRAIL_END_RATIO;
+      const lastY = yForCoeff(lastCandle.close);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   // --- Chart Drawing ---
@@ -241,11 +293,8 @@
 
     if (points.length < 2) return;
 
-    if (chartMode === "candles") {
-      drawCandles();
-    } else {
-      drawLineWave();
-    }
+    // Candlestick chart with 1s timeframe
+    drawCandles();
 
     // Draw active trade & recent trades overlay ("from where to where it went")
     drawTradesOverlay();
@@ -358,25 +407,43 @@
   }
 
   function drawSingleTrade(trade, now) {
-    const len = points.length;
-    if (len < 2) return;
+    const candles = getCandles();
+    if (!candles.length) return;
 
-    // Determine current/end coordinates
-    const startIdx = Math.max(0, len - 1 - Math.floor((now - trade.startTime) / TICK_MS));
-    const startX = xForIndex(Math.min(len - 2, startIdx));
+    const count = candles.length;
+    // Find candle index for start time
+    let startIdx = -1;
+    for (let i = count - 1; i >= 0; i--) {
+      if (candles[i].time <= trade.startTime) {
+        startIdx = i;
+        break;
+      }
+    }
+    if (startIdx === -1) {
+      startIdx = Math.max(0, count - 1 - Math.floor((now - trade.startTime) / 1000));
+    }
+    const startX = (startIdx / Math.max(1, count - 1)) * cw * TRAIL_END_RATIO;
     const startY = yForCoeff(trade.startCoeff);
 
     const isRunning = trade.status === "active";
     let endX, endY, isWinning;
 
     if (isRunning) {
-      endX = xForIndex(len - 1);
+      endX = ((count - 1) / Math.max(1, count - 1)) * cw * TRAIL_END_RATIO;
       endY = yForCoeff(currentCoeff);
       isWinning = trade.side === "buy" ? (currentCoeff >= trade.startCoeff) : (currentCoeff <= trade.startCoeff);
     } else {
-      const elapsedEnd = Math.max(0, Math.floor((now - trade.endTime) / TICK_MS));
-      const endPointIdx = Math.min(len - 1, Math.max(startIdx + 1, len - 1 - elapsedEnd));
-      endX = xForIndex(endPointIdx);
+      let endIdx = -1;
+      for (let i = count - 1; i >= 0; i--) {
+        if (candles[i].time <= trade.endTime) {
+          endIdx = i;
+          break;
+        }
+      }
+      if (endIdx === -1 || endIdx <= startIdx) {
+        endIdx = Math.min(count - 1, startIdx + Math.max(1, Math.round(trade.durationSec)));
+      }
+      endX = (endIdx / Math.max(1, count - 1)) * cw * TRAIL_END_RATIO;
       endY = yForCoeff(trade.endCoeff);
       isWinning = trade.status === "won";
     }
@@ -800,7 +867,7 @@
   function seedPoints() {
     const now = performance.now();
     points = [];
-    let t = now - 180 * TICK_MS;
+    let t = now - 50 * 1000; // 50 seconds of history for 1s candlesticks
     for (let i = 0; i < MAX_POINTS; i++) {
       updateCoeff(TICK_MS);
       pushPoint(t);
