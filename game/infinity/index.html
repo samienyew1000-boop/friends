@@ -2,90 +2,159 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#040b18" />
-    <title>Infinity</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#030814" />
+    <title>Infinity | Habesha Games</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,500;0,700;0,900;1,700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="inf-root">
-        <a href="../../index.html" style="position:absolute;top:10px;left:10px;z-index:99;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,0.6);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:700;border:1px solid rgba(255,255,255,0.2);" title="Back to Lobby">&larr; Lobby</a>
-
-        <div class="inf-logo" aria-hidden="true" style="margin-left:80px;">infinity</div>
-
-        <div class="inf-top-right">
-          <div class="inf-balance">
-            <span class="inf-balance-amount" id="balance">1000.00</span>
-            <span class="inf-balance-unit">ETB</span>
+    <div class="inf-mobile-shell">
+      
+      <!-- 1. Top Bar -->
+      <header class="inf-topbar">
+        <div class="topbar-left">
+          <button id="menuBtn" class="inf-icon-btn" aria-label="Menu">&#9776;</button>
+          <a class="lobby-back" href="../../index.html" title="Back to Lobby">&larr; Lobby</a>
+        </div>
+        <div class="topbar-right">
+          <div class="balance-display">
+            <span id="balanceText">10 000</span>
+            <span class="currency-label">ETB</span>
           </div>
-          <div class="inf-clock" id="clock">--:--:--</div>
         </div>
+      </header>
 
-        <div class="inf-content">
-          <div class="inf-chart-area" id="chart-area">
-            <div class="inf-timeframe-bar" aria-label="Chart timeframe">
-              <span class="inf-timeframe-label">Timeframe</span>
-              <div class="inf-timeframe-buttons" role="group" aria-label="Select chart timeframe">
-                <button type="button" class="inf-timeframe-btn active" data-timeframe="1" aria-pressed="true">1s</button>
-                <button type="button" class="inf-timeframe-btn" data-timeframe="2" aria-pressed="false">2s</button>
-                <button type="button" class="inf-timeframe-btn" data-timeframe="3" aria-pressed="false">3s</button>
-                <button type="button" class="inf-timeframe-btn" data-timeframe="4" aria-pressed="false">4s</button>
-                <button type="button" class="inf-timeframe-btn" data-timeframe="5" aria-pressed="false">5s</button>
-              </div>
-            </div>
-            <canvas id="chart"></canvas>
-            <div class="inf-coefficient" id="coefficient">1.00x</div>
-          </div>
-
-          <aside class="inf-right-panel" aria-label="Open positions">
-            <div class="inf-right-head">Open Position</div>
-            <div class="inf-right-columns">
-              <span>Side</span>
-              <span>Amount</span>
-              <span>Entry</span>
-              <span>Live P/L</span>
-              <span>Status</span>
-            </div>
-            <div class="inf-right-rows" id="my-bets"></div>
-          </aside>
-        </div>
-
-        <div class="inf-bottom-left">
-          <button type="button" class="inf-history-toggle" id="history-toggle">^ History</button>
-        </div>
-
-        <div class="inf-bottom-controls">
-          <div class="inf-stake-wrap">
-            <label for="bet">Amount (Birr)</label>
-            <div class="inf-stake">
-              <button type="button" class="inf-step" id="minus">-</button>
-              <input id="bet" type="number" min="1" max="1000" step="1" value="10" inputmode="numeric" />
-              <button type="button" class="inf-step" id="plus">+</button>
+      <!-- 2. "My Bets" Banner (Pixel-Matched to Screenshot) -->
+      <section class="inf-my-bets-section">
+        <div class="my-bets-title">My Bets</div>
+        <div class="my-bets-table-pill" id="myBetsPill">
+          <div class="mb-col col-timer">
+            <div class="mb-th">Timer</div>
+            <div class="mb-td" id="myBetTimer">
+              <span class="timer-badge" id="timerBadge">--</span>
             </div>
           </div>
+          <div class="mb-col col-bet">
+            <div class="mb-th">Bet</div>
+            <div class="mb-td" id="myBetStake">-</div>
+          </div>
+          <div class="mb-col col-xstart">
+            <div class="mb-th">X Start</div>
+            <div class="mb-td" id="myBetXStart">-</div>
+          </div>
+          <div class="mb-col col-xend">
+            <div class="mb-th">X End</div>
+            <div class="mb-td" id="myBetXEnd">-</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Chart Area -->
+      <section class="inf-chart-wrapper" id="chart-area">
+        <!-- Watermark Infinity Logo -->
+        <div class="inf-watermark-logo">
+          <svg class="infinity-svg-icon" viewBox="0 0 100 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M30 20 C18 6, 2 12, 2 20 C2 28, 18 34, 30 20 Z" stroke="#1d4ed8" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M70 20 C82 6, 98 12, 98 20 C98 28, 82 34, 70 20 Z" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M30 20 C42 34, 58 6, 70 20" stroke="#0284c7" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M30 20 C42 6, 58 34, 70 20" stroke="#1d4ed8" stroke-width="4.5" stroke-linecap="round"/>
+          </svg>
+          <span class="infinity-text-logo">infinity</span>
+        </div>
+
+        <!-- Giant Center Multiplier Display -->
+        <div class="inf-giant-coeff" id="coefficient">1.00x</div>
+
+        <!-- Canvas for smooth wave/curve + trade overlay -->
+        <canvas id="chart"></canvas>
+
+        <!-- Bottom-left past bets count badge -->
+        <button type="button" class="inf-bets-count-badge" id="historyToggleBtn">
+          <span class="ticket-icon">&#128450;</span>
+          <span id="historyCount">0</span>
+        </button>
+
+        <!-- Bottom-right action menu button -->
+        <button type="button" class="inf-more-btn" id="chartOptionsBtn" aria-label="More Options">&#8226;&#8226;&#8226;</button>
+
+        <!-- Options / Timeframe dropdown modal -->
+        <div class="inf-options-dropdown hidden" id="optionsDropdown">
+          <div class="dropdown-head">Chart Mode</div>
+          <div class="timeframe-buttons-grid">
+            <button type="button" class="chart-type-btn active" id="btnModeLine">Line</button>
+            <button type="button" class="chart-type-btn" id="btnModeCandles">Candles</button>
+          </div>
+          <div class="dropdown-head" style="margin-top: 10px;">Timeframe</div>
+          <div class="timeframe-buttons-grid">
+            <button type="button" class="tf-btn active" data-timeframe="1">1s</button>
+            <button type="button" class="tf-btn" data-timeframe="2">2s</button>
+            <button type="button" class="tf-btn" data-timeframe="3">3s</button>
+            <button type="button" class="tf-btn" data-timeframe="5">5s</button>
+          </div>
+          <div class="dropdown-head" style="margin-top: 10px;">Trade Countdown</div>
+          <div class="duration-buttons-grid">
+            <button type="button" class="dur-btn" data-dur="3">3s</button>
+            <button type="button" class="dur-btn active" data-dur="5">5s</button>
+            <button type="button" class="dur-btn" data-dur="10">10s</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Bottom Controls (Pixel-Matched to Screenshot) -->
+      <footer class="inf-bottom-dock">
+        
+        <!-- Left side: Stepper & Quick Bet Buttons -->
+        <div class="dock-left">
+          <!-- Stepper -->
+          <div class="inf-stepper-box">
+            <button type="button" id="minus" class="inf-step-btn" aria-label="Decrease">&minus;</button>
+            <span id="betDisplay" class="inf-bet-val">6</span>
+            <input id="bet" type="hidden" value="6" />
+            <button type="button" id="plus" class="inf-step-btn" aria-label="Increase">&#43;</button>
+          </div>
+          <!-- Quick row -->
           <div class="inf-quick-row">
-            <button type="button" class="inf-quick" id="allin">ALL IN</button>
-            <button type="button" class="inf-quick" id="x2">x2</button>
-          </div>
-          <div class="inf-trade-actions">
-            <button type="button" class="inf-trade-btn buy" id="buy">BUY</button>
-            <button type="button" class="inf-trade-btn sell" id="sell">SELL</button>
-            <button type="button" class="inf-cashout-btn" id="cashout" disabled>CASHOUT</button>
+            <button type="button" id="allin" class="inf-quick-btn">ALL IN</button>
+            <button type="button" id="x2" class="inf-quick-btn">X2</button>
           </div>
         </div>
 
-        <div class="inf-history-panel" id="history-panel" aria-label="History">
-          <div class="inf-history-head">
-            <span>History</span>
-            <button type="button" class="inf-history-close" id="history-close">Close</button>
+        <!-- Right side: Direction & Place Bet Button -->
+        <div class="dock-right">
+          <!-- Direction selector (BUY / SELL) -->
+          <div class="inf-direction-toggle">
+            <button type="button" id="sideBuyBtn" class="dir-btn buy active">
+              <span>&#9650;</span> BUY
+            </button>
+            <button type="button" id="sideSellBtn" class="dir-btn sell">
+              <span>&#9660;</span> SELL
+            </button>
           </div>
-          <div class="inf-history-list" id="history-bets"></div>
+          <!-- Big Place Bet Button -->
+          <button type="button" id="placeBetBtn" class="inf-place-bet-btn buy-mode">
+            PLACE BET
+          </button>
         </div>
+
+      </footer>
+
+      <!-- History Slide-over Drawer -->
+      <div id="historyDrawer" class="inf-drawer hidden">
+        <div class="drawer-header">
+          <span>Trade History</span>
+          <button type="button" id="closeHistoryBtn" class="drawer-close-btn">&#10005;</button>
+        </div>
+        <div class="drawer-list" id="historyList"></div>
       </div>
+
     </div>
 
+    <!-- Shared Balance Engine -->
     <script src="../shared-balance.js"></script>
+    <!-- Infinity Game Engine -->
     <script src="game.js"></script>
   </body>
 </html>
-

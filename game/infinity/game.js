@@ -1,20 +1,20 @@
 (function () {
+  "use strict";
+
   const STORAGE = "infinity_demo_v1";
-  const START_BALANCE = 1000;
+  const START_BALANCE = 10000;
 
   const MIN_BET = 1;
   const MAX_BET = 1000;
-  const MAX_WIN = 10000;
 
-  const TICK_MS = 80;
-  const MAX_POINTS = 420;
-  const TRAIL_END_RATIO = 0.92;
-  const TIMEFRAMES = [1, 2, 3, 4, 5];
-  const VOLATILITY = 0.18;
-  const DIRECTION_FORCE = 0.03;
+  const TICK_MS = 60;
+  const MAX_POINTS = 380;
+  const TRAIL_END_RATIO = 0.88;
+  const VOLATILITY = 0.20;
+  const DIRECTION_FORCE = 0.035;
 
-  const COEFF_MIN = 1;
-  const COEFF_MAX = 1000;
+  const COEFF_MIN = 1.0;
+  const COEFF_MAX = 1000.0;
 
   const $ = (id) => document.getElementById(id);
 
@@ -23,25 +23,38 @@
   const ctx = canvas.getContext("2d");
 
   const coeffEl = $("coefficient");
-  const balanceEl = $("balance");
-  const clockEl = $("clock");
+  const balanceTextEl = $("balanceText");
 
-  const betEl = $("bet");
-  const buyBtn = $("buy");
-  const sellBtn = $("sell");
-  const cashoutBtn = $("cashout");
+  // My Bets top elements
+  const myBetTimerEl = $("myBetTimer");
+  const myBetStakeEl = $("myBetStake");
+  const myBetXStartEl = $("myBetXStart");
+  const myBetXEndEl = $("myBetXEnd");
+
+  // Controls
+  const betDisplayEl = $("betDisplay");
+  const betHiddenInput = $("bet");
   const minusBtn = $("minus");
   const plusBtn = $("plus");
   const allInBtn = $("allin");
   const x2Btn = $("x2");
+  const sideBuyBtn = $("sideBuyBtn");
+  const sideSellBtn = $("sideSellBtn");
+  const placeBetBtn = $("placeBetBtn");
 
-  const myBetsEl = $("my-bets");
-  const timeframeButtons = Array.from(document.querySelectorAll("[data-timeframe]"));
-  const historyPanel = $("history-panel");
-  const historyToggle = $("history-toggle");
-  const historyClose = $("history-close");
-  const historyList = $("history-bets");
+  // History & Options
+  const historyToggleBtn = $("historyToggleBtn");
+  const historyCountEl = $("historyCount");
+  const historyDrawer = $("historyDrawer");
+  const closeHistoryBtn = $("closeHistoryBtn");
+  const historyListEl = $("historyList");
 
+  const chartOptionsBtn = $("chartOptionsBtn");
+  const optionsDropdown = $("optionsDropdown");
+  const btnModeLine = $("btnModeLine");
+  const btnModeCandles = $("btnModeCandles");
+
+  // State
   let balance = START_BALANCE;
   let currentCoeff = 1.45;
   let logCoeff = Math.log(currentCoeff);
@@ -49,13 +62,18 @@
   let direction = Math.random() < 0.5 ? -1 : 1;
   let directionTime = 1.4 + Math.random() * 2.4;
 
-  let activeBets = [];
+  let currentBet = 6;
+  let selectedSide = "buy"; // "buy" or "sell"
+  let tradeDurationSec = 5.0; // default 5s countdown
+  let chartMode = "line"; // "line" or "candles"
+  let selectedTimeframe = 1;
+
+  let activeTrade = null; // currently active countdown trade
+  let recentTrades = []; // recently finished trades (to show trail "from where to where it went")
   let history = [];
   let nextBetId = 1;
 
   let points = [];
-  let selectedTimeframe = 1;
-  let gameStart = performance.now();
   let lastTick = performance.now();
 
   let cw = 0;
@@ -63,19 +81,23 @@
   let dpr = window.devicePixelRatio || 1;
 
   function money(n) {
-    return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function moneyInt(n) {
+    return Math.floor(n).toLocaleString("en-US").replace(/,/g, " ");
   }
 
   function formatTime(ts) {
     const d = new Date(ts);
-    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
   function load() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE) || "{}");
-      if (typeof raw.balance === "number") balance = raw.balance;
-      if (Array.isArray(raw.history)) history = raw.history.slice(0, 14);
+      if (typeof raw.balance === "number" && raw.balance >= 1) balance = raw.balance;
+      if (Array.isArray(raw.history)) history = raw.history.slice(0, 30);
       if (typeof raw.nextBetId === "number") nextBetId = raw.nextBetId;
     } catch {
       balance = START_BALANCE;
@@ -99,17 +121,17 @@
     );
   }
 
-  function clampBet() {
-    let v = Number(betEl.value);
-    if (!Number.isFinite(v)) v = 10;
-    v = Math.max(MIN_BET, Math.min(MAX_BET, Math.round(v)));
-    betEl.value = String(v);
-    return v;
+  function updateBalanceDisplay() {
+    if (window.HabeshaWallet) {
+      balance = window.HabeshaWallet.get();
+    }
+    if (balanceTextEl) balanceTextEl.textContent = moneyInt(balance);
   }
 
-  function canBetNow() {
-    // Disable at extremes (matching the idea from Infinity rules).
-    return currentCoeff > 1.01 && currentCoeff < 999.2;
+  function setBet(amount) {
+    currentBet = Math.max(MIN_BET, Math.min(MAX_BET, Math.round(amount)));
+    if (betDisplayEl) betDisplayEl.textContent = String(currentBet);
+    if (betHiddenInput) betHiddenInput.value = String(currentBet);
   }
 
   function resizeCanvas() {
@@ -118,8 +140,6 @@
     ch = chartArea.clientHeight;
     canvas.width = Math.max(1, Math.floor(cw * dpr));
     canvas.height = Math.max(1, Math.floor(ch * dpr));
-    canvas.style.width = cw + "px";
-    canvas.style.height = ch + "px";
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
@@ -128,9 +148,69 @@
     if (points.length > MAX_POINTS) points.shift();
   }
 
+  function updateCoeff(dtMs) {
+    const dt = Math.min(150, Math.max(15, dtMs)) / 1000;
+    const ticks = dt * 12;
+
+    directionTime -= dt;
+    if (directionTime <= 0) {
+      direction = Math.random() < 0.5 ? -1 : 1;
+      directionTime = 1.0 + Math.random() * 2.2;
+    }
+
+    velocity += (Math.random() - 0.5) * VOLATILITY * Math.sqrt(ticks);
+    velocity += direction * DIRECTION_FORCE * ticks;
+    velocity *= Math.pow(0.92, ticks);
+    velocity = Math.max(-1.4, Math.min(1.4, velocity));
+
+    logCoeff += velocity * dt * 2.4;
+
+    let c = Math.exp(logCoeff);
+    if (c < COEFF_MIN) {
+      c = COEFF_MIN;
+      logCoeff = Math.log(c);
+      velocity = Math.abs(velocity) * 0.7;
+    } else if (c > COEFF_MAX) {
+      c = COEFF_MAX;
+      logCoeff = Math.log(c);
+      velocity = -Math.abs(velocity) * 0.7;
+    }
+
+    currentCoeff = c;
+  }
+
+  // Non-linear scale mapping for smooth vertical movement
+  function yForCoeff(coeff) {
+    const padTop = 45;
+    const padBottom = 45;
+    // Calculate dynamic local min/max from visible points for better visual zoom
+    let minC = currentCoeff;
+    let maxC = currentCoeff;
+    const len = points.length;
+    const lookback = Math.min(len, 120);
+    for (let i = len - lookback; i < len; i++) {
+      if (points[i]) {
+        if (points[i].coeff < minC) minC = points[i].coeff;
+        if (points[i].coeff > maxC) maxC = points[i].coeff;
+      }
+    }
+    // Add margin
+    minC = Math.max(1.0, minC * 0.85);
+    maxC = maxC * 1.18;
+    if (maxC - minC < 0.8) maxC = minC + 0.8;
+
+    const norm = (coeff - minC) / (maxC - minC);
+    const clamped = Math.max(0, Math.min(1, norm));
+    return padTop + (1 - clamped) * (ch - padTop - padBottom);
+  }
+
+  function xForIndex(i, count = points.length) {
+    if (count <= 1) return (cw * TRAIL_END_RATIO) / 2;
+    return (i / (count - 1)) * cw * TRAIL_END_RATIO;
+  }
+
   function getCandles() {
     if (!points.length) return [];
-
     const intervalMs = selectedTimeframe * 1000;
     const candles = [];
     let candle = null;
@@ -152,337 +232,580 @@
         candle.close = point.coeff;
       }
     }
-
-    return candles.slice(-Math.floor(MAX_POINTS * TICK_MS / 1000 / selectedTimeframe));
+    return candles.slice(-40);
   }
 
-  function updateCoeff(dtMs) {
-    // Log-space motion keeps the curve smooth while allowing large swings.
-    // A persistent direction creates visible rises and falls instead of a flat trail.
-    const dt = Math.min(250, Math.max(20, dtMs)) / 1000;
-    const ticks = dt * 10;
-
-    directionTime -= dt;
-    if (directionTime <= 0) {
-      direction = Math.random() < 0.5 ? -1 : 1;
-      directionTime = 1.2 + Math.random() * 2.8;
-    }
-
-    velocity += (Math.random() - 0.5) * VOLATILITY * Math.sqrt(ticks);
-    velocity += direction * DIRECTION_FORCE * ticks;
-    velocity *= Math.pow(0.92, ticks);
-    velocity = Math.max(-1.25, Math.min(1.25, velocity));
-
-    logCoeff += velocity * dt * 2.3;
-
-    let c = Math.exp(logCoeff);
-    if (c < COEFF_MIN) {
-      c = COEFF_MIN;
-      logCoeff = Math.log(c);
-      velocity = Math.abs(velocity) * 0.65;
-    } else if (c > COEFF_MAX) {
-      c = COEFF_MAX;
-      logCoeff = Math.log(c);
-      velocity = -Math.abs(velocity) * 0.65;
-    }
-
-    currentCoeff = c;
-  }
-
-  function indexByTime(t0, items = points) {
-    let bestIdx = 0;
-    let bestDiff = Infinity;
-    for (let i = 0; i < items.length; i++) {
-      const itemTime = items[i].time ?? items[i].t;
-      const d = Math.abs(itemTime - t0);
-      if (d < bestDiff) {
-        bestDiff = d;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  }
-
-  function yForCoeff(coeff) {
-    const padTop = 34;
-    const padBottom = 52;
-    // Infinity визуально использует нелинейную (лог) шкалу по Y, поэтому прямое линейное маппирование выглядит “плоско”.
-    const safe = Math.max(COEFF_MIN, Math.min(COEFF_MAX, coeff));
-    const logMin = Math.log(COEFF_MIN);
-    const logMax = Math.log(COEFF_MAX);
-    const norm = (Math.log(safe) - logMin) / (logMax - logMin);
-    return padTop + (1 - norm) * (ch - padTop - padBottom);
-  }
-
-  function xForIndex(i, count = points.length) {
-    if (count <= 1) return (cw * TRAIL_END_RATIO) / 2;
-    return (i / (count - 1)) * cw * TRAIL_END_RATIO;
-  }
-
-  function traceChartLine(ctx2) {
-    const first = points[0];
-    ctx2.moveTo(xForIndex(0), yForCoeff(first.coeff));
-
-    for (let i = 1; i < points.length; i++) {
-      const previous = points[i - 1];
-      const current = points[i];
-      const previousX = xForIndex(i - 1);
-      const previousY = yForCoeff(previous.coeff);
-      const currentX = xForIndex(i);
-      const currentY = yForCoeff(current.coeff);
-      const midpointX = (previousX + currentX) / 2;
-      const midpointY = (previousY + currentY) / 2;
-
-      ctx2.quadraticCurveTo(previousX, previousY, midpointX, midpointY);
-    }
-
-    const last = points[points.length - 1];
-    ctx2.lineTo(xForIndex(points.length - 1), yForCoeff(last.coeff));
-  }
-
+  // --- Chart Drawing ---
   function drawChart() {
     ctx.clearRect(0, 0, cw, ch);
 
+    if (points.length < 2) return;
+
+    if (chartMode === "candles") {
+      drawCandles();
+    } else {
+      drawLineWave();
+    }
+
+    // Draw active trade & recent trades overlay ("from where to where it went")
+    drawTradesOverlay();
+  }
+
+  function drawLineWave() {
+    const len = points.length;
+
+    // 1. Draw glowing wave path
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(xForIndex(0), yForCoeff(points[0].coeff));
+
+    for (let i = 1; i < len; i++) {
+      const prevX = xForIndex(i - 1);
+      const prevY = yForCoeff(points[i - 1].coeff);
+      const curX = xForIndex(i);
+      const curY = yForCoeff(points[i].coeff);
+      const midX = (prevX + curX) / 2;
+      const midY = (prevY + curY) / 2;
+      ctx.quadraticCurveTo(prevX, prevY, midX, midY);
+    }
+    const lastX = xForIndex(len - 1);
+    const lastY = yForCoeff(points[len - 1].coeff);
+    ctx.lineTo(lastX, lastY);
+
+    // Glowing stroke
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3.2;
+    ctx.shadowColor = "rgba(56, 189, 248, 0.75)";
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+
+    // 2. Translucent gradient fill beneath the wave
+    ctx.lineTo(lastX, ch);
+    ctx.lineTo(xForIndex(0), ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, ch);
+    grad.addColorStop(0, "rgba(14, 165, 233, 0.22)");
+    grad.addColorStop(1, "rgba(2, 7, 19, 0)");
+    ctx.fillStyle = grad;
+    ctx.shadowBlur = 0;
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Current price head dot
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "#38bdf8";
+    ctx.shadowBlur = 14;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCandles() {
     const candles = getCandles();
     if (!candles.length) return;
-
-    const candleWidth = Math.max(4, Math.min(18, (cw * TRAIL_END_RATIO) / Math.max(1, candles.length) * 0.62));
+    const candleWidth = Math.max(5, Math.min(16, (cw * TRAIL_END_RATIO) / Math.max(1, candles.length) * 0.65));
 
     for (let i = 0; i < candles.length; i++) {
-      const candle = candles[i];
-      const x = xForIndex(i, candles.length);
-      const bodyTop = yForCoeff(Math.max(candle.open, candle.close));
-      const bodyBottom = yForCoeff(Math.min(candle.open, candle.close));
+      const c = candles[i];
+      const x = (i / (candles.length - 1 || 1)) * cw * TRAIL_END_RATIO;
+      const bodyTop = yForCoeff(Math.max(c.open, c.close));
+      const bodyBottom = yForCoeff(Math.min(c.open, c.close));
       const bodyHeight = Math.max(2, bodyBottom - bodyTop);
-      const wickTop = yForCoeff(candle.high);
-      const wickBottom = yForCoeff(candle.low);
-      const rising = candle.close >= candle.open;
-      const color = rising ? "#24d77b" : "#ff526b";
+      const wickTop = yForCoeff(c.high);
+      const wickBottom = yForCoeff(c.low);
+      const rising = c.close >= c.open;
+      const color = rising ? "#22c55e" : "#ef4444";
 
       ctx.save();
-      ctx.shadowColor = rising ? "rgba(36, 215, 123, 0.38)" : "rgba(255, 82, 107, 0.38)";
-      ctx.shadowBlur = 9;
       ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(1.2, candleWidth * 0.12);
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(x, wickTop);
       ctx.lineTo(x, wickBottom);
       ctx.stroke();
+
       ctx.fillStyle = color;
       ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
       ctx.restore();
     }
+  }
 
-    // Active position markers: direction-colored dot + entry label.
-    for (const position of activeBets) {
-      const idx = indexByTime(position.startTime, candles);
-      const x = xForIndex(idx, candles.length);
-      const y = yForCoeff(position.startCoeff);
-      const color = position.side === "buy" ? "#24d77b" : "#ff526b";
+  // --- Trade Markers & Overlay ---
+  // Exactly matching screenshot:
+  // - Start Dot
+  // - Vertical bar/arrow
+  // - Floating countdown badge (e.g. 0.8s)
+  // - Horizontal dashed line to current/end point
+  // - End circle with vertical drop column
+  // - Winning trade in GREEN, Losing trade in RED!
+  function drawTradesOverlay() {
+    const now = performance.now();
 
-      ctx.beginPath();
-      ctx.arc(x, y, 4.2, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
+    // Combine active trade + recent trades (for display of path from where to where it went)
+    const displayTrades = [];
+    if (activeTrade) displayTrades.push(activeTrade);
+    recentTrades.forEach(t => {
+      if (now - t.finishedAt < 7000) { // keep visible for 7 seconds
+        displayTrades.push(t);
+      }
+    });
 
-      const text = `${position.side.toUpperCase()} ${position.startCoeff.toFixed(2)}x`;
-      ctx.font = "800 14px Segoe UI, Arial, sans-serif";
-      const tw = ctx.measureText(text).width;
-      const bx = x - tw / 2 - 10;
-      const by = y - 34;
-      const bw = tw + 20;
-      const bh = 22;
+    displayTrades.forEach(trade => {
+      drawSingleTrade(trade, now);
+    });
+  }
 
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      roundRect(ctx, bx, by, bw, bh, 10);
-      ctx.fill();
-      ctx.stroke();
+  function drawSingleTrade(trade, now) {
+    const len = points.length;
+    if (len < 2) return;
 
-      ctx.fillStyle = "rgba(245, 252, 255, 0.98)";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, x - tw / 2, by + bh / 2 + 0.5);
+    // Determine current/end coordinates
+    const startIdx = Math.max(0, len - 1 - Math.floor((now - trade.startTime) / TICK_MS));
+    const startX = xForIndex(Math.min(len - 2, startIdx));
+    const startY = yForCoeff(trade.startCoeff);
+
+    const isRunning = trade.status === "active";
+    let endX, endY, isWinning;
+
+    if (isRunning) {
+      endX = xForIndex(len - 1);
+      endY = yForCoeff(currentCoeff);
+      isWinning = trade.side === "buy" ? (currentCoeff >= trade.startCoeff) : (currentCoeff <= trade.startCoeff);
+    } else {
+      const elapsedEnd = Math.max(0, Math.floor((now - trade.endTime) / TICK_MS));
+      const endPointIdx = Math.min(len - 1, Math.max(startIdx + 1, len - 1 - elapsedEnd));
+      endX = xForIndex(endPointIdx);
+      endY = yForCoeff(trade.endCoeff);
+      isWinning = trade.status === "won";
     }
+
+    // Trade Colors: WIN = Green (#22c55e), LOSS = Red (#ef4444)
+    const colorMain = isWinning ? "#22c55e" : "#ef4444";
+    const colorBg = isWinning ? "rgba(34, 197, 94, 0.18)" : "rgba(239, 68, 68, 0.18)";
+
+    ctx.save();
+
+    // 1. Translucent Vertical Drop Column at Current/End Point (as in screenshot)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.fillRect(endX - 10, endY, 20, ch - endY);
+
+    // 2. Horizontal Dashed Reference Line from start to end (as in screenshot)
+    ctx.beginPath();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = colorMain;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = colorMain;
+    ctx.shadowBlur = 8;
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, startY);
+    ctx.stroke();
+    ctx.setLineDash([]); // reset dash
+
+    // 3. Vertical Connection Line to end price ("from where to where it went")
+    ctx.beginPath();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = isWinning ? "rgba(34, 197, 94, 0.7)" : "rgba(239, 68, 68, 0.7)";
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(endX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 4. Start Point: Solid Dot at Entry (as in screenshot)
+    ctx.beginPath();
+    ctx.arc(startX, startY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = colorMain;
+    ctx.shadowColor = colorMain;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+
+    // 5. Vertical Indicator Bar / Arrow at Entry Point (as in screenshot)
+    // Points UP for BUY, DOWN for SELL
+    const isBuy = trade.side === "buy";
+    const arrowHeight = 36;
+    const arrowDir = isBuy ? -1 : 1; // negative = up
+    const arrowTipY = startY + arrowDir * arrowHeight;
+
+    // Gradient bar
+    const barGrad = ctx.createLinearGradient(startX, startY, startX, arrowTipY);
+    barGrad.addColorStop(0, colorMain);
+    barGrad.addColorStop(1, "rgba(255, 255, 255, 0.8)");
+
+    ctx.fillStyle = barGrad;
+    ctx.beginPath();
+    ctx.roundRect(startX - 4, isBuy ? arrowTipY : startY, 8, arrowHeight, 4);
+    ctx.fill();
+
+    // Arrowhead at tip
+    ctx.beginPath();
+    if (isBuy) {
+      ctx.moveTo(startX, arrowTipY - 6);
+      ctx.lineTo(startX - 6, arrowTipY + 2);
+      ctx.lineTo(startX + 6, arrowTipY + 2);
+    } else {
+      ctx.moveTo(startX, arrowTipY + 6);
+      ctx.lineTo(startX - 6, arrowTipY - 2);
+      ctx.lineTo(startX + 6, arrowTipY - 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = colorMain;
+    ctx.fill();
+
+    // 6. Floating Badge above arrow (Countdown or Result badge)
+    let badgeText = "";
+    if (isRunning) {
+      const remainingSec = Math.max(0, (trade.endTime - now) / 1000);
+      badgeText = remainingSec.toFixed(1) + "s";
+    } else {
+      badgeText = trade.status === "won" ? `WIN +${money(trade.profit)}` : `LOSS -${money(trade.stake)}`;
+    }
+
+    ctx.font = "800 12px 'DM Sans', sans-serif";
+    const textWidth = ctx.measureText(badgeText).width;
+    const badgeW = textWidth + 14;
+    const badgeH = 22;
+    const badgeX = startX - badgeW / 2;
+    const badgeY = isBuy ? (arrowTipY - 32) : (arrowTipY + 12);
+
+    // Badge Background & Border
+    ctx.fillStyle = "rgba(4, 11, 24, 0.9)";
+    ctx.strokeStyle = colorMain;
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = colorMain;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 11);
+    ctx.fill();
+    ctx.stroke();
+
+    // Badge Text
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(badgeText, startX, badgeY + badgeH / 2);
+
+    // 7. End Point: Glowing Circle Dot on the Price Wave
+    ctx.beginPath();
+    ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = colorMain;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = colorMain;
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
   }
 
-  function roundRect(ctx2, x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    ctx2.beginPath();
-    ctx2.moveTo(x + rr, y);
-    ctx2.arcTo(x + w, y, x + w, y + h, rr);
-    ctx2.arcTo(x + w, y + h, x, y + h, rr);
-    ctx2.arcTo(x, y + h, x, y, rr);
-    ctx2.arcTo(x, y, x + w, y, rr);
-    ctx2.closePath();
-  }
+  // --- Trade Execution & Resolution ---
+  function placeTrade() {
+    if (activeTrade) return;
 
-  function positionProfit(position) {
-    const move = currentCoeff - position.startCoeff;
-    const direction = position.side === "buy" ? 1 : -1;
-    return Math.max(-position.stake, Math.min(MAX_WIN, position.stake * direction * move));
-  }
-
-  function renderMyBets() {
-    myBetsEl.replaceChildren();
-    if (!activeBets.length) {
-      const empty = document.createElement("div");
-      empty.className = "inf-bet-row empty-position";
-      empty.innerHTML = '<span>--</span><span>--</span><span>--</span><span>--</span><span class="pill pending">No position</span>';
-      myBetsEl.appendChild(empty);
+    const stake = currentBet;
+    if (stake > balance) {
+      alert("Insufficient balance to place bet!");
       return;
     }
 
-    for (const position of activeBets) {
-      const profit = positionProfit(position);
-      const profitClass = profit >= 0 ? "win" : "lose";
-      const sideClass = position.side === "buy" ? "buy-text" : "sell-text";
-      const row = document.createElement("div");
-      row.className = "inf-bet-row";
-      row.innerHTML = `
-        <span class="${sideClass}">${position.side.toUpperCase()}</span>
-        <span>${money(position.stake)}</span>
-        <span>${position.startCoeff.toFixed(2)}x</span>
-        <span class="pill ${profitClass}">${profit >= 0 ? "+" : "-"}${money(Math.abs(profit))}</span>
-        <span class="pill pending">LIVE</span>
-      `;
-      myBetsEl.appendChild(row);
-    }
-  }
-
-  function renderHistory() {
-    historyList.replaceChildren();
-    for (const h of history.slice(0, 10)) {
-      const item = document.createElement("div");
-      item.className = "inf-history-item";
-      item.innerHTML = `
-        <span>${h.side ? h.side.toUpperCase() : "POSITION"} ${money(h.stake)} Birr (${h.startCoeff.toFixed(2)}x)</span>
-        <span class="res ${h.result}">${h.payout >= 0 ? "+" : "-"}${money(Math.abs(h.payout))} Birr</span>
-      `;
-      historyList.appendChild(item);
-    }
-  }
-
-  function renderAll() {
-    balanceEl.textContent = money(balance);
-    coeffEl.textContent = currentCoeff.toFixed(2) + "x";
-    const amount = clampBet();
-    const canOpen = !activeBets.length && canBetNow() && amount <= balance;
-    buyBtn.disabled = !canOpen;
-    sellBtn.disabled = !canOpen;
-    cashoutBtn.disabled = !activeBets.length;
-    renderMyBets();
-    renderHistory();
-  }
-
-  function openPosition(side) {
-    const stake = clampBet();
-    if (activeBets.length || stake > balance || !canBetNow()) return;
-
+    // Deduct stake
     balance -= stake;
-    activeBets = [{
+    save();
+    updateBalanceDisplay();
+
+    const now = performance.now();
+    activeTrade = {
       id: nextBetId++,
-      side,
-      stake,
+      side: selectedSide,
+      stake: stake,
       startCoeff: currentCoeff,
-      startTime: performance.now(),
-    }];
-    save();
-    renderAll();
+      startTime: now,
+      durationSec: tradeDurationSec,
+      endTime: now + tradeDurationSec * 1000,
+      status: "active",
+      endCoeff: null,
+      profit: 0
+    };
+
+    // Update My Bets top UI
+    updateMyBetsTopBar();
+    updateButtonsState();
   }
 
-  function cashout() {
-    if (!activeBets.length) return;
+  function checkTradeCountdown(now) {
+    if (!activeTrade) return;
 
-    const position = activeBets[0];
-    const profit = positionProfit(position);
-    const returned = Math.max(0, position.stake + profit);
-    balance += returned;
+    if (now >= activeTrade.endTime) {
+      resolveTrade(activeTrade);
+    } else {
+      updateMyBetsTopBar();
+    }
+  }
+
+  function resolveTrade(trade) {
+    trade.endCoeff = currentCoeff;
+    const isWon = trade.side === "buy" ? (trade.endCoeff > trade.startCoeff) : (trade.endCoeff < trade.startCoeff);
+
+    trade.finishedAt = performance.now();
+
+    if (isWon) {
+      // Standard binary payout: 1.95x stake (stake + 95% profit)
+      const payout = Math.round(trade.stake * 1.95 * 100) / 100;
+      const profit = Math.round((payout - trade.stake) * 100) / 100;
+      balance += payout;
+      trade.status = "won";
+      trade.payout = payout;
+      trade.profit = profit;
+    } else {
+      trade.status = "lost";
+      trade.payout = 0;
+      trade.profit = -trade.stake;
+    }
+
+    save();
+    updateBalanceDisplay();
+
+    // Push to recent trades to keep visual path on screen
+    recentTrades.unshift(trade);
+    if (recentTrades.length > 5) recentTrades.pop();
+
+    // Record into history
     history.unshift({
-      id: position.id,
-      side: position.side,
-      stake: position.stake,
-      startCoeff: position.startCoeff,
-      endCoeff: currentCoeff,
-      payout: profit,
-      result: profit >= 0 ? "win" : "lose",
+      id: trade.id,
+      side: trade.side,
+      stake: trade.stake,
+      startCoeff: trade.startCoeff,
+      endCoeff: trade.endCoeff,
+      profit: trade.profit,
+      status: trade.status,
+      time: Date.now()
     });
-    activeBets = [];
-    if (history.length > 30) history.length = 30;
+    if (history.length > 40) history.pop();
     save();
-    renderAll();
+
+    // Update history badge count
+    if (historyCountEl) historyCountEl.textContent = String(history.length);
+    renderHistoryDrawer();
+
+    // Update My Bets display to show result
+    activeTrade = null;
+    showFinishedTradeInMyBets(trade);
+    updateButtonsState();
   }
 
-  function updateClock() {
-    clockEl.textContent = formatTime(Date.now());
+  function updateMyBetsTopBar() {
+    if (!activeTrade) return;
+
+    const now = performance.now();
+    const remaining = Math.max(0, (activeTrade.endTime - now) / 1000);
+
+    if (myBetTimerEl) {
+      myBetTimerEl.innerHTML = `<span class="timer-badge active">(${remaining.toFixed(1)})</span>`;
+    }
+    if (myBetStakeEl) {
+      myBetStakeEl.textContent = String(activeTrade.stake);
+    }
+    if (myBetXStartEl) {
+      myBetXStartEl.textContent = activeTrade.startCoeff.toFixed(2) + "x";
+    }
+    if (myBetXEndEl) {
+      myBetXEndEl.textContent = "-";
+      myBetXEndEl.className = "mb-td";
+    }
   }
 
+  function showFinishedTradeInMyBets(trade) {
+    if (myBetTimerEl) {
+      const isWon = trade.status === "won";
+      const sign = isWon ? "+" : "";
+      myBetTimerEl.innerHTML = `<span class="timer-badge ${isWon ? 'win' : 'lose'}">${isWon ? 'WIN' : 'LOSS'} (${sign}${money(trade.profit)})</span>`;
+    }
+    if (myBetStakeEl) {
+      myBetStakeEl.textContent = String(trade.stake);
+    }
+    if (myBetXStartEl) {
+      myBetXStartEl.textContent = trade.startCoeff.toFixed(2) + "x";
+    }
+    if (myBetXEndEl) {
+      const isWon = trade.status === "won";
+      myBetXEndEl.textContent = trade.endCoeff.toFixed(2) + "x";
+      myBetXEndEl.className = "mb-td " + (isWon ? "win" : "lose");
+    }
+  }
+
+  function updateButtonsState() {
+    const isBusy = activeTrade !== null;
+    if (placeBetBtn) {
+      placeBetBtn.disabled = isBusy;
+      if (isBusy) {
+        placeBetBtn.textContent = "IN TRADE...";
+      } else {
+        placeBetBtn.textContent = "PLACE BET";
+      }
+    }
+  }
+
+  function renderHistoryDrawer() {
+    if (!historyListEl) return;
+    historyListEl.innerHTML = "";
+
+    if (!history.length) {
+      historyListEl.innerHTML = "<div style='color:#64748b; text-align:center; padding:20px;'>No trades recorded yet</div>";
+      return;
+    }
+
+    history.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "history-item-row";
+
+      const isWon = item.status === "won";
+      const sign = isWon ? "+" : "";
+
+      row.innerHTML = `
+        <div class="history-left">
+          <span class="history-side-tag ${item.side}">${item.side.toUpperCase()} ${money(item.stake)} ETB</span>
+          <span class="history-coords">${item.startCoeff.toFixed(2)}x &rarr; ${item.endCoeff.toFixed(2)}x</span>
+        </div>
+        <div class="history-right">
+          <span class="history-payout ${isWon ? 'win' : 'lose'}">${sign}${money(item.profit)} ETB</span>
+          <span style="font-size:10px; color:#64748b;">${formatTime(item.time)}</span>
+        </div>
+      `;
+      historyListEl.appendChild(row);
+    });
+  }
+
+  // --- Bindings ---
   function bind() {
-    timeframeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const requestedTimeframe = Number(button.dataset.timeframe);
-        if (!TIMEFRAMES.includes(requestedTimeframe)) return;
-        selectedTimeframe = requestedTimeframe;
-        timeframeButtons.forEach((item) => {
-          const active = item === button;
-          item.classList.toggle("active", active);
-          item.setAttribute("aria-pressed", String(active));
-        });
-        drawChart();
+    // Minus / Plus Stepper
+    if (minusBtn) {
+      minusBtn.addEventListener("click", () => {
+        setBet(currentBet - 1);
+      });
+    }
+    if (plusBtn) {
+      plusBtn.addEventListener("click", () => {
+        setBet(currentBet + 1);
+      });
+    }
+
+    // ALL IN / X2
+    if (allInBtn) {
+      allInBtn.addEventListener("click", () => {
+        setBet(balance);
+      });
+    }
+    if (x2Btn) {
+      x2Btn.addEventListener("click", () => {
+        setBet(currentBet * 2);
+      });
+    }
+
+    // Direction Toggle (BUY / SELL)
+    if (sideBuyBtn) {
+      sideBuyBtn.addEventListener("click", () => {
+        selectedSide = "buy";
+        sideBuyBtn.classList.add("active");
+        sideSellBtn.classList.remove("active");
+        placeBetBtn.className = "inf-place-bet-btn buy-mode";
+      });
+    }
+    if (sideSellBtn) {
+      sideSellBtn.addEventListener("click", () => {
+        selectedSide = "sell";
+        sideSellBtn.classList.add("active");
+        sideBuyBtn.classList.remove("active");
+        placeBetBtn.className = "inf-place-bet-btn sell-mode";
+      });
+    }
+
+    // Place Bet Button
+    if (placeBetBtn) {
+      placeBetBtn.addEventListener("click", placeTrade);
+    }
+
+    // History Toggle & Close
+    if (historyToggleBtn) {
+      historyToggleBtn.addEventListener("click", () => {
+        historyDrawer.classList.toggle("hidden");
+        renderHistoryDrawer();
+      });
+    }
+    if (closeHistoryBtn) {
+      closeHistoryBtn.addEventListener("click", () => {
+        historyDrawer.classList.add("hidden");
+      });
+    }
+
+    // Options dropdown
+    if (chartOptionsBtn) {
+      chartOptionsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        optionsDropdown.classList.toggle("hidden");
+      });
+    }
+    document.addEventListener("click", (e) => {
+      if (optionsDropdown && !optionsDropdown.contains(e.target) && e.target !== chartOptionsBtn) {
+        optionsDropdown.classList.add("hidden");
+      }
+    });
+
+    // Chart type buttons (Line / Candles)
+    if (btnModeLine) {
+      btnModeLine.addEventListener("click", () => {
+        chartMode = "line";
+        btnModeLine.classList.add("active");
+        btnModeCandles.classList.remove("active");
+        optionsDropdown.classList.add("hidden");
+      });
+    }
+    if (btnModeCandles) {
+      btnModeCandles.addEventListener("click", () => {
+        chartMode = "candles";
+        btnModeCandles.classList.add("active");
+        btnModeLine.classList.remove("active");
+        optionsDropdown.classList.add("hidden");
+      });
+    }
+
+    // Timeframe buttons
+    document.querySelectorAll("[data-timeframe]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-timeframe]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedTimeframe = Number(btn.dataset.timeframe) || 1;
+        optionsDropdown.classList.add("hidden");
       });
     });
 
-    minusBtn.addEventListener("click", () => {
-      betEl.value = String(Math.max(MIN_BET, clampBet() - 1));
-      renderAll();
+    // Duration buttons (3s, 5s, 10s)
+    document.querySelectorAll("[data-dur]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-dur]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        tradeDurationSec = Number(btn.dataset.dur) || 5;
+        optionsDropdown.classList.add("hidden");
+      });
     });
-    plusBtn.addEventListener("click", () => {
-      betEl.value = String(Math.min(MAX_BET, clampBet() + 1));
-      renderAll();
-    });
-
-    betEl.addEventListener("change", () => renderAll());
-
-    allInBtn.addEventListener("click", () => {
-      const v = Math.floor(balance);
-      betEl.value = String(Math.max(MIN_BET, Math.min(MAX_BET, v)));
-      renderAll();
-    });
-
-    x2Btn.addEventListener("click", () => {
-      const v = Math.min(MAX_BET, clampBet() * 2);
-      betEl.value = String(Math.max(MIN_BET, v));
-      renderAll();
-    });
-
-    buyBtn.addEventListener("click", () => openPosition("buy"));
-    sellBtn.addEventListener("click", () => openPosition("sell"));
-    cashoutBtn.addEventListener("click", cashout);
-
-    historyToggle.addEventListener("click", () => {
-      historyPanel.classList.toggle("open");
-      if (historyPanel.classList.contains("open")) renderHistory();
-    });
-    historyClose.addEventListener("click", () => historyPanel.classList.remove("open"));
 
     window.addEventListener("resize", () => {
       resizeCanvas();
-      renderAll();
+      drawChart();
     });
   }
 
   function seedPoints() {
-    // Fill so the first draw looks continuous.
     const now = performance.now();
     points = [];
-    let t = now - 120 * TICK_MS;
+    let t = now - 180 * TICK_MS;
     for (let i = 0; i < MAX_POINTS; i++) {
       updateCoeff(TICK_MS);
-      currentCoeff = Math.min(COEFF_MAX, Math.max(COEFF_MIN, currentCoeff));
       pushPoint(t);
       t += TICK_MS;
     }
-    points = points.slice(-MAX_POINTS);
   }
 
   function tick(now) {
@@ -491,27 +814,32 @@
       lastTick = now;
       updateCoeff(dt);
       pushPoint(now);
-      renderAll();
+
+      if (coeffEl) {
+        coeffEl.textContent = currentCoeff.toFixed(2) + "x";
+      }
+
+      checkTradeCountdown(now);
       drawChart();
     }
     requestAnimationFrame(tick);
   }
 
+  // --- Initialize ---
   load();
-  betEl.value = String(Math.min(MAX_BET, Math.max(MIN_BET, Number(betEl.value) || 10)));
+  setBet(6);
+  updateBalanceDisplay();
+  if (historyCountEl) historyCountEl.textContent = String(history.length);
   resizeCanvas();
   seedPoints();
   bind();
-  updateClock();
-  setInterval(updateClock, 1000);
-  renderAll();
+
   if (window.HabeshaWallet) {
     window.HabeshaWallet.subscribe((newBal) => {
       balance = newBal;
-      renderAll();
+      updateBalanceDisplay();
     });
   }
-  drawChart();
+
   requestAnimationFrame(tick);
 })();
-
