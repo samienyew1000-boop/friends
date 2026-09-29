@@ -131,6 +131,82 @@
 
     </footer>
 
+    <!-- Auto Bet Settings Modal (as in reference image) -->
+    <div id="autoBetModal" class="bs-modal-backdrop hidden">
+      <div class="bs-modal-card autobet-card">
+        
+        <div class="autobet-header">
+          <div class="autobet-title">AUTO BET</div>
+          <button id="closeAutoBetBtn" class="autobet-close-btn" aria-label="Close">&#10005;</button>
+        </div>
+
+        <!-- 1. Rounds -->
+        <div class="autobet-section">
+          <label class="autobet-label">Rounds</label>
+          <div class="autobet-options-row" id="autoRoundsRow">
+            <button type="button" class="autobet-pill-btn active" data-rounds="10">10</button>
+            <button type="button" class="autobet-pill-btn" data-rounds="25">25</button>
+            <button type="button" class="autobet-pill-btn" data-rounds="50">50</button>
+            <button type="button" class="autobet-pill-btn" data-rounds="75">75</button>
+            <button type="button" class="autobet-pill-btn" data-rounds="100">100</button>
+          </div>
+        </div>
+
+        <!-- 2. Bet Amount & Number of Tickets -->
+        <div class="autobet-split-row">
+          <div class="autobet-col">
+            <label class="autobet-label">Bet Amount</label>
+            <div class="autobet-stepper">
+              <button type="button" id="autoBetMinus" class="autobet-step-btn">&minus;</button>
+              <span id="autoBetValDisplay" class="autobet-step-val">6</span>
+              <button type="button" id="autoBetPlus" class="autobet-step-btn">&#43;</button>
+            </div>
+          </div>
+          <div class="autobet-col">
+            <label class="autobet-label">Number Of Tickets</label>
+            <div class="autobet-tickets-row" id="autoTicketsRow">
+              <button type="button" class="autobet-sq-btn" data-tickets="1">1</button>
+              <button type="button" class="autobet-sq-btn" data-tickets="2">2</button>
+              <button type="button" class="autobet-sq-btn" data-tickets="3">3</button>
+              <button type="button" class="autobet-sq-btn active" data-tickets="4">4</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Toggles -->
+        <div class="autobet-toggle-row">
+          <span class="autobet-toggle-text">Buy Extra Ball</span>
+          <label class="bs-switch">
+            <input type="checkbox" id="autoBuyExtraToggle" />
+            <span class="bs-slider"></span>
+          </label>
+        </div>
+
+        <div class="autobet-toggle-row">
+          <span class="autobet-toggle-text">Turbo Mode</span>
+          <label class="bs-switch">
+            <input type="checkbox" id="autoTurboToggle" />
+            <span class="bs-slider"></span>
+          </label>
+        </div>
+
+        <!-- 4. Loss Limit -->
+        <div class="autobet-limit-row">
+          <label class="autobet-label no-mb">Loss Limit</label>
+          <div class="autobet-input-box">
+            <input type="number" id="autoLossLimitInput" value="240" min="1" step="1" />
+          </div>
+        </div>
+
+        <!-- 5. Actions -->
+        <div class="autobet-actions-row">
+          <button type="button" id="cancelAutoBetBtn" class="autobet-btn-cancel">CANCEL</button>
+          <button type="button" id="startAutoBetBtn" class="autobet-btn-start">START</button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Bonus Star Modal -->
     <div id="bonusModal" class="bs-modal-backdrop hidden">
       <div class="bs-modal-card">

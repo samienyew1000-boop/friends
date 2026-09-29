@@ -92,6 +92,18 @@ let isAutoBet = false;
 let isBusy = false;
 let roundId = 1473481140 + Math.floor(Math.random() * 8000);
 
+// Auto Bet Settings & State (as shown in modal)
+let autoSettings = {
+  rounds: 10,
+  roundsLeft: 0,
+  betAmount: 6,
+  ticketCount: 4,
+  buyExtra: false,
+  turbo: false,
+  lossLimit: 240,
+  sessionStartBalance: 0
+};
+
 // Tickets State (4 tickets)
 let tickets = [
   { id: 0, active: true, numbers: [] },
@@ -717,6 +729,20 @@ function enterExtraBallsMode() {
   if (roundWonAmount > 0) {
     sfxWin();
   }
+
+  // If in Auto Bet mode, check if player wants automatic extra balls
+  if (isAutoBet) {
+    const netLoss = (autoSettings.sessionStartBalance - balance) + currentExtraCost;
+    if (autoSettings.buyExtra && balance >= currentExtraCost && netLoss <= autoSettings.lossLimit) {
+      setTimeout(() => {
+        if (isAutoBet && extraBallsAvailable) drawExtraBall();
+      }, isTurbo ? 250 : 600);
+    } else {
+      setTimeout(() => {
+        if (isAutoBet && extraBallsAvailable) concludeRound();
+      }, isTurbo ? 250 : 600);
+    }
+  }
 }
 
 async function drawExtraBall() {
@@ -766,6 +792,19 @@ async function drawExtraBall() {
     if ($("extraCostVal")) $("extraCostVal").textContent = String(currentExtraCost);
     if ($("extraBallBtn")) $("extraBallBtn").textContent = `EXTRA (${currentExtraCost})`;
     isBusy = false;
+
+    if (isAutoBet) {
+      const netLoss = (autoSettings.sessionStartBalance - balance) + currentExtraCost;
+      if (autoSettings.buyExtra && balance >= currentExtraCost && netLoss <= autoSettings.lossLimit && extrasDrawnCount < MAX_EXTRA_BALLS) {
+        setTimeout(() => {
+          if (isAutoBet && extraBallsAvailable) drawExtraBall();
+        }, isTurbo ? 250 : 600);
+      } else {
+        setTimeout(() => {
+          if (isAutoBet && extraBallsAvailable) concludeRound();
+        }, isTurbo ? 250 : 600);
+      }
+    }
   }
 }
 
@@ -802,11 +841,26 @@ function concludeRound() {
 
   // Handle Auto Bet continuation
   if (isAutoBet) {
-    setTimeout(() => {
-      if (isAutoBet && !isBusy) {
-        startRound();
-      }
-    }, isTurbo ? 600 : 1500);
+    autoSettings.roundsLeft--;
+    updateAutoBetButtonUI();
+
+    const netLoss = autoSettings.sessionStartBalance - balance;
+
+    if (autoSettings.roundsLeft <= 0) {
+      stopAutoBet("Auto Bet session completed.");
+    } else if (netLoss >= autoSettings.lossLimit) {
+      stopAutoBet(`Loss limit reached (${autoSettings.lossLimit} ETB).`);
+      alert(`Auto Bet stopped: Loss limit reached (${fmt(netLoss)} ETB).`);
+    } else if (balance < getTotalBet()) {
+      stopAutoBet("Insufficient balance for next auto round.");
+      alert("Auto Bet stopped: Insufficient balance.");
+    } else {
+      setTimeout(() => {
+        if (isAutoBet && !isBusy) {
+          startRound();
+        }
+      }, isTurbo ? 450 : 1200);
+    }
   }
 }
 
@@ -898,15 +952,123 @@ function toggleTurbo() {
   if (btn) btn.classList.toggle("active", isTurbo);
 }
 
-function toggleAutoBet() {
-  isAutoBet = !isAutoBet;
-  const btn = $("autoBetBtn");
-  if (btn) {
-    btn.textContent = isAutoBet ? "STOP AUTO" : "AUTO BET";
-    btn.style.background = isAutoBet ? "linear-gradient(180deg, #ef4444 0%, #b91c1c 100%)" : "";
+// --- Auto Bet Modal & Controller ---
+function onAutoBetDockClicked() {
+  if (isAutoBet) {
+    stopAutoBet("Auto Bet stopped by player.");
+  } else {
+    openAutoBetModal();
   }
-  if (isAutoBet && !isBusy) {
+}
+
+function openAutoBetModal() {
+  const modal = $("autoBetModal");
+  if (!modal) return;
+
+  // Initialize with current game settings
+  autoSettings.betAmount = getBetPerTicket();
+  autoSettings.ticketCount = getActiveTicketCount();
+  autoSettings.turbo = isTurbo;
+
+  const valDisplay = $("autoBetValDisplay");
+  if (valDisplay) valDisplay.textContent = String(autoSettings.betAmount);
+
+  // Sync ticket count selection
+  document.querySelectorAll("#autoTicketsRow .autobet-sq-btn").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.tickets) === autoSettings.ticketCount);
+  });
+
+  // Sync rounds selection
+  document.querySelectorAll("#autoRoundsRow .autobet-pill-btn").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.rounds) === autoSettings.rounds);
+  });
+
+  // Sync toggles
+  const extraToggle = $("autoBuyExtraToggle");
+  if (extraToggle) extraToggle.checked = autoSettings.buyExtra;
+
+  const turboToggle = $("autoTurboToggle");
+  if (turboToggle) turboToggle.checked = autoSettings.turbo;
+
+  // Sync loss limit default
+  updateAutoLossLimitDefault();
+
+  modal.classList.remove("hidden");
+}
+
+function closeAutoBetModal() {
+  const modal = $("autoBetModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function updateAutoLossLimitDefault() {
+  const totalStakePerRound = autoSettings.betAmount * autoSettings.ticketCount;
+  autoSettings.lossLimit = totalStakePerRound * autoSettings.rounds;
+  const input = $("autoLossLimitInput");
+  if (input) input.value = String(autoSettings.lossLimit);
+}
+
+function startAutoBetSession() {
+  closeAutoBetModal();
+
+  // 1. Apply bet to main game
+  const betIdx = BET_STEPS.indexOf(autoSettings.betAmount);
+  if (betIdx !== -1) {
+    betStepIdx = betIdx;
+  }
+
+  // 2. Apply tickets count to main game (activate first N tickets)
+  tickets.forEach((t, i) => {
+    t.active = i < autoSettings.ticketCount;
+  });
+  updateBetDisplays();
+  renderTickets();
+
+  // 3. Apply turbo toggle
+  const turboToggle = $("autoTurboToggle");
+  isTurbo = turboToggle ? turboToggle.checked : false;
+  const turboBtn = $("turboBtn");
+  if (turboBtn) turboBtn.classList.toggle("active", isTurbo);
+
+  // 4. Apply extra ball setting
+  const extraToggle = $("autoBuyExtraToggle");
+  autoSettings.buyExtra = extraToggle ? extraToggle.checked : false;
+
+  // 5. Apply loss limit
+  const lossInput = $("autoLossLimitInput");
+  autoSettings.lossLimit = lossInput ? Math.max(1, Number(lossInput.value) || 240) : 240;
+
+  // 6. Init session counters
+  autoSettings.roundsLeft = autoSettings.rounds;
+  autoSettings.sessionStartBalance = balance;
+  isAutoBet = true;
+
+  updateAutoBetButtonUI();
+
+  // 7. Start first round!
+  if (!isBusy) {
     startRound();
+  }
+}
+
+function stopAutoBet(msg = "") {
+  isAutoBet = false;
+  autoSettings.roundsLeft = 0;
+  updateAutoBetButtonUI();
+  if (msg) console.log(msg);
+}
+
+function updateAutoBetButtonUI() {
+  const btn = $("autoBetBtn");
+  if (!btn) return;
+  if (isAutoBet && autoSettings.roundsLeft > 0) {
+    btn.textContent = `STOP (${autoSettings.roundsLeft})`;
+    btn.style.background = "linear-gradient(180deg, #dc2626 0%, #991b1b 100%)";
+    btn.style.borderColor = "#f87171";
+  } else {
+    btn.textContent = "AUTO BET";
+    btn.style.background = "";
+    btn.style.borderColor = "";
   }
 }
 
@@ -953,7 +1115,66 @@ function init() {
   if (turboBtn) turboBtn.addEventListener("click", toggleTurbo);
 
   const autoBetBtn = $("autoBetBtn");
-  if (autoBetBtn) autoBetBtn.addEventListener("click", toggleAutoBet);
+  if (autoBetBtn) autoBetBtn.addEventListener("click", onAutoBetDockClicked);
+
+  // Auto Bet Modal Bindings
+  const closeAutoBtn = $("closeAutoBetBtn");
+  if (closeAutoBtn) closeAutoBtn.addEventListener("click", closeAutoBetModal);
+
+  const cancelAutoBtn = $("cancelAutoBetBtn");
+  if (cancelAutoBtn) cancelAutoBtn.addEventListener("click", closeAutoBetModal);
+
+  const startAutoBtn = $("startAutoBetBtn");
+  if (startAutoBtn) startAutoBtn.addEventListener("click", startAutoBetSession);
+
+  // Rounds buttons
+  document.querySelectorAll("#autoRoundsRow .autobet-pill-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#autoRoundsRow .autobet-pill-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      autoSettings.rounds = Number(btn.dataset.rounds) || 10;
+      updateAutoLossLimitDefault();
+    });
+  });
+
+  // Stepper inside modal
+  const autoMinus = $("autoBetMinus");
+  if (autoMinus) autoMinus.addEventListener("click", () => {
+    const curIdx = BET_STEPS.indexOf(autoSettings.betAmount);
+    if (curIdx > 0) {
+      autoSettings.betAmount = BET_STEPS[curIdx - 1];
+      const valDisplay = $("autoBetValDisplay");
+      if (valDisplay) valDisplay.textContent = String(autoSettings.betAmount);
+      updateAutoLossLimitDefault();
+    }
+  });
+
+  const autoPlus = $("autoBetPlus");
+  if (autoPlus) autoPlus.addEventListener("click", () => {
+    const curIdx = BET_STEPS.indexOf(autoSettings.betAmount);
+    if (curIdx !== -1 && curIdx < BET_STEPS.length - 1) {
+      autoSettings.betAmount = BET_STEPS[curIdx + 1];
+      const valDisplay = $("autoBetValDisplay");
+      if (valDisplay) valDisplay.textContent = String(autoSettings.betAmount);
+      updateAutoLossLimitDefault();
+    }
+  });
+
+  // Ticket count buttons in modal
+  document.querySelectorAll("#autoTicketsRow .autobet-sq-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#autoTicketsRow .autobet-sq-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      autoSettings.ticketCount = Number(btn.dataset.tickets) || 4;
+      updateAutoLossLimitDefault();
+    });
+  });
+
+  // Loss limit input change
+  const lossInput = $("autoLossLimitInput");
+  if (lossInput) lossInput.addEventListener("change", () => {
+    autoSettings.lossLimit = Math.max(1, Number(lossInput.value) || 240);
+  });
 
   const collectBtn = $("collectBtn");
   if (collectBtn) collectBtn.addEventListener("click", concludeRound);

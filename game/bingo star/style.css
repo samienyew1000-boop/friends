@@ -918,3 +918,277 @@ html, body {
 .hidden {
   display: none !important;
 }
+
+
+/* --- Auto Bet Settings Modal (Pixel-Matched to Screenshot) --- */
+.autobet-card {
+  background: #1e0828 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.85) !important;
+  padding: 22px 18px 24px !important;
+  max-width: 370px !important;
+}
+
+.autobet-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.autobet-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.autobet-close-btn {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+
+.autobet-section {
+  margin-bottom: 18px;
+}
+
+.autobet-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: left;
+  margin-bottom: 10px;
+}
+.autobet-label.no-mb {
+  margin-bottom: 0;
+}
+
+.autobet-options-row {
+  display: flex;
+  gap: 7px;
+}
+
+.autobet-pill-btn {
+  flex: 1;
+  height: 42px;
+  border-radius: 8px;
+  background: #351347;
+  border: 1.5px solid #552070;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.autobet-pill-btn.active {
+  background: linear-gradient(180deg, #9e4324 0%, #7d3319 100%);
+  border: 2px solid #ea580c;
+  box-shadow: 0 0 10px rgba(234, 88, 12, 0.45);
+}
+
+.autobet-split-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.autobet-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.autobet-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #190623;
+  border: 1.5px solid #4a1c60;
+  border-radius: 8px;
+  height: 42px;
+  padding: 0 8px;
+}
+
+.autobet-step-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.autobet-step-btn:active {
+  transform: scale(0.9);
+}
+
+.autobet-step-val {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.autobet-tickets-row {
+  display: flex;
+  gap: 6px;
+}
+
+.autobet-sq-btn {
+  flex: 1;
+  height: 42px;
+  border-radius: 8px;
+  background: #351347;
+  border: 1.5px solid #552070;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.autobet-sq-btn.active {
+  background: linear-gradient(180deg, #9e4324 0%, #7d3319 100%);
+  border: 2px solid #ea580c;
+  box-shadow: 0 0 10px rgba(234, 88, 12, 0.45);
+}
+
+.autobet-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.autobet-toggle-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Switch Toggle Component */
+.bs-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+.bs-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.bs-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #4a215f;
+  border: 1px solid #6b2e85;
+  transition: .25s ease;
+  border-radius: 34px;
+}
+.bs-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  transition: .25s ease;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+input:checked + .bs-slider {
+  background-color: #22c55e;
+  border-color: #4ade80;
+}
+input:checked + .bs-slider:before {
+  transform: translateX(22px);
+}
+
+.autobet-limit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.autobet-input-box input {
+  width: 130px;
+  height: 42px;
+  background: #190623;
+  border: 1.5px solid #4a1c60;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+}
+.autobet-input-box input:focus {
+  border-color: #9333ea;
+  box-shadow: 0 0 8px rgba(147, 51, 234, 0.5);
+}
+
+.autobet-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.autobet-btn-cancel {
+  flex: 1;
+  height: 50px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #64235e 0%, #43133f 100%);
+  border: 1px solid #8e3887;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s ease;
+}
+.autobet-btn-cancel:active {
+  transform: scale(0.96);
+}
+
+.autobet-btn-start {
+  flex: 1;
+  height: 50px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  border: 1px solid #4ade80;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.45);
+  transition: transform 0.1s ease;
+}
+.autobet-btn-start:active {
+  transform: scale(0.96);
+}
