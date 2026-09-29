@@ -1,85 +1,203 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0e0e0e" />
-    <meta name="description" content="Aviator multiplier game" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <title>Aviator</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
-    <script>window.aviatorDesktop={isDesktop:true};window.aviatorEmbedded=true;</script>
-    <link rel="stylesheet" href="./assets/style.css" />
-    <style>
-      .lobby-back{position:fixed;top:12px;left:12px;z-index:9999;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.55);color:#fff;text-decoration:none;font:600 .85rem "DM Sans","Segoe UI",sans-serif;border:1px solid rgba(255,255,255,.12)}
-      .lobby-back:hover{background:rgba(0,0,0,.72)}
-    </style>
-  </head>
-  <body>
-    <a class="lobby-back" href="../../index.html" title="Back to Lobby">&larr; Lobby</a>
-    <div id="root"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1015" />
+  <meta name="description" content="Spribe Aviator - Official Mobile View" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <title>Aviator - Spribe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;0,900;1,700;1,900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./assets/style.css" />
+</head>
+<body>
+  <div class="mobile-app-shell">
 
-    <!-- Shared Balance Engine & Aviator Bridge -->
-    <script src="../shared-balance.js"></script>
-    <script>
-      (function() {
-        function syncAviator() {
-          if (!window.HabeshaWallet) return;
-          var curBal = window.HabeshaWallet.get();
-          try {
-            var raw = localStorage.getItem('aviator_offline_users');
-            var users = raw ? JSON.parse(raw) : [];
-            if (!Array.isArray(users) || users.length === 0) {
-              users = [{
-                id: 'offline-admin',
-                username: 'admin',
-                displayName: 'Player',
-                role: 'admin',
-                balance: curBal,
-                password: 'admin',
-                createdAt: new Date().toISOString()
-              }];
-            } else {
-              users.forEach(function(u) { u.balance = curBal; });
-            }
-            localStorage.setItem('aviator_offline_users', JSON.stringify(users));
-          } catch(e) {}
-        }
+    <!-- 1. Header Bar -->
+    <header class="top-header">
+      <div class="header-left">
+        <a class="lobby-back" href="../../index.html" title="Back to Lobby">&larr; Lobby</a>
+        <div class="brand-aviator">Aviator</div>
+      </div>
+      <div class="header-right">
+        <div class="balance-box">
+          <span id="userBalanceText">50,000.00</span>
+          <span class="currency">ETB</span>
+        </div>
+        <button id="menuBtn" class="hamburger-btn" aria-label="Menu">&#9776;</button>
+      </div>
+    </header>
 
-        var origSetItem = localStorage.setItem.bind(localStorage);
-        localStorage.setItem = function(key, val) {
-          origSetItem(key, val);
-          if (key === 'aviator_offline_users' && window.HabeshaWallet) {
-            try {
-              var parsed = JSON.parse(val);
-              if (Array.isArray(parsed) && parsed[0] && typeof parsed[0].balance === 'number') {
-                var newBal = parsed[0].balance;
-                if (window.HabeshaWallet.get() !== newBal) {
-                  window.HabeshaWallet.set(newBal);
-                }
-              }
-            } catch(e) {}
-          }
-        };
+    <!-- 2. Multipliers History Strip -->
+    <section class="history-bar">
+      <div class="history-scroll" id="historyScroll">
+        <span class="mult-pill pill-blue">1.57x</span>
+        <span class="mult-pill pill-pink">206.89x</span>
+        <span class="mult-pill pill-purple">3.54x</span>
+        <span class="mult-pill pill-pink">342.87x</span>
+        <span class="mult-pill pill-blue">1.82x</span>
+        <span class="mult-pill pill-purple">3.44x</span>
+        <span class="mult-pill pill-purple">2.94x</span>
+        <span class="mult-pill pill-blue">1.08x</span>
+        <span class="mult-pill pill-purple">2.15x</span>
+        <span class="mult-pill pill-pink">18.40x</span>
+      </div>
+      <button class="history-more-btn" id="historyMoreBtn" title="More history">&#183;&#183;&#183;</button>
+    </section>
 
-        syncAviator();
+    <!-- 3. Flight Stage Area (Canvas + FUN MODE ribbon) -->
+    <section class="stage-card-wrapper">
+      <div class="stage-card">
+        <div class="fun-mode-banner">FUN MODE</div>
+        
+        <canvas id="flightCanvas"></canvas>
 
-        if (window.HabeshaWallet) {
-          window.HabeshaWallet.subscribe(function(newBal) {
-            try {
-              var raw = localStorage.getItem('aviator_offline_users');
-              var users = raw ? JSON.parse(raw) : [];
-              if (Array.isArray(users) && users[0] && users[0].balance !== newBal) {
-                users[0].balance = newBal;
-                origSetItem('aviator_offline_users', JSON.stringify(users));
-              }
-            } catch(e) {}
-          });
-        }
-      })();
-    </script>
-    <script src="./assets/game.js"></script>
-  </body>
+        <div class="hud-overlay">
+          <div id="multText" class="mult-large">1.00x</div>
+          <div id="flewAwayText" class="flew-away-label hidden">FLEW AWAY!</div>
+          
+          <div id="waitingBox" class="waiting-box hidden">
+            <div class="waiting-title">WAITING FOR NEXT ROUND</div>
+            <div class="wait-track">
+              <div id="waitProgressFill" class="wait-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Players Stack Badge -->
+        <div class="stage-players-pill">
+          <div class="avatar-stack">
+            <span class="mini-av">&#127808;</span>
+            <span class="mini-av">&#9992;&#65039;</span>
+            <span class="mini-av">&#128526;</span>
+          </div>
+          <span id="stagePlayerCount" class="player-count-num">86</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Stacked Mobile Bet Panels (Dual Bet) -->
+    <section class="bet-controls-section">
+      
+      <!-- Bet Panel 1 -->
+      <div class="bet-card" id="betCard1">
+        <div class="bet-card-left">
+          <div class="stepper-row">
+            <button class="stepper-btn" id="stepMinus1">&minus;</button>
+            <input type="number" id="betInput1" class="amount-input" value="4.00" step="1" min="1" max="10000" />
+            <button class="stepper-btn" id="stepPlus1">&#43;</button>
+          </div>
+          <div class="quick-grid">
+            <button class="quick-chip" data-panel="1" data-amt="16">16</button>
+            <button class="quick-chip" data-panel="1" data-amt="40">40</button>
+            <button class="quick-chip" data-panel="1" data-amt="80">80</button>
+            <button class="quick-chip" data-panel="1" data-amt="400">400</button>
+          </div>
+        </div>
+        <div class="bet-card-right">
+          <button id="actionBtn1" class="action-btn btn-bet">
+            <span class="btn-label-primary" id="btnLabel1">Bet</span>
+            <span class="btn-label-sub" id="btnSub1">4.00 ETB</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bet Panel 2 -->
+      <div class="bet-card" id="betCard2">
+        <button id="toggleCard2Btn" class="card-collapse-toggle" title="Collapse or expand panel">
+          <svg width="12" height="12" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M19 13H5v-2h14v2z"/>
+          </svg>
+        </button>
+        <div class="bet-card-left">
+          <div class="stepper-row">
+            <button class="stepper-btn" id="stepMinus2">&minus;</button>
+            <input type="number" id="betInput2" class="amount-input" value="4.00" step="1" min="1" max="10000" />
+            <button class="stepper-btn" id="stepPlus2">&#43;</button>
+          </div>
+          <div class="quick-grid">
+            <button class="quick-chip" data-panel="2" data-amt="16">16</button>
+            <button class="quick-chip" data-panel="2" data-amt="40">40</button>
+            <button class="quick-chip" data-panel="2" data-amt="80">80</button>
+            <button class="quick-chip" data-panel="2" data-amt="400">400</button>
+          </div>
+        </div>
+        <div class="bet-card-right">
+          <button id="actionBtn2" class="action-btn btn-bet">
+            <span class="btn-label-primary" id="btnLabel2">Bet</span>
+            <span class="btn-label-sub" id="btnSub2">4.00 ETB</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 5. Live Bets Section -->
+    <section class="live-bets-section">
+      <div class="bets-tabs-bar">
+        <button class="tab-btn active" data-tab="all">All Bets</button>
+        <button class="tab-btn" data-tab="previous">Previous</button>
+        <button class="tab-btn" data-tab="top">Top</button>
+      </div>
+
+      <div class="bets-summary">
+        <div class="bets-summary-left">
+          <div class="avatar-stack">
+            <span class="mini-av">&#127808;</span>
+            <span class="mini-av">&#9992;&#65039;</span>
+            <span class="mini-av">&#128526;</span>
+          </div>
+          <span id="betsCountText" class="bets-count-label">128/207 Bets</span>
+        </div>
+        <div class="bets-summary-right">
+          <span id="totalWinText" class="total-win-value">0.00</span>
+          <span class="total-win-text">Total win ETB</span>
+        </div>
+      </div>
+
+      <div class="progress-track">
+        <div id="betsProgressFill" class="progress-fill" style="width: 62%;"></div>
+      </div>
+
+      <div class="bets-table-headers">
+        <span>Player</span>
+        <span>Bet ETB</span>
+        <span>X</span>
+        <span>Win ETB</span>
+      </div>
+
+      <div id="liveBetsList" class="bets-scroll-list">
+        <!-- Dynamic player rows inserted via JS -->
+      </div>
+    </section>
+
+    <!-- 6. Footer -->
+    <footer class="spribe-footer">
+      <div class="fairness-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#22c55e">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+        </svg>
+        <span>Provably Fair Game</span>
+      </div>
+      <div class="spribe-tag">
+        <span>Powered by</span> <strong>SPRIBE</strong>
+      </div>
+    </footer>
+
+    <!-- Floating Action FAB -->
+    <div class="floating-chat-fab" id="chatFab" title="Live community">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    </div>
+
+  </div>
+
+  <!-- Shared Balance Engine -->
+  <script src="../shared-balance.js"></script>
+  <!-- Mobile Aviator Game Engine -->
+  <script src="./assets/game.js"></script>
+</body>
 </html>
