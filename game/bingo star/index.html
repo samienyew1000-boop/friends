@@ -1,93 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#160b3a" />
-  <title>Bingo Star</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0b2e" />
+  <title>Bingo Star | Habesha Games</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,500;0,700;0,900;1,700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <div class="bs-root">
-    <div class="bs-frame">
-      <a href="../../index.html" style="position:absolute;top:10px;left:10px;z-index:99;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:rgba(0,0,0,0.6);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:700;border:1px solid rgba(255,255,255,0.2);" title="Back to Lobby">&larr; Lobby</a>
-      <div class="bs-logo" aria-hidden="true" style="margin-left:80px;">Bingo <span>STAR</span></div>
-
-      <main class="bs-main">
-        <div class="bs-patterns" id="patterns"></div>
-        <div class="bs-cards" id="cards"></div>
-        <div class="bs-status" id="status">Pick tickets, then DRAW</div>
-        <div class="bs-drawn" id="drawn"></div>
-      </main>
-
-      <footer class="bs-bar">
-        <img src="assets/balls/blue.svg" alt="" class="bs-decoball is-left" />
-
-        <div class="bs-panel-wrap">
-          <div class="bs-bet-panel">
-            <div class="bs-bet-top">
-              <div>MAKE YOUR BET</div>
-              <div class="bs-bet-total">TOTAL BET <span id="totalbet-val">24</span> ETB</div>
-            </div>
-            <div class="bs-bet-controls">
-              <div class="bs-bet-stepper">
-                <button type="button" id="minus">−</button>
-                <input id="bet" type="number" min="1" max="400" value="6" readonly />
-                <button type="button" id="plus">+</button>
-              </div>
-              <div class="bs-bet-hot">
-                <button type="button" class="bs-hot">+6</button>
-                <button type="button" class="bs-hot">+60</button>
-                <button type="button" class="bs-hot">+120</button>
-              </div>
-            </div>
-          </div>
-
-          <button type="button" class="bs-spin-btn" id="draw">
-            <img src="assets/desktop/spinIcon.webp" alt="Spin" />
-          </button>
-          <button type="button" class="bs-auto-btn" id="auto">
-            <img src="assets/mobile/autoBetBig.webp" alt="Auto" />
-          </button>
+  <div class="bs-mobile-shell">
+    
+    <!-- 1. Top Header Bar -->
+    <header class="bs-topbar">
+      <div class="topbar-left">
+        <button id="menuBtn" class="bs-icon-btn" aria-label="Menu">&#9776;</button>
+        <a class="lobby-back" href="../../index.html" title="Back to Lobby">&larr; Lobby</a>
+      </div>
+      <div class="topbar-right">
+        <div class="round-id-label">ID : <span id="roundIdText">1473481141</span></div>
+        <div class="balance-display">
+          <span id="userBalanceText">100 000</span>
+          <span class="currency-label">ETB</span>
         </div>
+      </div>
+    </header>
 
-        <img src="assets/balls/purple.svg" alt="" class="bs-decoball is-right" />
-      </footer>
+    <!-- 2. Paytable Patterns Ribbon -->
+    <section class="bs-patterns-section">
+      <div class="patterns-grid" id="patternsGrid">
+        <!-- 12 patterns rendered via JS -->
+      </div>
+      <div class="patterns-side-actions">
+        <button id="soundToggleBtn" class="bs-mini-icon-btn" title="Sound">&#128266;</button>
+        <button id="historyToggleBtn" class="bs-mini-icon-btn" title="History">&#128338;</button>
+      </div>
+    </section>
 
-      <aside class="bs-side" id="side-panel">
-        <div class="bs-side-head">
-          <span class="bs-bal" id="balance">10 000</span>
-          <span class="bs-unit">ETB</span>
-          <span class="bs-clock" id="clock">--:--</span>
-        </div>
+    <!-- 3. 4-Ticket 2x2 Grid -->
+    <section class="bs-tickets-section">
+      <div class="tickets-grid" id="ticketsContainer">
+        <!-- 4 tickets generated via JS -->
+      </div>
+    </section>
 
-        <div class="bs-side-tabs">
-          <button type="button" class="bs-side-tab is-active" data-tab="players">Players</button>
-          <button type="button" class="bs-side-tab" data-tab="history">History</button>
-          <button type="button" class="bs-side-tab" data-tab="top">Top</button>
-        </div>
-        <div class="bs-side-cols">
-          <span>Player</span><span>Bet</span><span>Win</span><span>Time</span>
-        </div>
-        <div class="bs-side-rows" id="side-rows"></div>
-      </aside>
-      <button type="button" class="bs-side-toggle" id="side-toggle">≡</button>
-    </div>
-
-    <div class="bs-bonus" id="bonus-modal" hidden>
-      <div class="bs-bonus-card">
-        <div class="bs-bonus-title">BONUS STAR</div>
-        <div class="bs-bonus-sub">Pick a cell</div>
-        <div class="bs-bonus-grid" id="bonus-grid"></div>
-        <div class="bs-bonus-result" id="bonus-result"></div>
-        <button type="button" class="bs-bonus-close" id="bonus-close" hidden>COLLECT</button>
+    <!-- 4. Mid Bar: New Tickets & Turbo Toggle -->
+    <div class="bs-mid-controls">
+      <div class="total-bet-inline-indicator">
+        TOTAL BET <strong id="midTotalBet">24</strong> ETB
+      </div>
+      <div class="mid-btns-right">
+        <button id="newTicketsBtn" class="bs-green-pill-btn">
+          <span>&#8635;</span> NEW TICKETS
+        </button>
+        <button id="turboBtn" class="bs-turbo-btn" title="Turbo Speed">
+          &#9889;
+        </button>
       </div>
     </div>
+
+    <!-- 5. Marquee / Tray Area -->
+    <section class="bs-marquee-tray" id="marqueeTray">
+      
+      <!-- Pre-Draw State: Banner -->
+      <div class="marquee-bet-prompt" id="marqueeBetPrompt">
+        <div class="marquee-title">MAKE YOUR BET</div>
+        <div class="marquee-sub">TOTAL BET <span id="marqueeTotalBet">24</span> ETB</div>
+      </div>
+
+      <!-- Active Draw State: 30 Drawn Balls Rack -->
+      <div class="marquee-drawn-rack hidden" id="marqueeDrawnRack">
+        <div class="drawn-balls-row" id="drawnBallsRow1"></div>
+        <div class="drawn-balls-row" id="drawnBallsRow2"></div>
+      </div>
+
+      <!-- Extra Balls Banner (when available) -->
+      <div class="extra-balls-prompt hidden" id="extraBallsPrompt">
+        <div class="extra-text">EXTRA BALLS AVAILABLE</div>
+        <div class="extra-cost">COST: <span id="extraCostVal">2</span> ETB</div>
+      </div>
+
+    </section>
+
+    <!-- 6. Bottom Controls Dock -->
+    <footer class="bs-dock">
+      
+      <!-- Left: Bet Stepper & x2 Button -->
+      <div class="dock-left">
+        <div class="stepper-box">
+          <button id="stepMinus" class="stepper-btn">&minus;</button>
+          <span id="betPerTicketDisplay" class="bet-val">6</span>
+          <button id="stepPlus" class="stepper-btn">&#43;</button>
+        </div>
+        <button id="doubleBetBtn" class="x2-btn">x2</button>
+      </div>
+
+      <!-- Center: Giant Spin Button or Current Ball Callout -->
+      <div class="dock-center">
+        <!-- Spin Button (pre-draw) -->
+        <button id="spinBtn" class="bs-spin-btn" aria-label="Draw Balls">
+          <img src="assets/desktop/spinIcon.webp" alt="Spin" class="spin-icon-img" />
+        </button>
+
+        <!-- Current Ball Callout (during/after draw) -->
+        <div id="currentBallCallout" class="current-ball-circle hidden">
+          <span id="currentBallNum" class="current-ball-num">--</span>
+        </div>
+
+        <!-- Floating Total Win Badge -->
+        <div id="floatingTotalWin" class="floating-win-badge hidden">
+          <span class="win-badge-title">TOTAL WIN</span>
+          <span id="floatingWinVal" class="win-badge-val">0 ETB</span>
+        </div>
+      </div>
+
+      <!-- Right: Auto Bet or Collect Button -->
+      <div class="dock-right">
+        <button id="autoBetBtn" class="bs-action-dock-btn auto-mode">
+          AUTO BET
+        </button>
+        <button id="collectBtn" class="bs-action-dock-btn collect-mode hidden">
+          COLLECT
+        </button>
+        <button id="extraBallBtn" class="bs-action-dock-btn extra-mode hidden">
+          EXTRA
+        </button>
+      </div>
+
+    </footer>
+
+    <!-- Bonus Star Modal -->
+    <div id="bonusModal" class="bs-modal-backdrop hidden">
+      <div class="bs-modal-card">
+        <h2 class="bonus-modal-title">&#11088; BONUS STAR &#11088;</h2>
+        <p class="bonus-modal-sub">Pick 3 Lucky Stars to win instant multipliers!</p>
+        <div class="bonus-stars-grid" id="bonusStarsGrid"></div>
+        <div id="bonusWinSummary" class="bonus-summary hidden"></div>
+        <button id="collectBonusBtn" class="bs-green-pill-btn full-w hidden">COLLECT BONUS</button>
+      </div>
+    </div>
+
   </div>
+
+  <!-- Shared Balance Engine -->
   <script src="../shared-balance.js"></script>
+  <!-- Bingo Star Game Engine -->
   <script src="game.js"></script>
 </body>
-
 </html>
