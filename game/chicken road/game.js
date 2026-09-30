@@ -47,6 +47,9 @@
     lamp: 'lamp.png',
     manhole: 'manhole.png',
     chicken: 'chicken.png',
+    chickenHop: 'chicken_hop.png',
+    chickenBust: 'chicken_bust.png',
+    chickenWin: 'chicken_win.png',
     delivery: 'delivery.png',
     car: 'car.png',
     truck: 'truck.png',
@@ -745,6 +748,8 @@
     const x = state.chickenX - camX;
     const y = state.chickenY + state.hopY + state.fallY;
     const isBust = state.phase === 'bust';
+    const isHop = state.phase === 'hopping';
+    const isWon = state.phase === 'won';
 
     ctx.save();
     // Shadow under chicken
@@ -761,18 +766,18 @@
     }
 
     const cw = isBust ? 84 : 80;
-    const ch = isBust ? 110 : 105;
-    if (images.chicken) {
-      ctx.drawImage(images.chicken, -cw / 2, -ch / 2, cw, ch);
+    const ch = isBust ? 96 : 94;
+    let chkImg = images.chicken;
+    if (isBust && images.chickenBust) {
+      chkImg = images.chickenBust;
+    } else if (isHop && images.chickenHop) {
+      chkImg = images.chickenHop;
+    } else if (isWon && images.chickenWin) {
+      chkImg = images.chickenWin;
     }
 
-    // Red Cross when crashed
-    if (isBust) {
-      ctx.fillStyle = '#ef4444';
-      ctx.font = '900 32px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('✕', 0, -ch * 0.25);
+    if (chkImg) {
+      ctx.drawImage(chkImg, -cw / 2, -ch / 2, cw, ch);
     }
 
     ctx.restore();
@@ -892,8 +897,7 @@
 
     // Red Flash overlay on crash
     if (state.flash > 0) {
-      ctx.fillStyle = 
-gba(239, 68, 68, );
+      ctx.fillStyle = `rgba(239, 68, 68, ${state.flash})`;
       ctx.fillRect(0, 0, w, h);
     }
 
@@ -935,7 +939,7 @@ gba(239, 68, 68, );
     const p = FAKE_PLAYERS[Math.floor(Math.random() * FAKE_PLAYERS.length)];
     const amt = (1.5 + Math.random() * 25).toFixed(2);
     el.tickerPlayer.textContent = p;
-    el.tickerAmount.textContent = +ETB;
+    el.tickerAmount.textContent = `+ETB${amt}`;
     if (el.onlineCount) {
       const cur = Number(el.onlineCount.textContent) || 65;
       el.onlineCount.textContent = String(Math.max(45, cur + Math.floor(Math.random() * 5 - 2)));
