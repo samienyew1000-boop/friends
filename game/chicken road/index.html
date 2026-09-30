@@ -1,135 +1,214 @@
 <!DOCTYPE html>
-<html lang="am">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Chicken Road</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#181a1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Chicken Road | Friendes Game</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;600;700;800&family=Noto+Sans:wght@500;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800;900&family=Noto+Sans:wght@500;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="topbar-left">
-        <a class="icon-btn" href="../../index.html" aria-label="ተመለስ" title="ወደ ዋናው ሎቢ ተመለስ">
-          <i data-lucide="chevron-left"></i>
-        </a>
-        <div class="logo-wrap">
-          <img class="logo-img" src="asset/10002.png" alt="" />
-          <div>
-            <h1 class="logo-title">CHICKEN <span>2</span> ROAD</h1>
-            <div class="live-line">
-              <span class="live-dot"></span>
-              <span>LIVE WINS</span>
-              <span class="muted">ONLINE: <strong id="online-count">9511</strong></span>
-            </div>
-          </div>
-        </div>
+  <div class="cr-shell">
+    <!-- Top Header Bar -->
+    <header class="cr-topbar">
+      <!-- Logo: CHICKEN 2 ROAD -->
+      <div class="cr-logo-wrap">
+        <span class="cr-logo-chicken">CHICKEN</span>
+        <span class="cr-logo-2">2</span>
+        <span class="cr-logo-road">ROAD</span>
       </div>
 
-      <div class="win-ticker" id="win-ticker">Coral Unlik... +20000.00 ETB</div>
-
-      <div class="topbar-right">
-        <label class="practice-toggle" title="ልምምድ">
-          <span>ልምምድ</span>
-          <input type="checkbox" id="practice-toggle" />
-          <i></i>
-        </label>
-        <button type="button" class="icon-btn" id="btn-fav" aria-label="ተወዳጅ">
-          <i data-lucide="heart"></i>
-        </button>
-        <button type="button" class="icon-btn" id="btn-sound" aria-label="ድምፅ">
-          <i data-lucide="volume-2"></i>
-        </button>
-        <button type="button" class="icon-btn" id="btn-refresh" aria-label="አድስ">
-          <i data-lucide="refresh-cw"></i>
-        </button>
-        <button type="button" class="icon-btn" id="btn-full" aria-label="ሙሉ ማያ">
-          <i data-lucide="maximize"></i>
-        </button>
-        <button type="button" class="text-link" id="btn-help">How to play?</button>
-        <div class="balance-box">
-          <strong id="balance">1000.00</strong>
-          <span>ETB</span>
+      <!-- Right Header Actions -->
+      <div class="cr-header-right">
+        <!-- Balance Pill -->
+        <div class="cr-balance-pill" id="balance-pill" title="Current Balance">
+          <span class="cr-balance-num" id="balance">1000.00</span>
+          <span class="cr-coin-tag">ETB</span>
         </div>
-        <button type="button" class="deposit-btn" id="btn-deposit">ገንዘብ አስገባ</button>
-        <button type="button" class="icon-btn" id="btn-menu" aria-label="ምናሌ">
-          <i data-lucide="menu"></i>
+
+        <!-- Hamburger Menu Button -->
+        <button type="button" class="cr-menu-btn" id="btn-menu" aria-label="Menu" title="Menu">
+          <svg viewBox="0 0 24 24" class="cr-menu-icon" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
       </div>
     </header>
 
-    <main class="stage">
-      <canvas id="game" width="1400" height="520" aria-label="Chicken Road"></canvas>
-      <div class="toast" id="toast" hidden></div>
+    <!-- Sub-header Live Wins Ticker Overlay -->
+    <div class="cr-subbar">
+      <div class="cr-live-wins">
+        <span class="cr-sub-muted">Live wins:</span>
+        <span class="cr-player-dot">🔴</span>
+        <span class="cr-player-name" id="ticker-player">Player</span>
+        <span class="cr-win-amount" id="ticker-amount">+ETB3.57</span>
+      </div>
+      <div class="cr-online-badge">
+        <span class="cr-online-dot"></span>
+        <span class="cr-sub-muted">Online:</span>
+        <strong class="cr-online-count" id="online-count">65</strong>
+      </div>
+    </div>
+
+    <!-- Main Game Canvas Area -->
+    <main class="cr-stage" id="cr-stage">
+      <canvas id="game" width="480" height="520" aria-label="Chicken Road Game Canvas"></canvas>
+      <div class="cr-toast" id="toast" hidden></div>
     </main>
 
-    <footer class="panel">
-      <section class="panel-bet">
-        <div class="bet-row">
-          <button type="button" class="minmax" id="bet-min">MIN</button>
+    <!-- Bottom Betting Control Panel (Pixel-Matched with Screenshot) -->
+    <footer class="cr-panel">
+      <!-- Row 1: Bet Amount & Min / Max -->
+      <div class="cr-bet-row">
+        <button type="button" class="cr-minmax-btn" id="bet-min">MIN</button>
+        <div class="cr-bet-input-wrap">
           <input id="bet-input" type="number" min="1" max="1000" step="1" value="50" inputmode="numeric" />
-          <button type="button" class="minmax" id="bet-max">MAX</button>
         </div>
-        <div class="presets">
-          <button type="button" data-bet="30">30 ETB</button>
-          <button type="button" data-bet="50">50 ETB</button>
-          <button type="button" data-bet="150">150 ETB</button>
-          <button type="button" data-bet="300">300 ETB</button>
-        </div>
-      </section>
+        <button type="button" class="cr-minmax-btn" id="bet-max">MAX</button>
+      </div>
 
-      <section class="panel-diff">
-        <p class="chance-label">Chance of being shot down <strong id="fail-chance">4%</strong></p>
-        <h2>Difficulty</h2>
-        <div class="diff-bar" role="tablist">
-          <button type="button" class="diff-btn is-active" data-diff="easy">Easy</button>
-          <button type="button" class="diff-btn" data-diff="medium">Medium</button>
-          <button type="button" class="diff-btn" data-diff="hard">Hard</button>
-          <button type="button" class="diff-btn" data-diff="hardcore">Hardcore</button>
-        </div>
-        <div class="auto-row">
-          <label class="auto-check">
-            <input type="checkbox" id="auto-toggle" />
-            Auto cash out
-          </label>
-          <div class="auto-field">
-            <input id="auto-mult" type="number" min="1.01" max="10000" step="0.01" value="1.50" />
-            <span>×</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel-actions">
-        <button type="button" class="cash-btn" id="btn-cashout" disabled>
-          CASH OUT
-          <span id="cashout-amount">0.00 ETB</span>
+      <!-- Row 2: Preset Chips (1, 2, 5, 10 ETB) -->
+      <div class="cr-presets-row">
+        <button type="button" class="cr-preset-chip" data-bet="1">
+          <span>1</span>
+          <span class="cr-chip-etb">ETB</span>
         </button>
-        <button type="button" class="play-btn" id="btn-go">GO</button>
-      </section>
+        <button type="button" class="cr-preset-chip" data-bet="2">
+          <span>2</span>
+          <span class="cr-chip-etb">ETB</span>
+        </button>
+        <button type="button" class="cr-preset-chip" data-bet="5">
+          <span>5</span>
+          <span class="cr-chip-etb">ETB</span>
+        </button>
+        <button type="button" class="cr-preset-chip" data-bet="10">
+          <span>10</span>
+          <span class="cr-chip-etb">ETB</span>
+        </button>
+      </div>
+
+      <!-- Row 3: Difficulty Dropdown Selector -->
+      <div class="cr-diff-wrap">
+        <button type="button" class="cr-diff-btn" id="diff-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <span id="diff-current-label">Hardcore</span>
+          <svg class="cr-diff-arrow" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+
+        <div class="cr-diff-menu hidden" id="diff-menu" role="listbox">
+          <button type="button" class="cr-diff-item" data-diff="easy">
+            <span>Easy (1.05x)</span>
+            <small class="cr-diff-sub">Low speed, 96% survival</small>
+          </button>
+          <button type="button" class="cr-diff-item" data-diff="medium">
+            <span>Medium (1.15x)</span>
+            <small class="cr-diff-sub">Moderate speed, 88% survival</small>
+          </button>
+          <button type="button" class="cr-diff-item" data-diff="hard">
+            <span>Hard (1.25x)</span>
+            <small class="cr-diff-sub">Fast cars, 80% survival</small>
+          </button>
+          <button type="button" class="cr-diff-item is-selected" data-diff="hardcore">
+            <span>Hardcore (1.44x)</span>
+            <small class="cr-diff-sub">High speed rush, 60% survival</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 4: Primary Action Button(s) -->
+      <div class="cr-action-row">
+        <!-- Idle Play Button -->
+        <button type="button" class="cr-play-btn" id="btn-play">Play</button>
+
+        <!-- Active Playing Actions (Cash Out & Hop Step) -->
+        <div class="cr-inplay-actions hidden" id="inplay-actions">
+          <button type="button" class="cr-cashout-btn" id="btn-cashout" disabled>
+            <span class="cr-cashout-title">Cash Out</span>
+            <span class="cr-cashout-val" id="cashout-val">0.00 ETB</span>
+          </button>
+          <button type="button" class="cr-hop-btn" id="btn-go">
+            <span>Hop</span>
+            <span class="cr-hop-icon">➔</span>
+          </button>
+        </div>
+      </div>
     </footer>
   </div>
 
-  <div class="modal" id="help-modal" hidden>
-    <div class="modal-card">
-      <h3>How to play?</h3>
-      <ol>
-        <li>Choose your bet and difficulty.</li>
-        <li>Press <strong>GO</strong> to send the chicken across the road.</li>
-        <li>Each safe crossing increases the multiplier.</li>
-        <li>The chicken can be shot down while crossing; the bet is lost.</li>
-        <li>Cars stop when the chicken is resting on a tile.</li>
-        <li>Press <strong>CASH OUT</strong> before the next crossing fails.</li>
-        <li>Auto cash out stops the round at your selected multiplier.</li>
-      </ol>
-      <button type="button" class="play-btn" id="help-close">Got it</button>
+  <!-- Slide-out Menu Modal / Drawer -->
+  <div class="cr-menu-backdrop hidden" id="menu-backdrop">
+    <div class="cr-drawer" id="menu-drawer">
+      <div class="cr-drawer-head">
+        <h3 class="cr-drawer-title">Settings & Options</h3>
+        <button type="button" class="cr-close-btn" id="btn-close-menu">✕</button>
+      </div>
+
+      <div class="cr-drawer-body">
+        <!-- Mode Switcher -->
+        <div class="cr-menu-row">
+          <div>
+            <strong>Game Mode</strong>
+            <p class="cr-sub-muted" id="menu-mode-desc">Practice with 1,000 ETB demo</p>
+          </div>
+          <button type="button" class="cr-switch-btn" id="btn-toggle-mode">Demo Mode</button>
+        </div>
+
+        <!-- Sound Toggle -->
+        <div class="cr-menu-row">
+          <div>
+            <strong>Sound Effects</strong>
+            <p class="cr-sub-muted">Engine roar, screech & crash</p>
+          </div>
+          <label class="cr-toggle-switch">
+            <input type="checkbox" id="sound-toggle" checked />
+            <span class="cr-slider"></span>
+          </label>
+        </div>
+
+        <!-- How to Play Link -->
+        <div class="cr-menu-row cr-clickable" id="btn-open-rules">
+          <div>
+            <strong>How to Play Chicken Road?</strong>
+            <p class="cr-sub-muted">Rules, traffic speeds & multipliers</p>
+          </div>
+          <span class="cr-arrow">›</span>
+        </div>
+
+        <!-- Return to Main Lobby -->
+        <a class="cr-menu-row cr-lobby-link" href="../../index.html">
+          <div>
+            <strong>Return to Lobby</strong>
+            <p class="cr-sub-muted">Explore all 7 Friendes Games</p>
+          </div>
+          <span class="cr-arrow">🏠</span>
+        </a>
+      </div>
     </div>
   </div>
 
+  <!-- How to Play Dialog -->
+  <div class="cr-modal-backdrop hidden" id="rules-backdrop">
+    <div class="cr-rules-card">
+      <h3>How to Play Chicken Road?</h3>
+      <ol>
+        <li>Choose your <strong>Bet Amount</strong> and <strong>Difficulty</strong>.</li>
+        <li>Press <strong class="text-emerald-400">Play</strong> to start the round.</li>
+        <li>Press <strong>Hop</strong> (or tap the road) to advance across the road step by step.</li>
+        <li>Each safe manhole increases your cash multiplier!</li>
+        <li><strong>Watch out for traffic!</strong> Cars move top-to-bottom. As difficulty and level increase, the cars move significantly faster.</li>
+        <li>Press <strong class="text-amber-400">Cash Out</strong> at any time to collect your winnings before a crash happens.</li>
+      </ol>
+      <button type="button" class="cr-play-btn" id="btn-close-rules">Got it</button>
+    </div>
+  </div>
+
+  <!-- Shared Balance & Game Script -->
   <script src="../shared-balance.js"></script>
   <script src="game.js"></script>
 </body>
