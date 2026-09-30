@@ -177,12 +177,19 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
       `;
     }
-    if (typeof window.HabeshaWallet !== 'undefined') {
-      window.HabeshaWallet.set(state.balance);
-    } else {
-      localStorage.setItem('habesha_balance', state.balance.toString());
-    }
     localStorage.setItem('habesha_balance_hidden', state.isBalanceHidden.toString());
+
+    const modeBadge = document.getElementById('walletModeBadge');
+    if (modeBadge && window.HabeshaWallet) {
+      const mode = window.HabeshaWallet.getMode();
+      if (mode === 'demo') {
+        modeBadge.textContent = 'DEMO';
+        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30';
+      } else {
+        modeBadge.textContent = 'REAL';
+        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30';
+      }
+    }
   }
 
   toggleBalanceBtn.addEventListener('click', () => {
@@ -577,101 +584,157 @@
   if (window.HabeshaWallet?.subscribeAdminConfig) {
     window.HabeshaWallet.subscribeAdminConfig(syncGameAvailability);
   }
-  const launchFullGameBtn = document.getElementById('launchFullGameBtn');
-  if (launchFullGameBtn) {
-    launchFullGameBtn.addEventListener('click', () => {
-      if (!gameAvailable(activeGameId)) {
-        showToast('This game is temporarily unavailable', 'error');
-        return;
-      }
-      if (activeGameUrl) {
-        sound.playClick();
-        window.location.href = activeGameUrl;
-      }
-    });
-  }
-
   const gameModalTitle = document.getElementById('gameModalTitle');
   const gameModalProvider = document.getElementById('gameModalProvider');
   const gameModalCategory = document.getElementById('gameModalCategory');
   const gameModalDesc = document.getElementById('gameModalDesc');
   const gameModalImage = document.getElementById('gameModalImage');
-  const gameSimCanvas = document.getElementById('gameSimCanvas');
-  const gameSimMultiplier = document.getElementById('gameSimMultiplier');
-  const gameSimStatus = document.getElementById('gameSimStatus');
-  const startDemoBtn = document.getElementById('startDemoBtn');
-  const cashoutBtn = document.getElementById('cashoutBtn');
+  const demoModalBalVal = document.getElementById('demoModalBalVal');
+  const realStatusLabel = document.getElementById('realStatusLabel');
+  const realStatusValue = document.getElementById('realStatusValue');
+  const realBtnText = document.getElementById('realBtnText');
+  const launchDemoModeBtn = document.getElementById('launchDemoModeBtn');
+  const launchRealModeBtn = document.getElementById('launchRealModeBtn');
 
-  let simRunning = false;
-  let currentMultiplier = 1.0;
+  // Telegram Registration Modal elements
+  const telegramRegisterModal = document.getElementById('telegramRegisterModal');
+  const closeTelegramRegBtn = document.getElementById('closeTelegramRegBtn');
+  const regTelegramUsername = document.getElementById('regTelegramUsername');
+  const regDisplayName = document.getElementById('regDisplayName');
+  const confirmTelegramRegBtn = document.getElementById('confirmTelegramRegBtn');
 
-  function runSimGame() {
-    if (simRunning || !gameAvailable(activeGameId)) return;
-    simRunning = true;
-    currentMultiplier = 1.0;
-    sound.playCrashFly();
-    triggerHaptic('impact');
+  function syncGameModalStatus() {
+    const isReg = window.HabeshaWallet ? window.HabeshaWallet.isRegistered() : false;
+    const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
 
-    startDemoBtn.classList.add('hidden');
-    cashoutBtn.classList.remove('hidden');
-    gameSimStatus.textContent = 'IN FLIGHT...';
-    gameSimStatus.className = 'text-xs font-bold text-teal-400 tracking-wider animate-pulse';
+    if (demoModalBalVal) {
+      demoModalBalVal.textContent = '1,000.00 ETB';
+    }
 
-    const crashPoint = 1.2 + Math.random() * (Math.random() > 0.4 ? 4.5 : 1.8);
-    const stepInterval = 60;
-
-    clearInterval(state.gameSimulatorTimer);
-    state.gameSimulatorTimer = setInterval(() => {
-      currentMultiplier += 0.04 * (1 + currentMultiplier * 0.1);
-      gameSimMultiplier.textContent = currentMultiplier.toFixed(2) + 'x';
-
-      if (currentMultiplier >= crashPoint) {
-        // Crashed
-        clearInterval(state.gameSimulatorTimer);
-        simRunning = false;
-        gameSimStatus.textContent = 'FLEW AWAY!';
-        gameSimStatus.className = 'text-xs font-bold text-red-500 tracking-wider';
-        gameSimMultiplier.className = 'text-3xl font-extrabold text-red-500';
-        triggerHaptic('error');
-
-        setTimeout(() => {
-          cashoutBtn.classList.add('hidden');
-          startDemoBtn.classList.remove('hidden');
-          gameSimMultiplier.className = 'text-3xl font-extrabold text-teal-400';
-          gameSimMultiplier.textContent = '1.00x';
-          gameSimStatus.textContent = 'READY TO LAUNCH';
-          gameSimStatus.className = 'text-xs font-bold text-slate-400 tracking-wider';
-        }, 1500);
+    if (isReg && user) {
+      if (realStatusLabel) realStatusLabel.textContent = 'Telegram Linked:';
+      if (realStatusValue) {
+        realStatusValue.textContent = '@' + (user.username || user.name);
+        realStatusValue.className = 'font-bold text-emerald-400 ml-1';
       }
-    }, stepInterval);
+      if (realBtnText) realBtnText.textContent = 'Play Real Money';
+    } else {
+      if (realStatusLabel) realStatusLabel.textContent = 'Telegram Account:';
+      if (realStatusValue) {
+        realStatusValue.textContent = 'Registration Required';
+        realStatusValue.className = 'font-bold text-amber-400 ml-1';
+      }
+      if (realBtnText) realBtnText.textContent = 'Register & Play Real';
+    }
   }
 
-  cashoutBtn.addEventListener('click', () => {
-    if (!simRunning) return;
-    clearInterval(state.gameSimulatorTimer);
-    simRunning = false;
-    sound.playSuccess();
-    triggerHaptic('success');
-    const winAmt = (20 * currentMultiplier).toFixed(2);
-    state.balance += parseFloat(winAmt);
-    updateBalanceDisplay();
+  // Launch Demo Mode (Automatic / Renewable 1,000 Birr Practice Balance)
+  if (launchDemoModeBtn) {
+    launchDemoModeBtn.addEventListener('click', () => {
+      if (!gameAvailable(activeGameId)) {
+        showToast('This game is temporarily unavailable', 'error');
+        return;
+      }
+      sound.playClick();
+      triggerHaptic('impact');
 
-    gameSimStatus.textContent = `WON ${winAmt} ETB! (${currentMultiplier.toFixed(2)}x)`;
-    gameSimStatus.className = 'text-xs font-bold text-emerald-400 tracking-wider';
-    gameSimMultiplier.className = 'text-3xl font-extrabold text-emerald-400';
+      // Set wallet mode to demo and renew 1,000 ETB balance
+      if (window.HabeshaWallet) {
+        window.HabeshaWallet.setMode('demo');
+        window.HabeshaWallet.renewDemoBalance();
+      }
 
-    setTimeout(() => {
-      cashoutBtn.classList.add('hidden');
-      startDemoBtn.classList.remove('hidden');
-      gameSimMultiplier.className = 'text-3xl font-extrabold text-teal-400';
-      gameSimMultiplier.textContent = '1.00x';
-      gameSimStatus.textContent = 'READY TO LAUNCH';
-      gameSimStatus.className = 'text-xs font-bold text-slate-400 tracking-wider';
-      showToast(`🎉 Cashed out ${winAmt} ETB!`, 'success');
-    }, 1600);
-  });
+      showToast('?? Demo Mode: 1,000 ETB practice balance ready!', 'info');
+      closeModal(gameModal);
 
-  startDemoBtn.addEventListener('click', runSimGame);
+      setTimeout(() => {
+        if (activeGameUrl) {
+          const sep = activeGameUrl.includes('?') ? '&' : '?';
+          window.location.href = activeGameUrl + sep + 'mode=demo';
+        }
+      }, 300);
+    });
+  }
+
+  // Launch Real Mode (Funded via Telegram)
+  if (launchRealModeBtn) {
+    launchRealModeBtn.addEventListener('click', () => {
+      if (!gameAvailable(activeGameId)) {
+        showToast('This game is temporarily unavailable', 'error');
+        return;
+      }
+      sound.playClick();
+      triggerHaptic('impact');
+
+      const isReg = window.HabeshaWallet ? window.HabeshaWallet.isRegistered() : false;
+
+      if (!isReg) {
+        // Prompt user to register because real balance is funded through Telegram
+        closeModal(gameModal);
+        // Pre-populate if in Telegram WebApp
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+          const tg = window.Telegram.WebApp.initDataUnsafe.user;
+          if (regTelegramUsername && tg.username) regTelegramUsername.value = tg.username;
+          if (regDisplayName) regDisplayName.value = tg.first_name + (tg.last_name ? ' ' + tg.last_name : '');
+        }
+        openModal(telegramRegisterModal);
+        return;
+      }
+
+      // User is registered: set wallet mode to real and launch!
+      if (window.HabeshaWallet) {
+        window.HabeshaWallet.setMode('real');
+      }
+
+      showToast('?? Real Money Mode: Funded via Telegram', 'success');
+      closeModal(gameModal);
+
+      setTimeout(() => {
+        if (activeGameUrl) {
+          const sep = activeGameUrl.includes('?') ? '&' : '?';
+          window.location.href = activeGameUrl + sep + 'mode=real';
+        }
+      }, 300);
+    });
+  }
+
+  // Close Telegram Registration Modal
+  if (closeTelegramRegBtn) {
+    closeTelegramRegBtn.addEventListener('click', () => {
+      closeModal(telegramRegisterModal);
+    });
+  }
+
+  // Confirm Telegram Registration
+  if (confirmTelegramRegBtn) {
+    confirmTelegramRegBtn.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+
+      const username = regTelegramUsername ? regTelegramUsername.value.trim() : '';
+      const name = regDisplayName ? regDisplayName.value.trim() : '';
+
+      if (!username && !name) {
+        showToast('Please enter your Telegram username or phone', 'error');
+        return;
+      }
+
+      if (window.HabeshaWallet) {
+        window.HabeshaWallet.registerTelegramUser({ username, name });
+        window.HabeshaWallet.setMode('real');
+      }
+
+      showToast('?? Telegram account registered! Launching real game...', 'success');
+      closeModal(telegramRegisterModal);
+
+      setTimeout(() => {
+        if (activeGameUrl) {
+          const sep = activeGameUrl.includes('?') ? '&' : '?';
+          window.location.href = activeGameUrl + sep + 'mode=real';
+        }
+      }, 400);
+    });
+  }
 
   // Bind game card clicks
   document.querySelectorAll('.game-card').forEach((card) => {
@@ -696,15 +759,7 @@
         gameModalDesc.textContent = info.desc;
         gameModalImage.src = info.image;
 
-        // Reset sim state
-        clearInterval(state.gameSimulatorTimer);
-        simRunning = false;
-        cashoutBtn.classList.add('hidden');
-        startDemoBtn.classList.remove('hidden');
-        gameSimMultiplier.textContent = '1.00x';
-        gameSimStatus.textContent = 'READY TO LAUNCH';
-        gameSimStatus.className = 'text-xs font-bold text-slate-400 tracking-wider';
-
+        syncGameModalStatus();
         openModal(gameModal);
       }
     });

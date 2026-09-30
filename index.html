@@ -69,10 +69,11 @@
             </svg>
           </button>
 
-          <!-- Amount -->
-          <div class="flex items-baseline space-x-1">
+          <!-- Amount & Mode Badge -->
+          <div class="flex items-baseline space-x-1.5">
             <span id="balanceText" class="font-extrabold text-xs tracking-tight text-white">0.00</span>
             <span class="text-[10px] font-semibold text-slate-400">ETB</span>
+            <span id="walletModeBadge" class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">REAL</span>
           </div>
 
           <!-- Hide/Show Eye Button -->
@@ -557,56 +558,171 @@
     </div>
   </div>
 
-  <!-- 3. GAME SIMULATOR / PLAY MODAL -->
-  <div id="gameModal" class="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-3 sm:p-4">
-    <div class="modal-content w-full max-w-[430px] bg-[#111722] border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col space-y-3.5 max-h-[92vh] overflow-y-auto">
+  <!-- 3. GAME MODE SELECTION MODAL (Demo vs Real) -->
+  <div id="gameModal" class="modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-3 sm:p-4">
+    <div class="modal-content w-full max-w-[440px] bg-gradient-to-b from-[#141d2d] to-[#0c1320] border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col space-y-4 max-h-[92vh] overflow-y-auto">
       
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+      <!-- Game Info Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center space-x-3">
-          <img id="gameModalImage" src="assets/game_aviator.gif" alt="Game" class="w-10 h-10 rounded-xl object-cover border border-slate-700" />
+          <img id="gameModalImage" src="assets/game_aviator.gif" alt="Game" class="w-12 h-12 rounded-xl object-cover border border-slate-700 shadow-md" />
           <div>
-            <h3 id="gameModalTitle" class="font-extrabold text-base text-white">Aviator</h3>
-            <div class="flex items-center space-x-2 text-[10px]">
+            <h3 id="gameModalTitle" class="font-black text-lg text-white">Aviator</h3>
+            <div class="flex items-center space-x-2 text-[11px]">
               <span id="gameModalProvider" class="text-teal-400 font-bold">SPRIBE</span>
-              <span class="text-slate-600">•</span>
+              <span class="text-slate-600">?</span>
               <span id="gameModalCategory" class="text-slate-400 font-medium">Crash Game</span>
             </div>
           </div>
         </div>
-        <button class="close-modal-btn w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">✕</button>
+        <button class="close-modal-btn w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">?</button>
       </div>
 
-      <!-- Real-Time Interactive Simulator Canvas / Arena -->
-      <div class="relative w-full aspect-video rounded-xl bg-gradient-to-tr from-[#0a0f18] via-[#141b27] to-[#1e2838] border border-slate-700 flex flex-col items-center justify-center overflow-hidden p-4">
-        <!-- Status indicator -->
-        <span id="gameSimStatus" class="text-xs font-bold text-slate-400 tracking-wider">READY TO LAUNCH</span>
-        
-        <!-- Multiplier Display -->
-        <div id="gameSimMultiplier" class="text-4xl font-extrabold text-teal-400 my-2 tracking-tight">1.00x</div>
-        
-        <p class="text-[10px] text-slate-500">Live Crash Flight Simulator</p>
+      <p id="gameModalDesc" class="text-xs text-slate-300 leading-relaxed -mt-1"></p>
 
-        <!-- Simulated Takeoff / Cashout Buttons -->
-        <div class="mt-3 flex space-x-2">
-          <button id="startDemoBtn" class="px-5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-white font-extrabold text-xs shadow-lg shadow-teal-500/30 active:scale-95 transition-all">
-            🚀 Launch Demo Bet
-          </button>
-          <button id="cashoutBtn" class="hidden px-6 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/30 active:scale-95 transition-all animate-bounce">
-            💰 Cash Out Now!
-          </button>
+      <div class="text-center">
+        <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/60">
+          Select Game Mode
+        </span>
+      </div>
+
+      <!-- Mode Cards: Demo vs Real -->
+      <div class="grid grid-cols-1 gap-3">
+        
+        <!-- Option 1: Demo Practice Mode -->
+        <div class="relative group rounded-2xl bg-gradient-to-br from-[#0c1f36] to-[#071324] border-2 border-teal-500/40 hover:border-teal-400 p-4 transition-all shadow-lg hover:shadow-teal-500/20">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-lg">??</span>
+              <div>
+                <h4 class="font-extrabold text-sm text-white">Demo Practice</h4>
+                <p class="text-[10px] text-teal-300 font-semibold">100% Free Practice ? Zero Risk</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded-md bg-teal-500/20 border border-teal-500/30 text-[10px] font-extrabold text-teal-300">
+              FREE
+            </span>
+          </div>
+
+          <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+            Practice game mechanics and build strategies with an automatic, renewable <strong class="text-white">1,000 Birr</strong> practice balance.
+          </p>
+
+          <div class="flex items-center justify-between pt-1">
+            <div class="text-[11px]">
+              <span class="text-slate-400">Demo Balance:</span>
+              <span id="demoModalBalVal" class="font-bold text-teal-300 ml-1">1,000.00 ETB</span>
+              <span class="text-[10px] text-slate-500 block">Auto-renews when empty</span>
+            </div>
+            <button id="launchDemoModeBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-xs shadow-md shadow-teal-500/25 active:scale-95 transition-all flex items-center gap-1.5">
+              <span>Play Demo</span>
+              <span>&rarr;</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Option 2: Real Money Mode (Telegram Linked) -->
+        <div class="relative group rounded-2xl bg-gradient-to-br from-[#2a1708] via-[#1c1106] to-[#120a03] border-2 border-amber-500/50 hover:border-amber-400 p-4 transition-all shadow-lg hover:shadow-amber-500/20">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg">??</span>
+              <div>
+                <h4 class="font-extrabold text-sm text-white">Real Money Play</h4>
+                <p class="text-[10px] text-amber-300 font-semibold">Funded Directly via Telegram</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 text-[10px] font-extrabold text-amber-300">
+              REAL CASH
+            </span>
+          </div>
+
+          <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+            Real cash gameplay funded through your Telegram account. Fast deposits and instant withdrawals via Telebirr & CBE.
+          </p>
+
+          <div class="flex items-center justify-between pt-1">
+            <div id="realModeStatusContainer" class="text-[11px]">
+              <span id="realStatusLabel" class="text-slate-400">Telegram Account:</span>
+              <span id="realStatusValue" class="font-bold text-amber-400 ml-1">Not Linked</span>
+            </div>
+            <button id="launchRealModeBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-extrabold text-xs shadow-md shadow-amber-500/30 active:scale-95 transition-all flex items-center gap-1.5">
+              <span id="realBtnText">Play Real</span>
+              <span>&rarr;</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="pt-1">
+        <button class="close-modal-btn w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.5 TELEGRAM REGISTRATION MODAL -->
+  <div id="telegramRegisterModal" class="modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-3 sm:p-4">
+    <div class="modal-content w-full max-w-[420px] bg-gradient-to-b from-[#131b2c] to-[#0a101d] border border-amber-500/50 rounded-2xl p-5 shadow-2xl flex flex-col space-y-4">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <span class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">??</span>
+          <div>
+            <h3 class="font-black text-base text-white">Telegram Registration</h3>
+            <p class="text-[10px] text-amber-400 font-semibold">Real Account Wallet Setup</p>
+          </div>
+        </div>
+        <button id="closeTelegramRegBtn" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">?</button>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-relaxed">
+        <strong class="font-bold text-amber-300 block mb-1">?? Real Balance Notice:</strong>
+        Your real cash wallet is funded and managed directly through your Telegram account via <strong class="text-white">@Friends64_BOT</strong> with Telebirr and CBE.
+      </div>
+
+      <!-- Telegram Profile Form / Detection -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Telegram Username or Phone</label>
+          <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-amber-400">
+            <span class="px-3 text-xs font-bold text-amber-400 border-r border-slate-800">@</span>
+            <input type="text" id="regTelegramUsername" placeholder="username or phone number" class="w-full bg-transparent px-3 py-2.5 text-sm text-white focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Player Display Name</label>
+          <input type="text" id="regDisplayName" placeholder="e.g. Habesha Player" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400" />
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1.5 text-[11px] text-slate-300">
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400 font-bold">&#10003;</span>
+            <span>Direct Telegram bot deposit & withdrawal sync</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400 font-bold">&#10003;</span>
+            <span>Supports Telebirr, CBE Birr & M-Pesa</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-emerald-400 font-bold">&#10003;</span>
+            <span>+100 ETB Bonus code eligibility with HABESHA100</span>
+          </div>
         </div>
       </div>
 
-      <p id="gameModalDesc" class="text-xs text-slate-300 leading-relaxed"></p>
-
-      <div class="pt-1 flex space-x-2">
-        <button class="close-modal-btn flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors">
-          Close
+      <!-- Buttons -->
+      <div class="space-y-2 pt-1">
+        <button id="confirmTelegramRegBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-extrabold text-sm shadow-lg shadow-amber-500/25 active:scale-95 transition-all">
+          ? Complete Registration & Play Real
         </button>
-        <button id="launchFullGameBtn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-xs transition-all shadow-md shadow-teal-500/30 flex items-center justify-center gap-1.5">
-          <span>🎮 Launch Full Game</span>
-        </button>
+        <a href="https://t.me/Friends64_BOT" target="_blank" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center justify-center gap-2 transition-colors">
+          <span>?? Open in Telegram Bot (@Friends64_BOT)</span>
+        </a>
       </div>
+
     </div>
   </div>
 
