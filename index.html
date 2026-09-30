@@ -188,7 +188,7 @@
             </div>
             <h2 class="text-base font-bold text-[#00c29a] tracking-wide">Featured Games</h2>
           </div>
-          <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">9 Games</span>
+          <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">7 Games</span>
         </div>
         <p class="text-xs text-slate-400 mt-0.5 font-normal">Explore our handpicked selection of top-rated games.</p>
 
@@ -203,7 +203,7 @@
         <!-- 3-Column Games Grid -->
         <div class="grid grid-cols-3 gap-2.5 mt-1">
 
-          <!-- Card 1: Aviator (Spribe) -->
+          <!-- Card 1: Aviator (folder: game/aviator) -->
           <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="aviator" data-category="crash">
             <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
               <img src="assets/game_aviator.gif" alt="Aviator Spribe" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -217,7 +217,7 @@
             </div>
           </div>
 
-          <!-- Card 2: FAST KENO -->
+          <!-- Card 2: FAST KENO (folder: game/fast keno) -->
           <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="fast_keno" data-category="instant">
             <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
               <img src="assets/game_fast_keno.gif" alt="Fast Keno" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -238,125 +238,73 @@
             </div>
           </div>
 
-          <!-- Card 3: JetX -->
-          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="jetx" data-category="crash">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
-              <img src="assets/game_jetx.png" alt="JetX Smartsoft" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              
-              <!-- Favorite Star Badge -->
-              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card 4: Rocket Star -->
-          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="rocket_star" data-category="crash">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
-              <img src="assets/game_rocket_star.png" alt="Rocket Star" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              
-              <!-- Favorite Star Badge -->
-              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card 5: AVIAFLY -->
-          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="aviafly" data-category="crash">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
-              <img src="assets/game_aviafly.png" alt="Aviafly" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              
-              <!-- Favorite Star Badge -->
-              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card 6: Fish Road -->
-          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="fish_road" data-category="instant">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
-              <img src="assets/game_fish_road.png" alt="Fish Road" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              
-              <!-- Favorite Star Badge -->
-              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card 7: Chicken Road (featured in original hero banner) -->
+          <!-- Card 3: Chicken Road (folder: game/chicken road) -->
           <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="chicken_road" data-category="instant">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-gradient-to-b from-purple-950/80 to-[#120e21] flex flex-col items-center justify-between p-2.5">
+            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
+              <img src="assets/game_chicken_road.png" alt="Chicken Road" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              
               <!-- Favorite Star Badge -->
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                 </svg>
               </button>
-
-              <div class="my-auto flex flex-col items-center">
-                <span class="text-3xl filter drop-shadow">🐔</span>
-                <div class="w-12 h-1 bg-amber-400/80 rounded-full mt-2 animate-pulse"></div>
-              </div>
-
-              <div class="w-full text-center">
-                <span class="text-[11px] font-extrabold tracking-wider text-amber-300 uppercase block">Chicken Road</span>
-                <span class="text-[9px] text-purple-300/70 font-semibold">InOut 1000x</span>
-              </div>
             </div>
           </div>
 
-          <!-- Card 8: Dallol Bingo -->
+          <!-- Card 4: Fish (folder: game/fish) -->
+          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="fish" data-category="instant">
+            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
+              <img src="assets/game_fish.png" alt="Fish Road" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              
+              <!-- Favorite Star Badge -->
+              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Card 5: Dallol Bingo (folder: game/bingo) -->
           <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="bingo" data-category="instant">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-gradient-to-b from-teal-950/90 to-[#0d1f27] flex flex-col items-center justify-between p-2.5">
+            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
+              <img src="assets/game_bingo.png" alt="Dallol Bingo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              
               <!-- Favorite Star Badge -->
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                 </svg>
               </button>
-
-              <div class="my-auto flex flex-col items-center">
-                <div class="w-11 h-11 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-white font-extrabold text-lg shadow-lg">
-                  90
-                </div>
-              </div>
-
-              <div class="w-full text-center">
-                <span class="text-[11px] font-extrabold tracking-wider text-emerald-300 uppercase block">Dallol Bingo</span>
-                <span class="text-[9px] text-teal-200/70 font-semibold">Live Calling</span>
-              </div>
             </div>
           </div>
 
-          <!-- Card 9: Golden Plinko -->
-          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="plinko" data-category="instant">
-            <div class="relative aspect-[158/207] w-full overflow-hidden bg-gradient-to-b from-amber-950/90 to-[#23170a] flex flex-col items-center justify-between p-2.5">
+          <!-- Card 6: Bingo Star (folder: game/bingo star) -->
+          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="bingo_star" data-category="instant">
+            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
+              <img src="assets/game_bingo_star.png" alt="Bingo Star" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              
               <!-- Favorite Star Badge -->
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                 </svg>
               </button>
+            </div>
+          </div>
 
-              <div class="my-auto flex flex-col items-center">
-                <span class="text-3xl filter drop-shadow">🟡</span>
-              </div>
-
-              <div class="w-full text-center">
-                <span class="text-[11px] font-extrabold tracking-wider text-yellow-300 uppercase block">Plinko Gold</span>
-                <span class="text-[9px] text-amber-200/70 font-semibold">1,000x Max</span>
-              </div>
+          <!-- Card 7: Infinity (folder: game/infinity) -->
+          <div class="game-card group cursor-pointer bg-[#131924] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg" data-game="infinity" data-category="crash">
+            <div class="relative aspect-[158/207] w-full overflow-hidden bg-slate-900">
+              <img src="assets/game_infinity.png" alt="Infinity" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              
+              <!-- Favorite Star Badge -->
+              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-teal-500/20 backdrop-blur-md border border-teal-400/30 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                </svg>
+              </button>
             </div>
           </div>
 

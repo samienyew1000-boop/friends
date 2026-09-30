@@ -7,13 +7,11 @@
   const GAMES = [
     { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.gif', defaultMargin: 3.5 },
     { id: 'fast_keno', name: 'Fast Keno', provider: 'Habesha Gaming', category: 'Keno & lottery', image: '../assets/game_fast_keno.gif', defaultMargin: 4 },
-    { id: 'jetx', name: 'JetX', provider: 'SmartSoft Gaming', category: 'Crash game', image: '../assets/game_jetx.png', defaultMargin: 3 },
-    { id: 'rocket_star', name: 'Rocket Star', provider: 'InOut', category: 'Provably fair', image: '../assets/game_rocket_star.png', defaultMargin: 2.5 },
-    { id: 'aviafly', name: 'Aviafly', provider: 'Habesha Studio', category: 'Crash arcade', image: '../assets/game_aviafly.png', defaultMargin: 3.5 },
-    { id: 'fish_road', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish_road.png', defaultMargin: 4 },
     { id: 'chicken_road', name: 'Chicken Road', provider: 'InOut Games', category: 'Instant game', image: '../assets/game_chicken_road.png', defaultMargin: 3 },
+    { id: 'fish', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish.png', defaultMargin: 4 },
     { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.png', defaultMargin: 5 },
-    { id: 'plinko', name: 'Golden Plinko', provider: 'Habesha Original', category: 'Plinko', image: '../assets/game_plinko.png', defaultMargin: 4.5 },
+    { id: 'bingo_star', name: 'Bingo Star', provider: 'Star Gaming', category: 'Instant bingo', image: '../assets/game_bingo_star.png', defaultMargin: 4.5 },
+    { id: 'infinity', name: 'Infinity', provider: 'CandleTrade', category: 'Trading & crash', image: '../assets/game_infinity.png', defaultMargin: 3.5 },
   ];
   const DEMO_TRANSACTIONS = [
     { id: 'TX-80291', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Aviator', amount: 250, status: 'completed', time: 'Today, 10:42' },

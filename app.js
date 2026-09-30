@@ -481,6 +481,8 @@
   });
 
   // --- Featured Game Click & Simulator Modal ---
+  // --- Featured Game Click & Simulator Modal ---
+  // Exactly corresponds to folders in game/ (7 games total)
   const gameData = {
     'aviator': {
       title: 'Aviator',
@@ -500,41 +502,6 @@
       url: 'game/fast keno/index.html',
       desc: 'Fast paced 80-ball instant lottery. Pick your lucky numbers and win up to 10,000x!'
     },
-    'jetx': {
-      title: 'JetX',
-      provider: 'SmartSoft Gaming',
-      multiplier: 'Up to 25,000x',
-      category: 'Crash Game',
-      image: 'assets/game_jetx.png',
-      url: 'game/infinity/index.html',
-      desc: 'The supersonic jet rocket is ready for takeoff. Eject before explosion to secure profits!'
-    },
-    'rocket_star': {
-      title: 'Rocket Star',
-      provider: 'InOut / Provably Fair',
-      multiplier: '98.5% RTP',
-      category: 'Provably Fair',
-      image: 'assets/game_rocket_star.png',
-      url: 'game/infinity/index.html',
-      desc: 'Launch through the cosmos with certified cryptographic fairness verification.'
-    },
-    'aviafly': {
-      title: 'Aviafly',
-      provider: 'Habesha Studio',
-      multiplier: 'Instant Flight',
-      category: 'Crash Arcade',
-      image: 'assets/game_aviafly.png',
-      url: 'game/aviator/index.html',
-      desc: 'The fearless chicken pilot navigates through spark storms. Soar high and cash out!'
-    },
-    'fish_road': {
-      title: 'Fish Road',
-      provider: 'SeaGames',
-      multiplier: 'Casual Arcade',
-      image: 'assets/game_fish_road.png',
-      url: 'game/fish/index.html',
-      desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
-    },
     'chicken_road': {
       title: 'Chicken Road',
       provider: 'InOut Games',
@@ -543,6 +510,15 @@
       image: 'assets/game_chicken_road.png',
       url: 'game/chicken road/index.html',
       desc: 'Cross the perilous road step by step. Each step boosts your win multiplier!'
+    },
+    'fish': {
+      title: 'Fish Road',
+      provider: 'SeaGames',
+      multiplier: 'Casual Arcade',
+      category: 'Arcade Game',
+      image: 'assets/game_fish.png',
+      url: 'game/fish/index.html',
+      desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
     },
     'bingo': {
       title: 'Dallol Bingo',
@@ -553,16 +529,31 @@
       url: 'game/bingo/index.html',
       desc: 'Authentic Ethiopian community bingo room with automated voice and quick payouts.'
     },
-    'plinko': {
-      title: 'Golden Plinko',
-      provider: 'Habesha Original',
-      multiplier: 'Up to 1,000x',
-      category: 'Plinko',
-      image: 'assets/game_plinko.png',
+    'bingo_star': {
+      title: 'Bingo Star',
+      provider: 'Star Gaming',
+      multiplier: '90-Ball Star',
+      category: 'Instant Bingo',
+      image: 'assets/game_bingo_star.png',
       url: 'game/bingo star/index.html',
-      desc: 'Drop golden balls down the peg pyramid for multipliers up to 1,000x your stake!'
+      desc: 'Exciting 90-ball Bingo Star with quick auto-daub, instant pattern multipliers, and mega jackpot!'
+    },
+    'infinity': {
+      title: 'Infinity',
+      provider: 'CandleTrade',
+      multiplier: '1s Candlestick',
+      category: 'Trading & Crash',
+      image: 'assets/game_infinity.png',
+      url: 'game/infinity/index.html',
+      desc: 'Fast-paced 1-second candlestick financial trading! Predict Buy or Sell and ride the profit waves!'
     }
   };
+
+  // Support folder aliases (spaces, legacy IDs)
+  gameData['fast keno'] = gameData['fast_keno'];
+  gameData['chicken road'] = gameData['chicken_road'];
+  gameData['fish_road'] = gameData['fish'];
+  gameData['bingo star'] = gameData['bingo_star'];
 
   let activeGameUrl = 'game/aviator/index.html';
   let activeGameId = 'aviator';
