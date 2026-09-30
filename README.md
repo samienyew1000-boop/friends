@@ -1,23 +1,23 @@
-# Habesha Games - Mobile Mini App UI
+# Friendes Game - Mobile Mini App UI
 
-A high-fidelity, responsive mobile mini-app UI built for **Habesha Games** (Ethiopian gaming & betting mini-app platform).
+A high-fidelity, responsive mobile mini-app UI built for **Friendes Game** (Ethiopian gaming & betting mini-app platform).
 
 Designed to run seamlessly inside **Telegram Mini Apps (TMA)**, mobile browsers, and desktop web previews.
 
-![Habesha Games Preview](assets/hero_banner_1.jpg)
+![Friendes Game Preview](assets/hero_banner_1.jpg)
 
 ## ✨ Features
 
 - **Pixel-Matched Mobile Viewport**: Optimized for 390px–430px smartphone screens with sticky headers, native frosted bottom dock navigation, and iOS-style home indicators.
 - **Top Bar & Dynamic Balance**:
-  - Crowned Lion Habesha Games logo.
+  - Crowned Lion Friendes Game logo.
   - Interactive balance pill with `0.00 ETB` currency, refresh spin animation, and balance visibility toggle (`👁️`).
   - "+ Deposit" action button.
 - **Coupon Redemption Banner**:
   - Shimmer effect gradient card with watermark gift graphic.
   - Interactive Redeem Coupon modal with instant promo code validation and balance credit (`HABESHA100`, `VICTORY2026`, `WELCOME`).
 - **Hero Carousel Banner**:
-  - Features the authentic Ethiopian Habesha Games "የድል ጊዜ" (Time of Victory) banner with Jebena coffee ceremony, cash counting machine, and Birr banknotes.
+  - Features the authentic Ethiopian Friendes Game "የድል ጊዜ" (Time of Victory) banner with Jebena coffee ceremony, cash counting machine, and Birr banknotes.
   - 4-slide carousel with touch swipe gestures, left/right nav controls, and animated progress pill indicators.
 - **Featured Games Grid (3 Columns)**:
   - 9 Top-rated Ethiopian games: **Aviator** (Spribe), **Fast Keno**, **JetX**, **Rocket Star**, **Aviafly**, **Fish Road**, **Chicken Road**, **Dallol Bingo**, and **Golden Plinko**.
@@ -81,7 +81,7 @@ For the bot runner, set `TELEGRAM_ADMIN_USER_IDS` in [`.env`](.env) and use the 
 friends/
 ├── assets/
 │   ├── logo.jpg               # Crowned Lion logo
-│   ├── hero_banner_1.jpg      # Habesha Games hero banner
+│   ├── hero_banner_1.jpg      # Friendes Game hero banner
 │   ├── banner_2.jpg           # Carousel slide 2
 │   ├── banner_3.jpg           # Carousel slide 3
 │   ├── banner_4.jpg           # Carousel slide 4

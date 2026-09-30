@@ -1,5 +1,5 @@
 """
-Habesha Games - Telegram Bot Runner for @Friends64_BOT
+Friendes Game - Telegram Bot Runner for @Friends64_BOT
 Runs polling and sends interactive messages with WebApp button.
 Reads credentials safely from environment variables or .env file.
 """
@@ -68,7 +68,7 @@ def send_text_message(chat_id, text):
 
 def send_welcome(chat_id, first_name="Player"):
     welcome_text = (
-        f"🦁 <b>እንኳን ወደ Habesha Games በደህና መጡ!</b>\n"
+        f"🦁 <b>እንኳን ወደ Friendes Game በደህና መጡ!</b>\n"
         f"<b>Welcome, {first_name}!</b>\n\n"
         f"🎮 <b>Featured Games:</b>\n"
         f"• ✈️ <b>Aviator</b> · 🎱 <b>Fast Keno</b> · 🐔 <b>Chicken Road</b>\n"
@@ -86,7 +86,7 @@ def send_welcome(chat_id, first_name="Player"):
         "inline_keyboard": [
             [
                 {
-                    "text": "🎮 Play Habesha Games (Open Mini App)",
+                    "text": "🎮 Play Friendes Game (Open Mini App)",
                     "web_app": {"url": WEBAPP_URL}
                 }
             ],
@@ -109,7 +109,7 @@ def send_welcome(chat_id, first_name="Player"):
             [
                 {
                     "text": "👥 Channel & Community",
-                    "url": "https://t.me/habeshagames"
+                    "url": "https://t.me/Friends64_BOT"
                 },
                 {
                     "text": "🎧 24/7 Support",
@@ -129,7 +129,7 @@ def send_welcome(chat_id, first_name="Player"):
 
 def send_admin_menu(chat_id):
     admin_text = (
-        "🛡️ <b>Habesha Games | Control Center</b>\n\n"
+        "🛡️ <b>Friendes Game | Control Center</b>\n\n"
         "Welcome to the Operator Dashboard. From here you can manage:\n"
         "• 🎮 <b>Games & Margins</b> - Set house edge & toggle games online/paused\n"
         "• ♙ <b>Players Directory</b> - Monitor player balances & export CSV\n"
@@ -162,13 +162,13 @@ def send_admin_menu(chat_id):
     })
 
 def main():
-    logging.info("Starting Habesha Games Telegram Bot runner...")
+    logging.info("Starting Friendes Game Telegram Bot runner...")
     offset = 0
 
     # Configure Telegram commands menu
     api_call("setMyCommands", {
         "commands": [
-            {"command": "start", "description": "🎮 Launch Habesha Games Mini App"},
+            {"command": "start", "description": "🎮 Launch Friendes Game Mini App"},
             {"command": "admin", "description": "🛡️ Open Admin Control Center"},
             {"command": "deposit", "description": "💳 Deposit Birr (Telebirr/CBE)"}
         ]

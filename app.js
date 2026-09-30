@@ -1,4 +1,4 @@
-// Habesha Games Mobile Mini App Logic
+// Friendes Game Mobile Mini App Logic
 (function () {
   'use strict';
 
@@ -495,7 +495,7 @@
     },
     'fast_keno': {
       title: 'Fast Keno',
-      provider: 'Habesha Gaming',
+      provider: 'Friendes Game',
       multiplier: 'Instant Draw 80',
       category: 'Keno & Lottery',
       image: 'assets/game_fast_keno.gif',
@@ -855,5 +855,5 @@
     }
   });
 
-  console.log('Habesha Games Mini App initialized successfully.');
+  console.log('Friendes Game Mini App initialized successfully.');
 })();

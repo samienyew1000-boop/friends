@@ -1,5 +1,5 @@
 /**
- * Habesha Games - Unified Shared Balance Engine
+ * Friendes Game - Unified Shared Balance Engine
  * Provides a single source of truth for the player's wallet across all games.
  */
 (function (global) {
@@ -324,7 +324,7 @@
     const user = {
       id: data.id || ('tg_' + Math.floor(100000000 + Math.random() * 900000000)),
       username: data.username ? data.username.replace('@', '') : '',
-      name: data.name || data.username || 'Habesha Player',
+      name: data.name || data.username || 'Friendes Game Player',
       registeredAt: new Date().toISOString(),
       isRegistered: true
     };
@@ -359,6 +359,7 @@
   };
 
   global.HabeshaWallet = HabeshaWallet;
+  global.FriendesWallet = HabeshaWallet;
 
   // Initialize and synchronize immediately
   get();
