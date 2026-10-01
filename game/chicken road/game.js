@@ -22,8 +22,10 @@
     diffMenu: document.getElementById('diff-menu'),
     diffItems: [...document.querySelectorAll('.cr-diff-item')],
     btnPlay: document.getElementById('btn-play'),
+    inplayGroup: document.getElementById('inplay-group'),
     btnCashout: document.getElementById('btn-cashout'),
     cashoutVal: document.getElementById('cashout-val'),
+    btnGo: document.getElementById('btn-go'),
     toast: document.getElementById('toast'),
     btnMenu: document.getElementById('btn-menu'),
     menuBackdrop: document.getElementById('menu-backdrop'),
@@ -109,6 +111,8 @@
     crashCar: null,
     chickenBreath: 0,
     resetTimeout: null,
+    returnReason: null,
+    returnStartX: 78,
   };
 
   // --- Audio Synthesizer Engine ---
@@ -248,7 +252,7 @@
     if (!el.toast) return;
     el.toast.hidden = false;
     el.toast.textContent = text;
-    el.toast.className = cr-toast ;
+    el.toast.className = 'cr-toast' + (type ? ' is-' + type : '');
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => {
       el.toast.hidden = true;
@@ -263,27 +267,30 @@
     el.diffCurrentLabel.textContent = DIFFICULTIES[state.difficulty].label;
 
     const inPlay = state.phase === 'playing' || state.phase === 'hopping';
-    const hasProfit = inPlay && state.step > 0;
+    const isReturning = state.phase === 'returning';
+    const isBusy = state.phase === 'hopping' || isReturning || state.phase === 'bust' || state.phase === 'won';
 
-    if (hasProfit) {
-      el.btnCashout.classList.remove('hidden');
-      el.btnCashout.disabled = state.phase === 'hopping';
-      el.btnPlay.textContent = 'Play ➔';
-      el.btnPlay.disabled = state.phase === 'hopping' || state.step >= state.ladder.length;
+    if (inPlay) {
+      // In active play: remove Play button and show Go + Cash Out
+      el.btnPlay.classList.add('hidden');
+      el.inplayGroup.classList.remove('hidden');
+      el.btnCashout.disabled = state.step <= 0 || state.phase === 'hopping';
+      el.btnGo.disabled = state.phase === 'hopping' || state.step >= state.ladder.length;
     } else {
-      el.btnCashout.classList.add('hidden');
-      el.btnCashout.disabled = true;
+      // Idle or returning: Play button is visible
+      el.btnPlay.classList.remove('hidden');
+      el.inplayGroup.classList.add('hidden');
+      el.btnPlay.disabled = isBusy;
       el.btnPlay.textContent = 'Play';
-      el.btnPlay.disabled = state.phase === 'hopping';
     }
 
-    // Lock inputs while in game
-    el.betInput.disabled = inPlay;
-    el.betMin.disabled = inPlay;
-    el.betMax.disabled = inPlay;
-    el.diffTrigger.disabled = inPlay;
+    // Lock inputs while in game or returning
+    el.betInput.disabled = inPlay || isBusy;
+    el.betMin.disabled = inPlay || isBusy;
+    el.betMax.disabled = inPlay || isBusy;
+    el.diffTrigger.disabled = inPlay || isBusy;
     el.presetChips.forEach((chip) => {
-      chip.disabled = inPlay;
+      chip.disabled = inPlay || isBusy;
       chip.classList.toggle('is-active', Number(chip.dataset.bet) === state.bet);
     });
     el.diffItems.forEach((item) => {
@@ -355,7 +362,10 @@
 
   function handlePlayAction() {
     audio.ensure();
-    if (state.phase === 'bust' || state.phase === 'won') {
+    if (state.phase === 'bust' || state.phase === 'returning') {
+      return;
+    }
+    if (state.phase === 'won') {
       clearTimeout(state.resetTimeout);
       resetChicken();
       spawnCars();
@@ -516,13 +526,11 @@
     showToast('💥 Crashed! Bet lost.', 'lose');
     syncUi();
 
-    // Immediately reset and return right away!
+    // After brief crash impact pause (360ms), return smoothly back to sidewalk right before our eyes!
     clearTimeout(state.resetTimeout);
     state.resetTimeout = setTimeout(() => {
-      resetChicken();
-      spawnCars();
-      syncUi();
-    }, 320);
+      startReturnTransition('bust');
+    }, 360);
   }
 
   function cashOut() {
@@ -535,12 +543,71 @@
     showToast(`🎉 Cashed out +${money(win)} ETB!`, 'win');
     syncUi();
 
+    // After celebration pause (450ms), return smoothly back to sidewalk right before our eyes!
     clearTimeout(state.resetTimeout);
     state.resetTimeout = setTimeout(() => {
+      startReturnTransition('won');
+    }, 450);
+  }
+
+  function startReturnTransition(reason) {
+    clearTimeout(state.resetTimeout);
+    state.phase = 'returning';
+    state.returnReason = reason;
+    syncUi();
+
+    const startX = state.chickenX;
+    const endX = 78;
+    const dist = Math.abs(startX - endX);
+
+    if (dist < 10) {
       resetChicken();
       spawnCars();
       syncUi();
-    }, 900);
+      return;
+    }
+
+    // Smooth transition time: dynamic based on distance, approx 480-920ms
+    const duration = Math.min(920, Math.max(480, dist * 1.5));
+    const t0 = performance.now();
+
+    function animateReturn(now) {
+      if (state.phase !== 'returning') return;
+
+      const t = Math.min(1, (now - t0) / duration);
+      // Cubic ease-out
+      const ease = 1 - Math.pow(1 - t, 3);
+      state.chickenX = startX + (endX - startX) * ease;
+
+      // Scurrying footsteps / bounce
+      state.hopY = -Math.abs(Math.sin(t * Math.PI * 8)) * 9;
+
+      // Dust & sparkle particles while scampering back
+      if (Math.random() < 0.28) {
+        state.particles.push({
+          x: state.chickenX + (Math.random() * 12 - 6),
+          y: state.chickenY + 30,
+          vx: Math.random() * 1.8 + 0.4,
+          vy: -(Math.random() * 1.3),
+          life: 18,
+          maxLife: 18,
+          color: reason === 'bust' ? 'rgba(180, 180, 180, 0.6)' : 'rgba(251, 191, 36, 0.75)',
+          size: 2.5 + Math.random() * 2.5,
+        });
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(animateReturn);
+      } else {
+        state.chickenX = 78;
+        state.hopY = 0;
+        resetChicken();
+        spawnCars();
+        syncUi();
+      }
+    }
+
+    requestAnimationFrame(animateReturn);
   }
 
   // --- Particles & Effects ---
@@ -774,16 +841,22 @@
     const isBust = state.phase === 'bust';
     const isHop = state.phase === 'hopping';
     const isWon = state.phase === 'won';
+    const isReturning = state.phase === 'returning';
 
     ctx.save();
     // Shadow under chicken
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
-    ctx.ellipse(x, state.chickenY + 34, isBust ? 32 : 24, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, state.chickenY + 34, (isBust || (isReturning && state.returnReason === 'bust')) ? 30 : 24, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.translate(x, y);
-    if (isBust) {
+
+    if (isReturning) {
+      // Facing left towards the sidewalk!
+      ctx.scale(-1, 1);
+      ctx.rotate(Math.sin(state.chickenBreath * 4) * 0.1);
+    } else if (isBust) {
       ctx.rotate(state.fallRotation);
     } else if (state.phase === 'idle') {
       ctx.translate(0, Math.sin(state.chickenBreath) * 2);
@@ -792,7 +865,14 @@
     const cw = isBust ? 84 : 80;
     const ch = isBust ? 96 : 94;
     let chkImg = images.chicken;
-    if (isBust && images.chickenBust) {
+
+    if (isReturning) {
+      if (state.returnReason === 'bust') {
+        chkImg = images.chickenBust || images.chicken;
+      } else {
+        chkImg = images.chickenWin || images.chicken;
+      }
+    } else if (isBust && images.chickenBust) {
       chkImg = images.chickenBust;
     } else if (isHop && images.chickenHop) {
       chkImg = images.chickenHop;
@@ -993,6 +1073,15 @@
   el.btnPlay.addEventListener('click', () => {
     handlePlayAction();
   });
+
+  if (el.btnGo) {
+    el.btnGo.addEventListener('click', () => {
+      audio.ensure();
+      if (state.phase === 'playing') {
+        tryHop();
+      }
+    });
+  }
 
   // Tapping directly on the canvas road also triggers play/hop!
   canvas.addEventListener('click', () => {

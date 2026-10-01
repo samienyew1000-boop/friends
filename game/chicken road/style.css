@@ -479,12 +479,10 @@ html, body {
 /* Row 4: Primary Action Buttons */
 .cr-action-row {
   width: 100%;
-  display: flex;
-  gap: 8px;
 }
 
 .cr-play-btn {
-  flex: 1;
+  width: 100%;
   min-height: 52px;
   background: var(--green);
   color: #ffffff;
@@ -517,8 +515,23 @@ html, body {
   transform: none;
 }
 
+.cr-play-btn.hidden {
+  display: none !important;
+}
+
+/* In-Play Action Group (Cash Out & Go) */
+.cr-inplay-group {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.cr-inplay-group.hidden {
+  display: none !important;
+}
+
 .cr-cashout-btn {
-  flex: 1.25;
   min-height: 52px;
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #ffffff;
@@ -534,10 +547,6 @@ html, body {
   justify-content: center;
   line-height: 1.15;
   transition: all 0.15s ease;
-}
-
-.cr-cashout-btn.hidden {
-  display: none !important;
 }
 
 .cr-cashout-btn:active:not(:disabled) {
@@ -557,13 +566,13 @@ html, body {
   opacity: 0.95;
 }
 
-.cr-hop-btn {
+.cr-go-btn {
   min-height: 52px;
   background: var(--green);
   color: #ffffff;
   border: none;
   border-radius: 14px;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 6px 18px var(--green-shadow);
@@ -574,26 +583,26 @@ html, body {
   transition: all 0.15s ease;
 }
 
-.cr-hop-btn:hover {
+.cr-go-btn:hover {
   background: var(--green-hover);
 }
 
-.cr-hop-btn:active {
+.cr-go-btn:active {
   transform: scale(0.98);
 }
 
-.cr-hop-btn:disabled {
+.cr-go-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.cr-hop-icon {
+.cr-go-icon {
   font-size: 1.25rem;
   transition: transform 0.15s ease;
 }
 
-.cr-hop-btn:active .cr-hop-icon {
-  transform: translateX(4px);
+.cr-go-btn:active .cr-go-icon {
+  transform: translateX(3px);
 }
 
 /* Slide-out Menu / Drawer */
