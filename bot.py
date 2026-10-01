@@ -33,6 +33,14 @@ ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
 
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 if not TOKEN or TOKEN == "your_bot_token_here":
@@ -210,13 +218,15 @@ def main():
                                 send_text_message(chat_id, "✅ Message sent." if result and result.get("ok") else "❌ Telegram could not deliver that message.")
                         else:
                             send_welcome(chat_id, first_name)
-            time.sleep(1)
+                time.sleep(0.5)
+            else:
+                time.sleep(3)
         except KeyboardInterrupt:
             logging.info("Bot stopped.")
             break
-        except Exception as e:
-            logging.error(f"Polling loop error: {e}")
-            time.sleep(3)
+        except BaseException as e:
+            logging.error(f"Polling loop exception (will retry in 5s): {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
