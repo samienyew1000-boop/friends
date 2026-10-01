@@ -191,8 +191,13 @@ def main():
         }
     })
 
+    last_heartbeat = time.time()
     while True:
         try:
+            if time.time() - last_heartbeat > 60:
+                logging.info(f"Bot active, polling updates (offset: {offset})...")
+                last_heartbeat = time.time()
+
             updates = api_call("getUpdates", {"offset": offset, "timeout": 20})
             if updates and updates.get("ok"):
                 for update in updates.get("result", []):
