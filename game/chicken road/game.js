@@ -428,9 +428,12 @@
       }
       setTimeout(() => sfx('screech'), 50);
     } else {
-      // Safe step: if car is too close, it slows down or honks
-      if (laneCar && Math.abs(laneCar.y - state.chickenY) < 110) {
-        laneCar.yieldTimer = 350;
+      // Safe step: car in target lane yields and stops above the chicken
+      if (laneCar) {
+        const stopY = state.chickenY - laneCar.h - 18;
+        if (laneCar.y > stopY && laneCar.y < state.chickenY + 50) {
+          laneCar.y = stopY;
+        }
         sfx('horn');
       }
     }
@@ -823,25 +826,37 @@
     // Chicken breathing bob
     state.chickenBreath += dt * 0.004;
 
-    // Cars Movement: STOPPED TOGETHER WITH CHICKEN WHEN CHICKEN IS STOPPED
+    // Cars Movement: only the car on the lane where the chicken rests stops; others drive past!
     const roadH = stage.clientHeight || 520;
-    const isChickenHopping = state.phase === 'hopping';
+    const restingLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : -1;
 
     for (const car of state.cars) {
-      // Cars must not drive past while chicken is stopped; they must stop together with it.
-      // If crashing, car rushes down without pausing.
+      // If actively crashing into chicken, car rushes without pausing
       const isCrashingCar = state.isCrashing && car === state.crashCar;
-      if (!isChickenHopping && !isCrashingCar) {
-        continue;
-      }
 
       if (car.yieldTimer > 0) {
         car.yieldTimer -= dt;
         continue;
       }
 
+      const isRestingLane = car.lane === restingLane;
+      const stopY = state.chickenY - car.h - 18;
+
+      if (isRestingLane && !isCrashingCar) {
+        // Car stops right above the chicken while chicken is resting on this lane
+        if (car.y >= stopY && car.y < state.chickenY + 30) {
+          car.y = stopY;
+          continue; // STOPPED ONLY ON THE RESTING LANE!
+        }
+      }
+
       // Move downwards
-      car.y += car.speed * (dt / 1000);
+      const moveDist = car.speed * (dt / 1000);
+      if (isRestingLane && !isCrashingCar && car.y < stopY && car.y + moveDist >= stopY) {
+        car.y = stopY;
+      } else {
+        car.y += moveDist;
+      }
 
       // Loop back to top when reaching bottom
       if (car.y > roadH + car.h + 20) {
