@@ -22,10 +22,8 @@
     diffMenu: document.getElementById('diff-menu'),
     diffItems: [...document.querySelectorAll('.cr-diff-item')],
     btnPlay: document.getElementById('btn-play'),
-    inplayActions: document.getElementById('inplay-actions'),
     btnCashout: document.getElementById('btn-cashout'),
     cashoutVal: document.getElementById('cashout-val'),
-    btnGo: document.getElementById('btn-go'),
     toast: document.getElementById('toast'),
     btnMenu: document.getElementById('btn-menu'),
     menuBackdrop: document.getElementById('menu-backdrop'),
@@ -110,6 +108,7 @@
     isCrashing: false,
     crashCar: null,
     chickenBreath: 0,
+    resetTimeout: null,
   };
 
   // --- Audio Synthesizer Engine ---
@@ -264,16 +263,18 @@
     el.diffCurrentLabel.textContent = DIFFICULTIES[state.difficulty].label;
 
     const inPlay = state.phase === 'playing' || state.phase === 'hopping';
-    if (inPlay) {
-      el.btnPlay.classList.add('hidden');
-      el.inplayActions.classList.remove('hidden');
-      el.btnCashout.disabled = state.step <= 0 || state.phase === 'hopping';
-      el.btnGo.disabled = state.phase === 'hopping' || state.step >= state.ladder.length;
+    const hasProfit = inPlay && state.step > 0;
+
+    if (hasProfit) {
+      el.btnCashout.classList.remove('hidden');
+      el.btnCashout.disabled = state.phase === 'hopping';
+      el.btnPlay.textContent = 'Play ➔';
+      el.btnPlay.disabled = state.phase === 'hopping' || state.step >= state.ladder.length;
     } else {
-      el.btnPlay.classList.remove('hidden');
-      el.inplayActions.classList.add('hidden');
-      el.btnPlay.disabled = state.phase === 'bust' || state.phase === 'won';
+      el.btnCashout.classList.add('hidden');
+      el.btnCashout.disabled = true;
       el.btnPlay.textContent = 'Play';
+      el.btnPlay.disabled = state.phase === 'hopping';
     }
 
     // Lock inputs while in game
@@ -340,6 +341,7 @@
 
   function resetChicken() {
     state.step = 0;
+    state.phase = 'idle';
     state.chickenX = 78;
     state.chickenY = CHICKEN_BASE_Y;
     state.hopY = 0;
@@ -351,7 +353,23 @@
     state.crashCar = null;
   }
 
-  function startRound() {
+  function handlePlayAction() {
+    audio.ensure();
+    if (state.phase === 'bust' || state.phase === 'won') {
+      clearTimeout(state.resetTimeout);
+      resetChicken();
+      spawnCars();
+      syncUi();
+    }
+
+    if (state.phase === 'idle') {
+      startRoundAndHop();
+    } else if (state.phase === 'playing') {
+      tryHop();
+    }
+  }
+
+  function startRoundAndHop() {
     state.bet = clampBet(el.betInput.value);
     const bal = getBalance();
     if (bal < state.bet) {
@@ -361,12 +379,12 @@
     }
 
     modifyBalance(-state.bet, 'stake');
-    state.phase = 'playing';
     resetChicken();
     spawnCars();
     sfx('click');
-    showToast('Round started — Hop to cross!', 'win');
-    syncUi();
+    state.phase = 'playing';
+    // Immediately move / hop across into the first lane!
+    tryHop();
   }
 
   // --- HOP & PROFIT CRASH LOGIC ---
@@ -401,23 +419,23 @@
 
       if (laneCar) {
         // Position car above the chicken to ensure a dramatic, high-speed impact
-        if (laneCar.y > state.chickenY - 180) {
-          laneCar.y = state.chickenY - 240;
+        if (laneCar.y > state.chickenY - 160) {
+          laneCar.y = state.chickenY - 220;
         }
         // Blazing acceleration rush towards the chicken/target!
         laneCar.speed = 1050;
         laneCar.isCrashing = true;
       }
-      setTimeout(() => sfx('screech'), 80);
+      setTimeout(() => sfx('screech'), 50);
     } else {
       // Safe step: if car is too close, it slows down or honks
-      if (laneCar && Math.abs(laneCar.y - state.chickenY) < 130) {
-        laneCar.yieldTimer = 350; // pause briefly to let chicken pass
+      if (laneCar && Math.abs(laneCar.y - state.chickenY) < 110) {
+        laneCar.yieldTimer = 350;
         sfx('horn');
       }
     }
 
-    const duration = 360;
+    const duration = 340;
     const t0 = performance.now();
 
     function animateHop(now) {
@@ -428,7 +446,7 @@
       state.chickenX = startX + (endX - startX) * ease;
       state.hopY = -Math.sin(Math.PI * t) * 34;
 
-      // Check collision with the high-speed crashing car
+      // Check collision with the high-speed crashing car without pausing
       if (state.isCrashing && laneCar) {
         const carBox = {
           x: endX - CAR_W / 2 + 8,
@@ -449,7 +467,7 @@
           chickenBox.y < carBox.y + carBox.h &&
           chickenBox.y + chickenBox.h > carBox.y;
 
-        if (overlap || t >= 0.72) {
+        if (overlap || t >= 0.7) {
           triggerCrashImpact(endX, state.chickenY);
           return;
         }
@@ -484,8 +502,8 @@
     state.isCrashing = false;
     state.hopY = 0;
     state.fallY = 0;
-    state.fallRotation = -0.12;
-    state.flash = 1.0;
+    state.fallRotation = 0;
+    state.flash = 0.8;
     state.cameraShake = 16;
 
     // Explosive feathers & crash burst
@@ -495,11 +513,13 @@
     showToast('💥 Crashed! Bet lost.', 'lose');
     syncUi();
 
-    setTimeout(() => {
-      state.phase = 'idle';
+    // Immediately reset and return right away!
+    clearTimeout(state.resetTimeout);
+    state.resetTimeout = setTimeout(() => {
       resetChicken();
+      spawnCars();
       syncUi();
-    }, 1600);
+    }, 320);
   }
 
   function cashOut() {
@@ -512,11 +532,12 @@
     showToast(`🎉 Cashed out +${money(win)} ETB!`, 'win');
     syncUi();
 
-    setTimeout(() => {
-      state.phase = 'idle';
+    clearTimeout(state.resetTimeout);
+    state.resetTimeout = setTimeout(() => {
       resetChicken();
+      spawnCars();
       syncUi();
-    }, 1400);
+    }, 900);
   }
 
   // --- Particles & Effects ---
@@ -785,10 +806,14 @@
 
   // --- Game Loop Update ---
   function update(dt) {
-    // Camera follow chicken
+    // Camera follow chicken: instantly 0 when idle (no lingering lag)
     const w = stage.clientWidth || 480;
     const targetCamX = Math.max(0, state.chickenX - w * 0.36);
-    state.cameraX += (targetCamX - state.cameraX) * Math.min(1, dt * 0.008);
+    if (state.phase === 'idle') {
+      state.cameraX = 0;
+    } else {
+      state.cameraX += (targetCamX - state.cameraX) * Math.min(1, dt * 0.015);
+    }
 
     // Screen Shake decay
     if (state.cameraShake > 0) {
@@ -798,15 +823,18 @@
     // Chicken breathing bob
     state.chickenBreath += dt * 0.004;
 
-    // Bust falling animation
-    if (state.phase === 'bust') {
-      state.fallY = Math.min(140, state.fallY + dt * 0.22);
-      state.fallRotation -= dt * 0.002;
-    }
-
-    // Cars Movement: STRICTLY TOP TO BOTTOM
+    // Cars Movement: STOPPED TOGETHER WITH CHICKEN WHEN CHICKEN IS STOPPED
     const roadH = stage.clientHeight || 520;
+    const isChickenHopping = state.phase === 'hopping';
+
     for (const car of state.cars) {
+      // Cars must not drive past while chicken is stopped; they must stop together with it.
+      // If crashing, car rushes down without pausing.
+      const isCrashingCar = state.isCrashing && car === state.crashCar;
+      if (!isChickenHopping && !isCrashingCar) {
+        continue;
+      }
+
       if (car.yieldTimer > 0) {
         car.yieldTimer -= dt;
         continue;
@@ -817,7 +845,7 @@
 
       // Loop back to top when reaching bottom
       if (car.y > roadH + car.h + 20) {
-        car.y = -car.h - (Math.random() * 80 + 30);
+        car.y = -car.h - (Math.random() * 60 + 20);
         car.isCrashing = false;
 
         // Reset speed to level-appropriate speed
@@ -948,21 +976,12 @@
 
   // --- Event Listeners ---
   el.btnPlay.addEventListener('click', () => {
-    audio.ensure();
-    startRound();
+    handlePlayAction();
   });
 
-  el.btnGo.addEventListener('click', () => {
-    audio.ensure();
-    tryHop();
-  });
-
-  // Tapping directly on the canvas road also hops forward when playing!
+  // Tapping directly on the canvas road also triggers play/hop!
   canvas.addEventListener('click', () => {
-    audio.ensure();
-    if (state.phase === 'playing') {
-      tryHop();
-    }
+    handlePlayAction();
   });
 
   el.btnCashout.addEventListener('click', () => {

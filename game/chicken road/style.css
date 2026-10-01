@@ -479,10 +479,12 @@ html, body {
 /* Row 4: Primary Action Buttons */
 .cr-action-row {
   width: 100%;
+  display: flex;
+  gap: 8px;
 }
 
 .cr-play-btn {
-  width: 100%;
+  flex: 1;
   min-height: 52px;
   background: var(--green);
   color: #ffffff;
@@ -515,19 +517,8 @@ html, body {
   transform: none;
 }
 
-/* In-Play Action Buttons (Cash Out & Hop) */
-.cr-inplay-actions {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-
-.cr-inplay-actions.hidden {
-  display: none;
-}
-
 .cr-cashout-btn {
+  flex: 1.25;
   min-height: 52px;
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #ffffff;
@@ -543,6 +534,10 @@ html, body {
   justify-content: center;
   line-height: 1.15;
   transition: all 0.15s ease;
+}
+
+.cr-cashout-btn.hidden {
+  display: none !important;
 }
 
 .cr-cashout-btn:active:not(:disabled) {

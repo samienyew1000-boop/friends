@@ -122,21 +122,15 @@
       </div>
 
       <!-- Row 4: Primary Action Button(s) -->
-      <div class="cr-action-row">
-        <!-- Idle Play Button -->
-        <button type="button" class="cr-play-btn" id="btn-play">Play</button>
+      <div class="cr-action-row" id="action-row">
+        <!-- Cash Out button appears only when player has active winnings to collect -->
+        <button type="button" class="cr-cashout-btn hidden" id="btn-cashout">
+          <span class="cr-cashout-title">Cash Out</span>
+          <span class="cr-cashout-val" id="cashout-val">0.00 ETB</span>
+        </button>
 
-        <!-- Active Playing Actions (Cash Out & Hop Step) -->
-        <div class="cr-inplay-actions hidden" id="inplay-actions">
-          <button type="button" class="cr-cashout-btn" id="btn-cashout" disabled>
-            <span class="cr-cashout-title">Cash Out</span>
-            <span class="cr-cashout-val" id="cashout-val">0.00 ETB</span>
-          </button>
-          <button type="button" class="cr-hop-btn" id="btn-go">
-            <span>Hop</span>
-            <span class="cr-hop-icon">➔</span>
-          </button>
-        </div>
+        <!-- Primary Play button: immediately moves/hops when pressed -->
+        <button type="button" class="cr-play-btn" id="btn-play">Play</button>
       </div>
     </footer>
   </div>
