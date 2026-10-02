@@ -485,6 +485,47 @@ html, body {
   color: #fff;
 }
 
+/* Disabled / Locked Bet Controls (When round starts) */
+.stepper-row.is-locked {
+  background: #111317;
+  border-color: #21232c;
+}
+
+.stepper-btn:disabled,
+.stepper-btn.is-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.stepper-btn:disabled:active,
+.stepper-btn.is-locked:active {
+  transform: none;
+  background: #242630;
+}
+
+.amount-input:disabled,
+.amount-input[readonly] {
+  cursor: not-allowed;
+  color: #ffffff;
+  user-select: none;
+  opacity: 0.95;
+}
+
+.quick-chip:disabled,
+.quick-chip.is-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.quick-chip:disabled:active,
+.quick-chip.is-locked:active {
+  transform: none;
+  background: #22242c;
+  color: #94a3b8;
+}
+
 /* Main Bet / Cashout Button (Right Column) */
 .bet-card-right {
   width: 140px;

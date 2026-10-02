@@ -372,6 +372,7 @@
     resetLiveBets();
     updateHUD();
     updateBetButtons();
+    updateBetControlsLock();
   }
 
   function startFlight() {
@@ -390,6 +391,7 @@
 
     updateHUD();
     updateBetButtons();
+    updateBetControlsLock();
   }
 
   function crashFlight() {
@@ -416,6 +418,7 @@
 
     updateHUD();
     updateBetButtons();
+    updateBetControlsLock();
 
     // Schedule next round
     setTimeout(() => {
@@ -498,6 +501,45 @@
     }
   }
 
+  function isPanelLocked(panelNum) {
+    const pKey = `panel${panelNum}`;
+    const p = state[pKey];
+    // Once the round starts (FLYING or CRASHED), bet amount cannot be edited.
+    // Also while a bet is queued or in flight, it cannot be edited.
+    return state.status === 'FLYING' || state.status === 'CRASHED' || p.state === 'QUEUED' || p.state === 'IN_FLIGHT';
+  }
+
+  function updateBetControlsLock() {
+    [1, 2].forEach(num => {
+      const locked = isPanelLocked(num);
+      const input = document.getElementById(`betInput${num}`);
+      const minus = document.getElementById(`stepMinus${num}`);
+      const plus = document.getElementById(`stepPlus${num}`);
+      const stepperRow = input ? input.closest('.stepper-row') : null;
+      const chips = document.querySelectorAll(`.quick-chip[data-panel="${num}"]`);
+
+      if (minus) {
+        minus.disabled = locked;
+        minus.classList.toggle('is-locked', locked);
+      }
+      if (plus) {
+        plus.disabled = locked;
+        plus.classList.toggle('is-locked', locked);
+      }
+      if (input) {
+        input.disabled = locked;
+        input.readOnly = locked;
+      }
+      if (stepperRow) {
+        stepperRow.classList.toggle('is-locked', locked);
+      }
+      chips.forEach(chip => {
+        chip.disabled = locked;
+        chip.classList.toggle('is-locked', locked);
+      });
+    });
+  }
+
   function updateBetButtons() {
     ['panel1', 'panel2'].forEach((pKey, idx) => {
       const p = state[pKey];
@@ -518,9 +560,15 @@
         primary.textContent = 'Waiting';
         sub.textContent = 'Cancel';
       } else if (p.state === 'IN_FLIGHT') {
-        btn.classList.add('btn-cashout');
-        primary.textContent = 'Cash Out';
-        sub.textContent = `${(p.amount * state.multiplier).toFixed(2)} ETB`;
+        if (state.status === 'WAITING') {
+          btn.classList.add('btn-waiting');
+          primary.textContent = 'Waiting';
+          sub.textContent = 'Cancel';
+        } else {
+          btn.classList.add('btn-cashout');
+          primary.textContent = 'Cash Out';
+          sub.textContent = `${(p.amount * state.multiplier).toFixed(2)} ETB`;
+        }
       } else if (p.state === 'WON') {
         btn.classList.add('btn-won');
         primary.textContent = 'Won';
@@ -553,16 +601,23 @@
       creditBalance(p.amount);
       p.state = 'IDLE';
     } else if (p.state === 'IN_FLIGHT') {
-      // Cash out!
-      const winAmt = Math.round(p.amount * state.multiplier * 100) / 100;
-      p.payout = winAmt;
-      p.cashedAt = state.multiplier;
-      creditBalance(winAmt);
-      playWinSound();
-      p.state = 'WON';
+      if (state.status === 'WAITING') {
+        // Cancel bet placed during waiting
+        creditBalance(p.amount);
+        p.state = 'IDLE';
+      } else {
+        // Cash out!
+        const winAmt = Math.round(p.amount * state.multiplier * 100) / 100;
+        p.payout = winAmt;
+        p.cashedAt = state.multiplier;
+        creditBalance(winAmt);
+        playWinSound();
+        p.state = 'WON';
+      }
     }
 
     updateBetButtons();
+    updateBetControlsLock();
   }
 
   function renderHistory() {
@@ -591,6 +646,7 @@
 
       if (minus) {
         minus.addEventListener('click', () => {
+          if (isPanelLocked(num)) return;
           playClickSound();
           state[pKey].amount = Math.max(1, state[pKey].amount - 1);
           if (input) input.value = state[pKey].amount.toFixed(2);
@@ -600,6 +656,7 @@
 
       if (plus) {
         plus.addEventListener('click', () => {
+          if (isPanelLocked(num)) return;
           playClickSound();
           state[pKey].amount = Math.min(10000, state[pKey].amount + 1);
           if (input) input.value = state[pKey].amount.toFixed(2);
@@ -609,15 +666,25 @@
 
       if (input) {
         input.addEventListener('change', () => {
+          if (isPanelLocked(num)) {
+            input.value = state[pKey].amount.toFixed(2);
+            return;
+          }
           const val = parseFloat(input.value) || 1;
           state[pKey].amount = Math.max(1, Math.min(10000, val));
           input.value = state[pKey].amount.toFixed(2);
           updateBetButtons();
         });
+        input.addEventListener('keydown', (e) => {
+          if (isPanelLocked(num)) {
+            e.preventDefault();
+          }
+        });
       }
 
       document.querySelectorAll(`.quick-chip[data-panel="${num}"]`).forEach(chip => {
         chip.addEventListener('click', () => {
+          if (isPanelLocked(num)) return;
           playClickSound();
           const amt = parseFloat(chip.dataset.amt);
           state[pKey].amount = amt;
@@ -660,6 +727,7 @@
     resetLiveBets();
     setupEvents();
     startWaiting();
+    updateBetControlsLock();
   }
 
   if (document.readyState === 'loading') {
