@@ -6,8 +6,21 @@
     <meta name="theme-color" content="#0a1030" />
     <title>Fish</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="../../assets/game-loader.css" />
+    <script src="../../assets/game-loader.js"></script>
   </head>
   <body>
+    <!-- InOut Global Game Loading Screen -->
+    <div id="inoutLoader" class="inout-loader-screen" aria-label="Loading Game...">
+      <div class="inout-loader-content">
+        <img src="../../assets/inout_logo.png" alt="IN OUT" class="inout-loader-logo" />
+        <div class="inout-loader-spinner-row">
+          <div class="inout-spinner"></div>
+          <span class="inout-loading-text">Loading...</span>
+        </div>
+      </div>
+    </div>
+
     <div class="fish-root">
       <div class="fish-frame">
         <!-- Top bar -->

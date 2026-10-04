@@ -11,8 +11,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800;900&family=Noto+Sans:wght@500;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../../assets/game-loader.css" />
+  <script src="../../assets/game-loader.js"></script>
 </head>
 <body>
+  <!-- InOut Global Game Loading Screen -->
+  <div id="inoutLoader" class="inout-loader-screen" aria-label="Loading Game...">
+    <div class="inout-loader-content">
+      <img src="../../assets/inout_logo.png" alt="IN OUT" class="inout-loader-logo" />
+      <div class="inout-loader-spinner-row">
+        <div class="inout-spinner"></div>
+        <span class="inout-loading-text">Loading...</span>
+      </div>
+    </div>
+  </div>
+
   <div class="cr-shell">
     <!-- Top Header Bar -->
     <header class="cr-topbar">

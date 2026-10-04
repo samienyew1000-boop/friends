@@ -635,15 +635,16 @@
         window.HabeshaWallet.renewDemoBalance();
       }
 
-      showToast('?? Demo Mode: 1,000 ETB practice balance ready!', 'info');
+      showToast('🎮 Demo Mode: 1,000 ETB practice balance ready!', 'info');
       closeModal(gameModal);
+      if (window.showGameLoader) window.showGameLoader();
 
       setTimeout(() => {
         if (activeGameUrl) {
           const sep = activeGameUrl.includes('?') ? '&' : '?';
           window.location.href = activeGameUrl + sep + 'mode=demo';
         }
-      }, 300);
+      }, 350);
     });
   }
 
@@ -677,15 +678,16 @@
         window.HabeshaWallet.setMode('real');
       }
 
-      showToast('?? Real Money Mode: Funded via Telegram', 'success');
+      showToast('💰 Real Money Mode: Funded via Telegram', 'success');
       closeModal(gameModal);
+      if (window.showGameLoader) window.showGameLoader();
 
       setTimeout(() => {
         if (activeGameUrl) {
           const sep = activeGameUrl.includes('?') ? '&' : '?';
           window.location.href = activeGameUrl + sep + 'mode=real';
         }
-      }, 300);
+      }, 350);
     });
   }
 
@@ -715,8 +717,9 @@
         window.HabeshaWallet.setMode('real');
       }
 
-      showToast('?? Telegram account registered! Launching real game...', 'success');
+      showToast('✅ Telegram account registered! Launching real game...', 'success');
       closeModal(telegramRegisterModal);
+      if (window.showGameLoader) window.showGameLoader();
 
       setTimeout(() => {
         if (activeGameUrl) {
