@@ -65,10 +65,10 @@
     }, delay);
   };
 
-  const isGamePage = window.location.pathname.toLowerCase().includes('/game/') ||
-                     window.location.href.toLowerCase().includes('/game/');
+  // Auto-run loading screen on all pages (Mini App lobby and games)
+  const shouldAutoRun = true;
 
-  if (isGamePage) {
+  if (shouldAutoRun) {
     injectStyles();
     createLoaderElement();
 

