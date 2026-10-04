@@ -728,6 +728,9 @@
     setupEvents();
     startWaiting();
     updateBetControlsLock();
+    if (window.hideGameLoader) {
+      window.hideGameLoader(300);
+    }
   }
 
   if (document.readyState === 'loading') {

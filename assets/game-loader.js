@@ -16,16 +16,22 @@
   }
 
   function createLoaderElement() {
-    let screen = document.getElementById('inoutLoader');
-    if (screen) {
-      screen.classList.remove('fade-out');
-      return screen;
+    const existing = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
+    if (existing.length > 0) {
+      existing.forEach((loader) => {
+        loader.classList.remove('fade-out');
+        loader.style.removeProperty('display');
+        loader.style.removeProperty('pointer-events');
+      });
+      return existing[0];
     }
 
-    screen = document.createElement('div');
+    if (!document.body) return null;
+
+    const screen = document.createElement('div');
     screen.id = 'inoutLoader';
     screen.className = 'inout-loader-screen';
-    screen.setAttribute('aria-label', 'Loading Game...');
+    screen.setAttribute('aria-label', 'Loading Friendes Game...');
     screen.innerHTML = `
       <div class="inout-loader-content">
         <img src="${LOGO_DATA}" alt="IN OUT" class="inout-loader-logo" />
@@ -36,56 +42,61 @@
       </div>
     `;
 
-    const mount = document.body || document.documentElement;
-    if (mount) {
-      mount.insertBefore(screen, mount.firstChild);
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        document.body.insertBefore(screen, document.body.firstChild);
-      });
-    }
+    document.body.insertBefore(screen, document.body.firstChild);
     return screen;
   }
 
   // Global Controls
   window.showGameLoader = function() {
     injectStyles();
-    const loader = createLoaderElement();
-    if (loader) {
-      loader.classList.remove('fade-out');
+    const loaders = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
+    if (loaders.length > 0) {
+      loaders.forEach((loader) => {
+        loader.style.removeProperty('display');
+        loader.style.removeProperty('pointer-events');
+        loader.classList.remove('fade-out');
+      });
+    } else {
+      createLoaderElement();
     }
   };
 
   window.hideGameLoader = function(delay = 0) {
     setTimeout(() => {
-      const loader = document.getElementById('inoutLoader');
-      if (loader) {
+      const loaders = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
+      loaders.forEach((loader) => {
         loader.classList.add('fade-out');
-      }
-    }, delay);
+        loader.style.setProperty('pointer-events', 'none', 'important');
+        setTimeout(() => {
+          loader.style.setProperty('display', 'none', 'important');
+        }, 400);
+      });
+    }, Math.max(0, delay));
   };
 
-  // Auto-run loading screen on all pages (Mini App lobby and games)
-  const shouldAutoRun = true;
+  // Auto-run loading screen dismissal
+  injectStyles();
 
-  if (shouldAutoRun) {
-    injectStyles();
-    createLoaderElement();
+  const startTime = Date.now();
+  const MIN_DISPLAY_TIME = 750; // Visible for ~750ms for authentic InOut splash
+  const MAX_DISPLAY_TIME = 1500; // Guaranteed dismissal within 1.5s max
 
-    const startTime = Date.now();
-    const MIN_DISPLAY_TIME = 850;
-
-    function handleLoaded() {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
-      window.hideGameLoader(remaining);
-    }
-
-    if (document.readyState === 'complete') {
-      handleLoaded();
-    } else {
-      window.addEventListener('load', handleLoaded);
-      setTimeout(handleLoaded, 3500);
-    }
+  let dismissed = false;
+  function handleDismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+    window.hideGameLoader(remaining);
   }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    handleDismiss();
+  } else {
+    document.addEventListener('DOMContentLoaded', handleDismiss);
+    window.addEventListener('load', handleDismiss);
+  }
+
+  // Hard safety timeout: Guaranteed dismissal
+  setTimeout(handleDismiss, MAX_DISPLAY_TIME);
 })();

@@ -859,4 +859,7 @@
   });
 
   console.log('Friendes Game Mini App initialized successfully.');
+  if (window.hideGameLoader) {
+    window.hideGameLoader(300);
+  }
 })();

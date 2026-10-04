@@ -1200,5 +1200,8 @@
     spawnCars();
     syncUi();
     requestAnimationFrame(loop);
+    if (window.hideGameLoader) {
+      window.hideGameLoader(300);
+    }
   });
 })();
