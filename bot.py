@@ -64,6 +64,49 @@ def api_call(method, payload=None):
 def is_admin(user_id):
     return str(user_id) in ADMIN_USER_IDS
 
+KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
+
+def load_known_users():
+    try:
+        if KNOWN_USERS_FILE.exists():
+            with open(KNOWN_USERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        logging.error(f"Error loading known users: {e}")
+    # Default to admin user
+    return {"8474256363": {"id": 8474256363, "first_name": "Admin", "username": "Ninjaaj7", "updated": time.time()}}
+
+def save_known_user(user_obj):
+    if not user_obj:
+        return
+    uid = str(user_obj.get("id"))
+    users = load_known_users()
+    users[uid] = {
+        "id": user_obj.get("id"),
+        "first_name": user_obj.get("first_name", "Player"),
+        "last_name": user_obj.get("last_name", ""),
+        "username": user_obj.get("username", ""),
+        "updated": time.time()
+    }
+    try:
+        with open(KNOWN_USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=2)
+    except Exception as e:
+        logging.error(f"Error saving known users: {e}")
+
+def broadcast_message(text, target_chat_ids=None):
+    """Deliver a broadcast message to all known Telegram users or specified IDs."""
+    users = load_known_users()
+    targets = target_chat_ids if target_chat_ids else list(users.keys())
+    sent = 0
+    failed = 0
+    for chat_id in targets:
+        res = send_text_message(chat_id, text)
+        if res and res.get("ok"):
+            sent += 1
+        else:
+            failed += 1
+    return sent, failed
 
 def send_text_message(chat_id, text):
     """Send a plain HTML-safe text message through Telegram."""
@@ -219,12 +262,46 @@ def main():
                         chat_id = msg["chat"]["id"]
                         first_name = msg["from"].get("first_name", "Player")
                         text = msg.get("text", "")
+                        web_app_data = msg.get("web_app_data")
+
+                        # Save user for broadcast targeting
+                        save_known_user(msg.get("from"))
 
                         logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
+
+                        # Handle WebApp data sent from Admin Control Center
+                        if web_app_data:
+                            data_raw = web_app_data.get("data", "")
+                            logging.info(f"Received WebApp data: {data_raw}")
+                            try:
+                                payload = json.loads(data_raw)
+                                action = payload.get("action")
+                                if action in ("broadcast", "send"):
+                                    out_msg = payload.get("message") or payload.get("text")
+                                    aud = payload.get("audience", "all")
+                                    target_id = payload.get("chatId")
+                                    if target_id and (aud == "selected" or action == "send"):
+                                        res = send_text_message(target_id, out_msg)
+                                        if res and res.get("ok"):
+                                            send_text_message(chat_id, f"✅ Message delivered to chat <code>{target_id}</code>:\n\n{out_msg}")
+                                        else:
+                                            send_text_message(chat_id, f"❌ Telegram delivery failed to chat <code>{target_id}</code>.")
+                                    else:
+                                        sent, failed = broadcast_message(out_msg)
+                                        send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s)! (Failed: {failed})")
+                                    continue
+                            except Exception as ex:
+                                logging.error(f"Error handling web_app_data: {ex}")
+
                         if text.startswith("/admin"):
                             send_admin_menu(chat_id)
                         elif text.startswith("/broadcast ") and is_admin(msg.get("from", {}).get("id")):
-                            send_text_message(chat_id, "Broadcast delivery is enabled only through the protected admin worker. Use the admin queue API to target registered users.")
+                            broadcast_text = text.split(" ", 1)[1].strip()
+                            if not broadcast_text:
+                                send_text_message(chat_id, "Usage: /broadcast <message>")
+                            else:
+                                sent, failed = broadcast_message(broadcast_text)
+                                send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s) (Failed: {failed}).")
                         elif text.startswith("/send ") and is_admin(msg.get("from", {}).get("id")):
                             parts = text.split(" ", 2)
                             if len(parts) < 3:

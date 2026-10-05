@@ -4,6 +4,8 @@
   const CONFIG_KEY = 'habesha_admin_config_v1';
   const QUEUE_KEY = 'habesha_admin_message_queue_v1';
   const SEED_KEY = 'habesha_admin_demo_seed_v1';
+  const BOT_TOKEN = '8623497673:AAEkpGYZJq3jxTrD4RFathomGgYKcGQJElU';
+  const DEFAULT_ADMIN_CHAT_ID = '8474256363';
   const GAMES = [
     { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.jpg', defaultMargin: 3.5 },
     { id: 'fast_keno', name: 'Fast Keno', provider: 'Friendes Game', category: 'Keno & lottery', image: '../assets/game_fast_keno.jpg', defaultMargin: 4 },
@@ -139,12 +141,164 @@
     const days = Number($('chartRange').value || 7); const values = Array.from({ length: days }, (_, index) => { const base = getMetrics().profit; return Math.max(0, base * (0.38 + ((index * 17) % 51) / 100)); }); const max = Math.max(1000, ...values); const points = values.map((value, index) => `${(index / Math.max(1, days - 1)) * 700},${225 - (value / max) * 195}`).join(' '); $('chartLine').setAttribute('d', `M${points.replace(/ /g, ' L')}`); $('chartArea').setAttribute('d', `M${points.replace(/ /g, ' L')} L700,240 L0,240 Z`); $('chartLabels').innerHTML = values.map((_, index) => `<span>${days <= 7 ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index] || `D${index + 1}` : `D${index + 1}`}</span>`).join('');
   }
 
-  function renderPlayers() {
-    const players = [...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()]; const query = String($('playerSearch').value || '').toLowerCase(); const filtered = players.filter((player) => `${player.player} ${player.username} ${player.playerId}`.toLowerCase().includes(query)); $('playerCount').textContent = `${filtered.length} player${filtered.length === 1 ? '' : 's'}`; $('playersTable').innerHTML = filtered.length ? filtered.map((player) => { const playerRecords = transactions.filter((item) => (item.playerId || item.player) === (player.playerId || player.player)); const balance = playerRecords.reduce((sum, item) => sum + (item.type === 'deposit' || item.type === 'win' ? Number(item.amount) : -Number(item.amount || 0)), 0); return `<tr><td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td><td>${escapeHTML(player.playerId || 'Local')}</td><td><strong>${money(Math.max(0, balance))}</strong></td><td>${playerRecords.length} record${playerRecords.length === 1 ? '' : 's'}</td><td>${escapeHTML(player.time || 'Recently')}</td><td><span class="status-tag">ACTIVE</span></td></tr>`; }).join('') : '<tr><td colspan="6"><span class="muted">No matching players. Player records appear when the connected game ledger contains activity.</span></td></tr>'; }
-  function renderTransactions() { const filter = $('transactionFilter').value; const records = transactions.filter((item) => filter === 'all' || item.type === filter); $('transactionCount').textContent = `${records.length} record${records.length === 1 ? '' : 's'}`; $('transactionsTable').innerHTML = records.length ? records.map((item) => `<tr><td><strong>${escapeHTML(item.id || 'TX-LOCAL')}</strong></td><td>${escapeHTML(item.player || 'Player')}<small>${escapeHTML(item.playerId || '')}</small></td><td><span class="type-label type-${escapeHTML(item.type)}">${escapeHTML(item.type || 'activity')}</span></td><td>${escapeHTML(item.method || 'Wallet')}</td><td><strong>${money(item.amount)}</strong></td><td><span class="status-tag ${item.status === 'pending' ? 'off' : ''}">${escapeHTML(item.status || 'completed')}</span></td><td>${escapeHTML(item.time || item.requested || 'Recent')}</td></tr>`).join('') : '<tr><td colspan="7"><span class="muted">No records found.</span></td></tr>'; }
+  function getTargetChatIds(audience, specificChatId) {
+    if (audience === 'selected') {
+      return specificChatId ? [String(specificChatId).trim()] : [];
+    }
+    const ids = new Set();
+    // 1. Current admin chat ID
+    if (DEFAULT_ADMIN_CHAT_ID) ids.add(String(DEFAULT_ADMIN_CHAT_ID));
 
-  function renderQueue() { $('messageQueue').innerHTML = queue.length ? queue.map((item) => `<div class="queue-item"><div class="queue-item-top"><strong>${item.audience === 'selected' ? `Chat ${escapeHTML(item.chatId)}` : escapeHTML(item.audience)} </strong><span class="queue-status">${escapeHTML(item.status)}</span></div><p>${escapeHTML(item.message)}</p><small>${escapeHTML(item.createdAt)}</small></div>`).join('') : '<p class="muted">No messages in the queue.</p>'; }
-  function exportCSV(filename, rows) { const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n'); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
+    // 2. Local registered user
+    try {
+      const regUser = JSON.parse(localStorage.getItem('habesha_registered_user') || 'null');
+      if (regUser && regUser.id && !isNaN(Number(regUser.id))) {
+        ids.add(String(regUser.id));
+      }
+    } catch (e) {}
+
+    // 3. Transactions players with numeric IDs
+    transactions.forEach((tx) => {
+      const pid = String(tx.playerId || '').replace(/^TG-/, '').trim();
+      if (pid && /^\d+$/.test(pid)) {
+        ids.add(pid);
+      }
+    });
+
+    return Array.from(ids);
+  }
+
+  async function sendTelegramMessage(chatId, text) {
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true
+        })
+      });
+      const data = await response.json();
+      return data && data.ok;
+    } catch (error) {
+      console.warn('Telegram API direct delivery failed:', error);
+      return false;
+    }
+  }
+
+  function renderPlayers() {
+    const players = [...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()];
+    const query = String($('playerSearch').value || '').toLowerCase();
+    const filtered = players.filter((player) => `${player.player} ${player.username} ${player.playerId}`.toLowerCase().includes(query));
+    $('playerCount').textContent = `${filtered.length} player${filtered.length === 1 ? '' : 's'}`;
+    $('playersTable').innerHTML = filtered.length ? filtered.map((player) => {
+      const playerRecords = transactions.filter((item) => (item.playerId || item.player) === (player.playerId || player.player));
+      const balance = playerRecords.reduce((sum, item) => sum + (item.type === 'deposit' || item.type === 'win' ? Number(item.amount) : -Number(item.amount || 0)), 0);
+      const cleanId = String(player.playerId || '').replace(/^TG-/, '');
+      const actionHtml = /^\d+$/.test(cleanId) ? `<button class="text-btn direct-msg-btn" data-chat-id="${cleanId}">Message 💬</button>` : `<span class="status-tag">ACTIVE</span>`;
+      return `<tr><td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td><td>${escapeHTML(player.playerId || 'Local')}</td><td><strong>${money(Math.max(0, balance))}</strong></td><td>${playerRecords.length} record${playerRecords.length === 1 ? '' : 's'}</td><td>${escapeHTML(player.time || 'Recently')}</td><td>${actionHtml}</td></tr>`;
+    }).join('') : '<tr><td colspan="6"><span class="muted">No matching players. Player records appear when the connected game ledger contains activity.</span></td></tr>';
+
+    document.querySelectorAll('.direct-msg-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.chatId;
+        $('messageAudience').value = 'selected';
+        $('chatIdField').classList.remove('hidden');
+        $('messageChatId').value = targetId;
+        showSection('messages');
+        $('messageText').focus();
+        showToast(`Target set to Telegram chat ${targetId}`);
+      });
+    });
+  }
+
+  function renderTransactions() {
+    const filter = $('transactionFilter').value;
+    const records = transactions.filter((item) => filter === 'all' || item.type === filter);
+    $('transactionCount').textContent = `${records.length} record${records.length === 1 ? '' : 's'}`;
+    $('transactionsTable').innerHTML = records.length ? records.map((item) => `<tr><td><strong>${escapeHTML(item.id || 'TX-LOCAL')}</strong></td><td>${escapeHTML(item.player || 'Player')}<small>${escapeHTML(item.playerId || '')}</small></td><td><span class="type-label type-${escapeHTML(item.type)}">${escapeHTML(item.type || 'activity')}</span></td><td>${escapeHTML(item.method || 'Wallet')}</td><td><strong>${money(item.amount)}</strong></td><td><span class="status-tag ${item.status === 'pending' ? 'off' : ''}">${escapeHTML(item.status || 'completed')}</span></td><td>${escapeHTML(item.time || item.requested || 'Recent')}</td></tr>`).join('') : '<tr><td colspan="7"><span class="muted">No records found.</span></td></tr>';
+  }
+
+  function renderQueue() {
+    $('messageQueue').innerHTML = queue.length ? queue.map((item) => {
+      const isDelivered = String(item.status).toLowerCase().includes('delivered') || String(item.status).toLowerCase().includes('sent');
+      const isFailed = String(item.status).toLowerCase().includes('failed');
+      const badgeStyle = isDelivered ? 'color:#55dfb7; background:#12392f;' : (isFailed ? 'color:#ff8291; background:#38232c;' : 'color:#f6c568; background:#3d3020;');
+      return `<div class="queue-item">
+        <div class="queue-item-top">
+          <strong>${item.audience === 'selected' ? `Chat ${escapeHTML(item.chatId)}` : escapeHTML(item.audience)}</strong>
+          <span class="queue-status" style="${badgeStyle} padding:3px 8px; border-radius:12px;">${escapeHTML(item.status)}</span>
+        </div>
+        <p>${escapeHTML(item.message)}</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+          <small>${escapeHTML(item.createdAt)}</small>
+          ${!isDelivered ? `<button class="text-btn retry-msg-btn" data-msg-id="${item.id}" style="font-size:10px; padding:0;">Retry ↻</button>` : ''}
+        </div>
+      </div>`;
+    }).join('') : '<p class="muted">No messages in the queue.</p>';
+
+    document.querySelectorAll('.retry-msg-btn').forEach((btn) => {
+      btn.addEventListener('click', () => dispatchQueueItem(btn.dataset.msgId));
+    });
+  }
+
+  async function dispatchQueueItem(itemId) {
+    const item = queue.find((q) => q.id === itemId);
+    if (!item) return;
+
+    item.status = 'Sending...';
+    saveQueue();
+    renderQueue();
+
+    const targets = getTargetChatIds(item.audience, item.chatId);
+    if (!targets.length) {
+      item.status = 'Failed (No chat ID)';
+      saveQueue();
+      renderQueue();
+      showToast('No Telegram chat ID found for target audience');
+      return;
+    }
+
+    let successCount = 0;
+    for (const cid of targets) {
+      const ok = await sendTelegramMessage(cid, item.message);
+      if (ok) successCount++;
+    }
+
+    if (window.Telegram?.WebApp?.sendData) {
+      try {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          action: item.audience === 'selected' ? 'send' : 'broadcast',
+          audience: item.audience,
+          chatId: item.chatId,
+          message: item.message
+        }));
+      } catch (e) {}
+    }
+
+    if (successCount > 0) {
+      item.status = `Delivered (${successCount} sent)`;
+      showToast(`✅ Delivered to ${successCount} Telegram user(s)`);
+    } else {
+      item.status = 'Delivery Failed (API Error)';
+      showToast('❌ Failed to deliver message. Check Telegram network.');
+    }
+
+    saveQueue();
+    renderQueue();
+  }
+
+  function exportCSV(filename, rows) {
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
 
   window.addEventListener('storage', (event) => {
     if ([CONFIG_KEY, QUEUE_KEY, 'lucky-bingo-admin-state-v1'].includes(event.key)) refreshFromStorage();
@@ -162,7 +316,29 @@
   $('messageAudience').addEventListener('change', (event) => $('chatIdField').classList.toggle('hidden', event.target.value !== 'selected'));
   $('messageText').addEventListener('input', (event) => { $('charCount').textContent = `${event.target.value.length} / 4096`; });
   $('clearMessage').addEventListener('click', () => { $('messageText').value = ''; $('charCount').textContent = '0 / 4096'; });
-  $('queueMessage').addEventListener('click', () => { const message = $('messageText').value.trim(); const audience = $('messageAudience').value; const chatId = $('messageChatId').value.trim(); if (!message) return showToast('Write a message first'); if (audience === 'selected' && !chatId) return showToast('Enter a Telegram chat ID'); queue.unshift({ id: `MSG-${Date.now()}`, audience, chatId, message, status: 'Queued', createdAt: new Date().toLocaleString() }); saveQueue(); renderQueue(); $('clearMessage').click(); showToast('Message added to secure delivery queue'); });
+  $('queueMessage').addEventListener('click', async () => {
+    const message = $('messageText').value.trim();
+    const audience = $('messageAudience').value;
+    const chatId = $('messageChatId').value.trim();
+    if (!message) return showToast('Write a message first');
+    if (audience === 'selected' && !chatId) return showToast('Enter a Telegram chat ID');
+
+    const queueItem = {
+      id: `MSG-${Date.now()}`,
+      audience,
+      chatId,
+      message,
+      status: 'Sending...',
+      createdAt: new Date().toLocaleString()
+    };
+    queue.unshift(queueItem);
+    saveQueue();
+    renderQueue();
+    $('clearMessage').click();
+    showToast('Sending message to Telegram...');
+
+    await dispatchQueueItem(queueItem.id);
+  });
   $('clearQueue').addEventListener('click', () => { queue = queue.filter((item) => item.status !== 'Sent'); saveQueue(); renderQueue(); showToast('Completed messages cleared'); });
   $('seedDemoData').addEventListener('click', () => { transactions = DEMO_TRANSACTIONS; localStorage.setItem(SEED_KEY, '1'); renderOverview(); renderPlayers(); renderTransactions(); showToast('Demo reporting data loaded'); });
   $('resetAdminData').addEventListener('click', () => { if (!window.confirm('Reset all admin settings and queued messages?')) return; config = defaultConfig(); queue = []; localStorage.removeItem(CONFIG_KEY); localStorage.removeItem(QUEUE_KEY); renderGameControls(); renderQueue(); renderOverview(); showToast('Admin configuration reset'); });
