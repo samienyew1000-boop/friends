@@ -491,6 +491,7 @@
       category: 'Crash Game',
       image: 'assets/game_aviator.gif',
       url: 'game/aviator/index.html',
+      likes: '12.8k',
       desc: 'Watch the red plane ascend! Cash out before it flies away to win massive multipliers!'
     },
     'fast_keno': {
@@ -500,6 +501,7 @@
       category: 'Keno & Lottery',
       image: 'assets/game_fast_keno.gif',
       url: 'game/fast keno/index.html',
+      likes: '8.9k',
       desc: 'Fast paced 80-ball instant lottery. Pick your lucky numbers and win up to 10,000x!'
     },
     'chicken_road': {
@@ -509,6 +511,7 @@
       category: 'Instant Game',
       image: 'assets/game_chicken_road.png',
       url: 'game/chicken road/index.html',
+      likes: '6544',
       desc: 'Cross the perilous road step by step. Each step boosts your win multiplier!'
     },
     'fish': {
@@ -518,6 +521,7 @@
       category: 'Arcade Game',
       image: 'assets/game_fish.png',
       url: 'game/fish/index.html',
+      likes: '4.3k',
       desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
     },
     'bingo': {
@@ -527,6 +531,7 @@
       category: 'Bingo 90',
       image: 'assets/game_bingo.png',
       url: 'game/bingo/index.html',
+      likes: '3.9k',
       desc: 'Authentic Ethiopian community bingo room with automated voice and quick payouts.'
     },
     'bingo_star': {
@@ -536,6 +541,7 @@
       category: 'Instant Bingo',
       image: 'assets/game_bingo_star.png',
       url: 'game/bingo star/index.html',
+      likes: '5.5k',
       desc: 'Exciting 90-ball Bingo Star with quick auto-daub, instant pattern multipliers, and mega jackpot!'
     },
     'infinity': {
@@ -545,6 +551,7 @@
       category: 'Trading & Crash',
       image: 'assets/game_infinity.png',
       url: 'game/infinity/index.html',
+      likes: '7.2k',
       desc: 'Fast-paced 1-second candlestick financial trading! Predict Buy or Sell and ride the profit waves!'
     }
   };
@@ -580,6 +587,9 @@
   const gameModalCategory = document.getElementById('gameModalCategory');
   const gameModalDesc = document.getElementById('gameModalDesc');
   const gameModalImage = document.getElementById('gameModalImage');
+  const gameModalBlurBg = document.getElementById('gameModalBlurBg');
+  const gameModalLikes = document.getElementById('gameModalLikes');
+  const gameLikeContainer = document.getElementById('gameLikeContainer');
   const demoModalBalVal = document.getElementById('demoModalBalVal');
   const realStatusLabel = document.getElementById('realStatusLabel');
   const realStatusValue = document.getElementById('realStatusValue');
@@ -608,15 +618,14 @@
         realStatusValue.textContent = '@' + (user.username || user.name);
         realStatusValue.className = 'font-bold text-emerald-400 ml-1';
       }
-      if (realBtnText) realBtnText.textContent = 'Play Real Money';
     } else {
       if (realStatusLabel) realStatusLabel.textContent = 'Telegram Account:';
       if (realStatusValue) {
         realStatusValue.textContent = 'Registration Required';
         realStatusValue.className = 'font-bold text-amber-400 ml-1';
       }
-      if (realBtnText) realBtnText.textContent = 'Register & Play Real';
     }
+    if (realBtnText) realBtnText.textContent = 'Play Now';
   }
 
   // Launch Demo Mode (Automatic / Renewable 1,000 Birr Practice Balance)
@@ -747,17 +756,33 @@
       if (info) {
         activeGameId = gameId;
         activeGameUrl = info.url || 'game/aviator/index.html';
-        gameModalTitle.textContent = info.title;
-        gameModalProvider.textContent = info.provider;
-        gameModalCategory.textContent = info.category || 'Featured';
-        gameModalDesc.textContent = info.desc;
-        gameModalImage.src = info.image;
+        if (gameModalTitle) gameModalTitle.textContent = info.title;
+        if (gameModalProvider) gameModalProvider.textContent = info.provider;
+        if (gameModalCategory) gameModalCategory.textContent = info.category || 'Featured';
+        if (gameModalDesc) gameModalDesc.textContent = info.desc;
+        if (gameModalImage) gameModalImage.src = info.image;
+        if (gameModalBlurBg) gameModalBlurBg.style.backgroundImage = `url("${info.image}")`;
+        if (gameModalLikes) gameModalLikes.textContent = info.likes || '6544';
 
         syncGameModalStatus();
         openModal(gameModal);
       }
     });
   });
+
+  // Like icon increment handler
+  if (gameLikeContainer) {
+    gameLikeContainer.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+      if (gameModalLikes) {
+        let cur = parseInt(gameModalLikes.textContent.replace(/[^0-9]/g, '')) || 6544;
+        gameModalLikes.textContent = String(cur + 1);
+        gameLikeContainer.classList.add('text-emerald-700', 'scale-110');
+        setTimeout(() => gameLikeContainer.classList.remove('scale-110'), 200);
+      }
+    });
+  }
 
   // Star favorite toggle
   document.querySelectorAll('.star-btn').forEach((btn) => {
