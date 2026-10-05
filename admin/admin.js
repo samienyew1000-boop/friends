@@ -5,11 +5,11 @@
   const QUEUE_KEY = 'habesha_admin_message_queue_v1';
   const SEED_KEY = 'habesha_admin_demo_seed_v1';
   const GAMES = [
-    { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.gif', defaultMargin: 3.5 },
-    { id: 'fast_keno', name: 'Fast Keno', provider: 'Friendes Game', category: 'Keno & lottery', image: '../assets/game_fast_keno.gif', defaultMargin: 4 },
-    { id: 'chicken_road', name: 'Chicken Road', provider: 'InOut Games', category: 'Instant game', image: '../assets/game_chicken_road.png', defaultMargin: 3 },
-    { id: 'fish', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish.png', defaultMargin: 4 },
-    { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.png', defaultMargin: 5 },
+    { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.jpg', defaultMargin: 3.5 },
+    { id: 'fast_keno', name: 'Fast Keno', provider: 'Friendes Game', category: 'Keno & lottery', image: '../assets/game_fast_keno.jpg', defaultMargin: 4 },
+    { id: 'chicken_road', name: 'Chicken Road', provider: 'InOut Games', category: 'Instant game', image: '../assets/game_chicken_road.jpg', defaultMargin: 3 },
+    { id: 'fish', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish_road.png', defaultMargin: 4 },
+    { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.jpg', defaultMargin: 5 },
     { id: 'bingo_star', name: 'Bingo Star', provider: 'Star Gaming', category: 'Instant bingo', image: '../assets/game_bingo_star.png', defaultMargin: 4.5 },
     { id: 'infinity', name: 'Infinity', provider: 'CandleTrade', category: 'Trading & crash', image: '../assets/game_infinity.png', defaultMargin: 3.5 },
   ];

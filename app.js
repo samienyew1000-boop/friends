@@ -108,7 +108,7 @@
     isBalanceHidden: localStorage.getItem('habesha_balance_hidden') === 'true',
     favorites: JSON.parse(localStorage.getItem('habesha_favorites') || '[]'),
     activeSlide: 0,
-    totalSlides: 4,
+    totalSlides: 2,
     autoSlideInterval: null,
     currentPayment: 'telebirr',
     gameSimulatorTimer: null,
@@ -489,7 +489,7 @@
       provider: 'SPRIBE',
       multiplier: '97.0% RTP',
       category: 'Crash Game',
-      image: 'assets/game_aviator.gif',
+      image: 'assets/game_aviator.jpg',
       url: 'game/aviator/index.html',
       likes: '12.8k',
       desc: 'Watch the red plane ascend! Cash out before it flies away to win massive multipliers!'
@@ -499,7 +499,7 @@
       provider: 'Friendes Game',
       multiplier: 'Instant Draw 80',
       category: 'Keno & Lottery',
-      image: 'assets/game_fast_keno.gif',
+      image: 'assets/game_fast_keno.jpg',
       url: 'game/fast keno/index.html',
       likes: '8.9k',
       desc: 'Fast paced 80-ball instant lottery. Pick your lucky numbers and win up to 10,000x!'
@@ -509,7 +509,7 @@
       provider: 'InOut Games',
       multiplier: 'Cross & Win',
       category: 'Instant Game',
-      image: 'assets/game_chicken_road.png',
+      image: 'assets/game_chicken_road.jpg',
       url: 'game/chicken road/index.html',
       likes: '6544',
       desc: 'Cross the perilous road step by step. Each step boosts your win multiplier!'
@@ -519,7 +519,7 @@
       provider: 'SeaGames',
       multiplier: 'Casual Arcade',
       category: 'Arcade Game',
-      image: 'assets/game_fish.png',
+      image: 'assets/game_fish_road.png',
       url: 'game/fish/index.html',
       likes: '4.3k',
       desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
@@ -529,7 +529,7 @@
       provider: 'Ethiopia Bingo',
       multiplier: 'Live Rooms',
       category: 'Bingo 90',
-      image: 'assets/game_bingo.png',
+      image: 'assets/game_bingo.jpg',
       url: 'game/bingo/index.html',
       likes: '3.9k',
       desc: 'Authentic Ethiopian community bingo room with automated voice and quick payouts.'
