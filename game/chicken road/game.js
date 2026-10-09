@@ -186,6 +186,61 @@
     },
   };
 
+  // Preload audio files for Chicken Road
+  const roadAudioClips = {
+    carPass: new Audio('./asset/sounds/car_pass.wav'),
+    chickenHit: new Audio('./asset/sounds/chicken_hit.wav'),
+  };
+  if (roadAudioClips.carPass) roadAudioClips.carPass.volume = 0.55;
+  if (roadAudioClips.chickenHit) roadAudioClips.chickenHit.volume = 0.85;
+
+  let lastCarPassTime = 0;
+
+  function playCarPassSound() {
+    if (!state.soundOn) return;
+    const now = Date.now();
+    // Throttle car pass audio to prevent overlapping chaos
+    if (now - lastCarPassTime < 240) return;
+    lastCarPassTime = now;
+
+    if (roadAudioClips.carPass) {
+      try {
+        const clip = roadAudioClips.carPass.cloneNode();
+        clip.volume = 0.55;
+        clip.play().catch(() => {});
+      } catch(e) {}
+    }
+    // Also trigger subtle synth whoosh
+    try {
+      const c = audio.ensure();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(380, c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(140, c.currentTime + 0.35);
+      g.gain.setValueAtTime(0.06, c.currentTime);
+      g.gain.linearRampToValueAtTime(0.001, c.currentTime + 0.35);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start();
+      o.stop(c.currentTime + 0.35);
+    } catch(e) {}
+  }
+
+  function playChickenHitSound() {
+    if (!state.soundOn) return;
+    if (roadAudioClips.chickenHit) {
+      try {
+        roadAudioClips.chickenHit.currentTime = 0;
+        roadAudioClips.chickenHit.play().catch(() => {});
+      } catch(e) {}
+    }
+    // Deep physical impact and screech
+    audio.crash();
+    audio.screech();
+    audio.beep(120, 0.45, 'sawtooth', 0.15);
+  }
+
   function sfx(kind) {
     if (kind === 'click') audio.beep(600, 0.04, 'square', 0.02);
     if (kind === 'hop') {
@@ -203,8 +258,10 @@
       setTimeout(() => audio.beep(1046, 0.28, 'triangle', 0.1), 240);
     }
     if (kind === 'bust') {
-      audio.crash();
-      audio.beep(160, 0.4, 'sawtooth', 0.08);
+      playChickenHitSound();
+    }
+    if (kind === 'car_pass') {
+      playCarPassSound();
     }
     if (kind === 'screech') audio.screech();
     if (kind === 'horn') audio.horn();
@@ -931,11 +988,21 @@
       }
 
       // Move downwards
+      const prevY = car.y;
       const moveDist = car.speed * (dt / 1000);
       if (isRestingLane && !isCrashingCar && car.y < stopY && car.y + moveDist >= stopY) {
         car.y = stopY;
       } else {
         car.y += moveDist;
+      }
+
+      // Trigger car_pass sound when vehicle drives past the chicken's vertical level
+      if (prevY < state.chickenY && car.y >= state.chickenY && !isCrashingCar) {
+        const chickenLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : 0;
+        // If within 2 lanes of chicken or visible on screen
+        if (Math.abs(car.lane - chickenLane) <= 2) {
+          sfx('car_pass');
+        }
       }
 
       // Loop back to top when reaching bottom

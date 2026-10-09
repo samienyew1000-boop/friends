@@ -2,7 +2,7 @@
 (function() {
   'use strict';
 
-  // --- Audio Synthesizer (Zero external dependencies) ---
+  // --- Audio System (Hybrid WAV audio + Web Audio Synthesizer) ---
   const audioCtx = (function() {
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -10,10 +10,88 @@
     } catch(e) { return null; }
   })();
 
+  function resumeAudioContext() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  // Preload audio files
+  const audioClips = {
+    fly: new Audio('./assets/sounds/fly.wav'),
+    crash: new Audio('./assets/sounds/crash.wav'),
+  };
+
+  // Configure clips
+  if (audioClips.fly) {
+    audioClips.fly.loop = true;
+    audioClips.fly.volume = 0.45;
+  }
+  if (audioClips.crash) {
+    audioClips.crash.volume = 0.75;
+  }
+
+  let synthFlyOsc = null;
+  let synthFlyGain = null;
+
+  function startFlySound() {
+    resumeAudioContext();
+    // 1. Try file audio
+    if (audioClips.fly) {
+      audioClips.fly.currentTime = 0;
+      audioClips.fly.play().catch(() => {});
+    }
+    // 2. Continuous synth layer for dynamic pitch ramp
+    if (audioCtx) {
+      try {
+        stopFlySynth();
+        synthFlyOsc = audioCtx.createOscillator();
+        synthFlyGain = audioCtx.createGain();
+        synthFlyOsc.type = 'sawtooth';
+        synthFlyOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        synthFlyGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        synthFlyGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 1.0);
+        synthFlyOsc.connect(synthFlyGain);
+        synthFlyGain.connect(audioCtx.destination);
+        synthFlyOsc.start();
+      } catch(e) {}
+    }
+  }
+
+  function updateFlyPitch(mult) {
+    if (synthFlyOsc && audioCtx) {
+      try {
+        const targetFreq = Math.min(680, 120 + Math.log(mult) * 140);
+        synthFlyOsc.frequency.setValueAtTime(targetFreq, audioCtx.currentTime);
+      } catch(e) {}
+    }
+  }
+
+  function stopFlySound() {
+    if (audioClips.fly) {
+      try {
+        audioClips.fly.pause();
+        audioClips.fly.currentTime = 0;
+      } catch(e) {}
+    }
+    stopFlySynth();
+  }
+
+  function stopFlySynth() {
+    if (synthFlyOsc) {
+      try {
+        synthFlyGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+        synthFlyOsc.stop(audioCtx.currentTime + 0.1);
+      } catch(e) {}
+      synthFlyOsc = null;
+      synthFlyGain = null;
+    }
+  }
+
   function playTone(freq, type, duration, gainVal = 0.1) {
     if (!audioCtx) return;
     try {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      resumeAudioContext();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = type;
@@ -28,7 +106,7 @@
   }
 
   function playWinSound() {
-    if (!audioCtx) return;
+    resumeAudioContext();
     const notes = [523.25, 659.25, 783.99, 1046.50];
     notes.forEach((freq, idx) => {
       setTimeout(() => playTone(freq, 'triangle', 0.25, 0.15), idx * 70);
@@ -36,10 +114,21 @@
   }
 
   function playCrashSound() {
-    playTone(180, 'sawtooth', 0.4, 0.2);
+    stopFlySound();
+    resumeAudioContext();
+    // 1. Play wav audio clip
+    if (audioClips.crash) {
+      try {
+        audioClips.crash.currentTime = 0;
+        audioClips.crash.play().catch(() => {});
+      } catch(e) {}
+    }
+    // 2. Deep sub-bass impact layer
+    playTone(110, 'sawtooth', 0.5, 0.25);
   }
 
   function playClickSound() {
+    resumeAudioContext();
     playTone(800, 'sine', 0.05, 0.08);
   }
 
@@ -354,6 +443,7 @@
   }
 
   function startWaiting() {
+    stopFlySound();
     state.status = 'WAITING';
     state.multiplier = 1.00;
     state.waitStartTime = Date.now();
@@ -380,6 +470,8 @@
     state.multiplier = 1.00;
     state.crashPoint = generateCrashPoint();
     state.roundStartTime = Date.now();
+
+    startFlySound();
 
     // Check if bets placed
     ['panel1', 'panel2'].forEach(pKey => {
@@ -443,6 +535,7 @@
       
       // Exponential curve: starts gentle, accelerates upwards
       state.multiplier = 1.00 + Math.pow(elapsed * 0.9, 1.45) * 0.12 + elapsed * 0.06;
+      updateFlyPitch(state.multiplier);
 
       // Check simulated players cashout
       state.liveBets.forEach(b => {
