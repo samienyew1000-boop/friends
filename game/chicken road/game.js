@@ -187,44 +187,66 @@
   };
 
   // Preload audio files for Chicken Road
+  function createRoadAudio(filename, altName) {
+    const audio = new Audio(`./asset/sounds/${filename}`);
+    audio.preload = 'auto';
+    if (altName) {
+      audio.addEventListener('error', () => {
+        audio.src = `./asset/sounds/${altName}`;
+      }, { once: true });
+    }
+    return audio;
+  }
+
   const roadAudioClips = {
-    carPass: new Audio('./asset/sounds/car_pass.wav'),
-    chickenHit: new Audio('./asset/sounds/chicken_hit.wav'),
+    carPass1: createRoadAudio('car_pass1.mp3'),
+    carPass2: createRoadAudio('car_pass2.mp3'),
+    carPass3: createRoadAudio('car_pass3.mp3', 'car_pass 3.mp3'),
+    chickenHit: createRoadAudio('chicken_hit.mp3'),
   };
-  if (roadAudioClips.carPass) roadAudioClips.carPass.volume = 0.55;
+
+  if (roadAudioClips.carPass1) roadAudioClips.carPass1.volume = 0.55;
+  if (roadAudioClips.carPass2) roadAudioClips.carPass2.volume = 0.55;
+  if (roadAudioClips.carPass3) roadAudioClips.carPass3.volume = 0.55;
   if (roadAudioClips.chickenHit) roadAudioClips.chickenHit.volume = 0.85;
+
+  const vehicleSoundMap = {
+    car: roadAudioClips.carPass1,
+    taxi: roadAudioClips.carPass1,
+    delivery: roadAudioClips.carPass2,
+    icecream: roadAudioClips.carPass2,
+    truck: roadAudioClips.carPass3,
+    firetruck: roadAudioClips.carPass3,
+    police: roadAudioClips.carPass3,
+  };
+
+  const carPassPool = [
+    roadAudioClips.carPass1,
+    roadAudioClips.carPass2,
+    roadAudioClips.carPass3,
+  ];
 
   let lastCarPassTime = 0;
 
-  function playCarPassSound() {
+  function playCarPassSound(vehicleKey) {
     if (!state.soundOn) return;
     const now = Date.now();
     // Throttle car pass audio to prevent overlapping chaos
-    if (now - lastCarPassTime < 240) return;
+    if (now - lastCarPassTime < 220) return;
     lastCarPassTime = now;
 
-    if (roadAudioClips.carPass) {
+    const baseAudio = (vehicleKey && vehicleSoundMap[vehicleKey])
+      ? vehicleSoundMap[vehicleKey]
+      : carPassPool[Math.floor(Math.random() * carPassPool.length)];
+
+    if (baseAudio) {
       try {
-        const clip = roadAudioClips.carPass.cloneNode();
+        const clip = baseAudio.cloneNode();
         clip.volume = 0.55;
-        clip.play().catch(() => {});
+        const p = clip.play();
+        if (p !== undefined) p.catch(() => {});
       } catch(e) {}
     }
-    // Also trigger subtle synth whoosh
-    try {
-      const c = audio.ensure();
-      const o = c.createOscillator();
-      const g = c.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(380, c.currentTime);
-      o.frequency.exponentialRampToValueAtTime(140, c.currentTime + 0.35);
-      g.gain.setValueAtTime(0.06, c.currentTime);
-      g.gain.linearRampToValueAtTime(0.001, c.currentTime + 0.35);
-      o.connect(g);
-      g.connect(c.destination);
-      o.start();
-      o.stop(c.currentTime + 0.35);
-    } catch(e) {}
   }
 
   function playChickenHitSound() {
@@ -232,16 +254,16 @@
     if (roadAudioClips.chickenHit) {
       try {
         roadAudioClips.chickenHit.currentTime = 0;
-        roadAudioClips.chickenHit.play().catch(() => {});
+        const p = roadAudioClips.chickenHit.play();
+        if (p !== undefined) p.catch(() => {});
       } catch(e) {}
     }
     // Deep physical impact and screech
     audio.crash();
     audio.screech();
-    audio.beep(120, 0.45, 'sawtooth', 0.15);
   }
 
-  function sfx(kind) {
+  function sfx(kind, payload) {
     if (kind === 'click') audio.beep(600, 0.04, 'square', 0.02);
     if (kind === 'hop') {
       audio.beep(520, 0.08, 'triangle', 0.06);
@@ -261,7 +283,7 @@
       playChickenHitSound();
     }
     if (kind === 'car_pass') {
-      playCarPassSound();
+      playCarPassSound(payload);
     }
     if (kind === 'screech') audio.screech();
     if (kind === 'horn') audio.horn();
@@ -1001,7 +1023,7 @@
         const chickenLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : 0;
         // If within 2 lanes of chicken or visible on screen
         if (Math.abs(car.lane - chickenLane) <= 2) {
-          sfx('car_pass');
+          sfx('car_pass', car.key);
         }
       }
 
