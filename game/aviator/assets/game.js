@@ -76,31 +76,6 @@
     }
   }
 
-  function playTone(freq, type, duration, gainVal = 0.1) {
-    if (!audioCtx) return;
-    try {
-      resumeAudioContext();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch(e) {}
-  }
-
-  function playWinSound() {
-    resumeAudioContext();
-    const notes = [523.25, 659.25, 783.99, 1046.50];
-    notes.forEach((freq, idx) => {
-      setTimeout(() => playTone(freq, 'triangle', 0.22, 0.12), idx * 70);
-    });
-  }
-
   function playCrashSound() {
     stopFlySound();
     resumeAudioContext();
@@ -113,21 +88,11 @@
         }
       } catch(e) {}
     }
-    // Deep sub-bass impact layer
-    playTone(95, 'sawtooth', 0.45, 0.22);
   }
 
-  function playClickSound() {
-    resumeAudioContext();
-    playTone(900, 'sine', 0.03, 0.05);
-  }
-
-  function playBetPlacedSound() {
-    resumeAudioContext();
-    // Crisp positive two-tone pip for placing a bet / cutting ticket
-    playTone(650, 'sine', 0.04, 0.06);
-    setTimeout(() => playTone(950, 'sine', 0.05, 0.07), 45);
-  }
+  function playWinSound() {}
+  function playClickSound() {}
+  function playBetPlacedSound() {}
 
   // --- State Management ---
   const state = {
