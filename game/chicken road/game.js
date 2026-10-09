@@ -161,6 +161,23 @@
       audio.beep(420, 0.12, 'triangle', 0.08);
       setTimeout(() => audio.beep(460, 0.16, 'triangle', 0.08), 50);
     },
+    noise(dur = 0.4) {
+      if (!state.soundOn) return;
+      try {
+        const c = audio.ensure();
+        const n = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+        const d = n.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+        const src = c.createBufferSource();
+        const g = c.createGain();
+        src.buffer = n;
+        g.gain.setValueAtTime(0.25, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+        src.connect(g);
+        g.connect(c.destination);
+        src.start();
+      } catch (e) {}
+    },
     crash() {
       if (!state.soundOn) return;
       try {
@@ -264,22 +281,27 @@
   }
 
   function sfx(kind, payload) {
-    if (kind === 'click') audio.beep(600, 0.04, 'square', 0.02);
+    if (!state.soundOn) return;
+    if (kind === 'click') audio.beep(520, 0.06, 'square', 0.04);
     if (kind === 'hop') {
-      audio.beep(520, 0.08, 'triangle', 0.06);
-      setTimeout(() => audio.beep(740, 0.09, 'sine', 0.05), 40);
+      // Original authentic chicken walking/hop sound
+      audio.beep(620, 0.09, 'square', 0.06);
     }
     if (kind === 'safe') {
-      audio.beep(659, 0.1, 'triangle', 0.06);
-      setTimeout(() => audio.beep(880, 0.16, 'triangle', 0.07), 80);
+      // Original authentic landing sound
+      audio.beep(880, 0.12, 'triangle', 0.07);
     }
     if (kind === 'win') {
-      audio.beep(523, 0.12, 'sine', 0.07);
-      setTimeout(() => audio.beep(659, 0.12, 'sine', 0.08), 80);
-      setTimeout(() => audio.beep(784, 0.16, 'sine', 0.09), 160);
-      setTimeout(() => audio.beep(1046, 0.28, 'triangle', 0.1), 240);
+      audio.beep(523, 0.12, 'triangle', 0.08);
+      setTimeout(() => audio.beep(659, 0.12, 'triangle', 0.08), 90);
+      setTimeout(() => audio.beep(784, 0.2, 'triangle', 0.09), 180);
     }
     if (kind === 'bust') {
+      // Original authentic fail / crash sounds
+      audio.noise(0.42);
+      audio.beep(140, 0.4, 'sawtooth', 0.14);
+      audio.screech();
+      // Plus the new chicken hit MP3 audio
       playChickenHitSound();
     }
     if (kind === 'car_pass') {
