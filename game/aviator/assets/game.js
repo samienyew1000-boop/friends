@@ -2,7 +2,7 @@
 (function() {
   'use strict';
 
-  // --- Audio System (Hybrid WAV audio + Web Audio Synthesizer) ---
+  // --- Audio System (Native MP3 Audio + Web Audio UI FX) ---
   const audioCtx = (function() {
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -12,57 +12,57 @@
 
   function resumeAudioContext() {
     if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      audioCtx.resume().catch(() => {});
     }
   }
 
-  // Preload audio files
+  // Preload audio files (.mp3 with .wav fallback)
+  function createAudioClip(filename) {
+    const audio = new Audio(`./assets/sounds/${filename}.mp3`);
+    audio.preload = 'auto';
+    audio.addEventListener('error', () => {
+      if (!audio.src.endsWith('.wav')) {
+        audio.src = `./assets/sounds/${filename}.wav`;
+      }
+    }, { once: true });
+    return audio;
+  }
+
   const audioClips = {
-    fly: new Audio('./assets/sounds/fly.wav'),
-    crash: new Audio('./assets/sounds/crash.wav'),
+    fly: createAudioClip('fly'),
+    crash: createAudioClip('crash'),
   };
 
-  // Configure clips
   if (audioClips.fly) {
     audioClips.fly.loop = true;
-    audioClips.fly.volume = 0.45;
+    audioClips.fly.volume = 0.55;
   }
   if (audioClips.crash) {
-    audioClips.crash.volume = 0.75;
+    audioClips.crash.volume = 0.8;
   }
 
-  let synthFlyOsc = null;
-  let synthFlyGain = null;
-
   function startFlySound() {
+    // Only play if actively in flight!
+    if (state.status !== 'FLYING') return;
     resumeAudioContext();
-    // 1. Try file audio
     if (audioClips.fly) {
-      audioClips.fly.currentTime = 0;
-      audioClips.fly.play().catch(() => {});
-    }
-    // 2. Continuous synth layer for dynamic pitch ramp
-    if (audioCtx) {
       try {
-        stopFlySynth();
-        synthFlyOsc = audioCtx.createOscillator();
-        synthFlyGain = audioCtx.createGain();
-        synthFlyOsc.type = 'sawtooth';
-        synthFlyOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
-        synthFlyGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-        synthFlyGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 1.0);
-        synthFlyOsc.connect(synthFlyGain);
-        synthFlyGain.connect(audioCtx.destination);
-        synthFlyOsc.start();
+        audioClips.fly.currentTime = 0;
+        audioClips.fly.playbackRate = 1.0;
+        const playPromise = audioClips.fly.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
       } catch(e) {}
     }
   }
 
   function updateFlyPitch(mult) {
-    if (synthFlyOsc && audioCtx) {
+    if (state.status !== 'FLYING') return;
+    if (audioClips.fly && !audioClips.fly.paused) {
       try {
-        const targetFreq = Math.min(680, 120 + Math.log(mult) * 140);
-        synthFlyOsc.frequency.setValueAtTime(targetFreq, audioCtx.currentTime);
+        const rate = Math.min(1.85, Math.max(0.95, 1.0 + Math.log10(Math.max(1, mult)) * 0.42));
+        audioClips.fly.playbackRate = rate;
       } catch(e) {}
     }
   }
@@ -73,18 +73,6 @@
         audioClips.fly.pause();
         audioClips.fly.currentTime = 0;
       } catch(e) {}
-    }
-    stopFlySynth();
-  }
-
-  function stopFlySynth() {
-    if (synthFlyOsc) {
-      try {
-        synthFlyGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
-        synthFlyOsc.stop(audioCtx.currentTime + 0.1);
-      } catch(e) {}
-      synthFlyOsc = null;
-      synthFlyGain = null;
     }
   }
 
@@ -109,27 +97,36 @@
     resumeAudioContext();
     const notes = [523.25, 659.25, 783.99, 1046.50];
     notes.forEach((freq, idx) => {
-      setTimeout(() => playTone(freq, 'triangle', 0.25, 0.15), idx * 70);
+      setTimeout(() => playTone(freq, 'triangle', 0.22, 0.12), idx * 70);
     });
   }
 
   function playCrashSound() {
     stopFlySound();
     resumeAudioContext();
-    // 1. Play wav audio clip
     if (audioClips.crash) {
       try {
         audioClips.crash.currentTime = 0;
-        audioClips.crash.play().catch(() => {});
+        const playPromise = audioClips.crash.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
       } catch(e) {}
     }
-    // 2. Deep sub-bass impact layer
-    playTone(110, 'sawtooth', 0.5, 0.25);
+    // Deep sub-bass impact layer
+    playTone(95, 'sawtooth', 0.45, 0.22);
   }
 
   function playClickSound() {
     resumeAudioContext();
-    playTone(800, 'sine', 0.05, 0.08);
+    playTone(900, 'sine', 0.03, 0.05);
+  }
+
+  function playBetPlacedSound() {
+    resumeAudioContext();
+    // Crisp positive two-tone pip for placing a bet / cutting ticket
+    playTone(650, 'sine', 0.04, 0.06);
+    setTimeout(() => playTone(950, 'sine', 0.05, 0.07), 45);
   }
 
   // --- State Management ---
@@ -675,12 +672,12 @@
   }
 
   function handleBetClick(panelNum) {
-    playClickSound();
     const pKey = `panel${panelNum}`;
     const p = state[pKey];
 
     if (p.state === 'IDLE') {
       if (deductBalance(p.amount)) {
+        playBetPlacedSound();
         if (state.status === 'WAITING') {
           p.state = 'IN_FLIGHT';
         } else {
@@ -690,11 +687,13 @@
         alert('Insufficient balance. Please deposit ETB to continue playing.');
       }
     } else if (p.state === 'QUEUED') {
+      playClickSound();
       // Cancel queued bet
       creditBalance(p.amount);
       p.state = 'IDLE';
     } else if (p.state === 'IN_FLIGHT') {
       if (state.status === 'WAITING') {
+        playClickSound();
         // Cancel bet placed during waiting
         creditBalance(p.amount);
         p.state = 'IDLE';
@@ -821,6 +820,15 @@
     setupEvents();
     startWaiting();
     updateBetControlsLock();
+
+    // Enable audio context silently upon user's first tap/click anywhere
+    const unlockAudio = () => {
+      resumeAudioContext();
+    };
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+
     if (window.hideGameLoader) {
       window.hideGameLoader(300);
     }
