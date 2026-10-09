@@ -41,13 +41,13 @@
     audioClips.crash.volume = 0.8;
   }
 
-  function startFlySound() {
-    // Only play if actively in flight!
-    if (state.status !== 'FLYING') return;
+  function startFlySound(forceRestart = false) {
     resumeAudioContext();
     if (audioClips.fly) {
       try {
-        audioClips.fly.currentTime = 0;
+        if (forceRestart || audioClips.fly.paused) {
+          audioClips.fly.currentTime = 0;
+        }
         audioClips.fly.playbackRate = 1.0;
         const playPromise = audioClips.fly.play();
         if (playPromise !== undefined) {
@@ -678,6 +678,7 @@
     if (p.state === 'IDLE') {
       if (deductBalance(p.amount)) {
         playBetPlacedSound();
+        startFlySound(); // Fly sound accompanies ticket cut!
         if (state.status === 'WAITING') {
           p.state = 'IN_FLIGHT';
         } else {
@@ -691,12 +692,18 @@
       // Cancel queued bet
       creditBalance(p.amount);
       p.state = 'IDLE';
+      if (state.status === 'WAITING' && state.panel1.state === 'IDLE' && state.panel2.state === 'IDLE') {
+        stopFlySound();
+      }
     } else if (p.state === 'IN_FLIGHT') {
       if (state.status === 'WAITING') {
         playClickSound();
         // Cancel bet placed during waiting
         creditBalance(p.amount);
         p.state = 'IDLE';
+        if (state.panel1.state === 'IDLE' && state.panel2.state === 'IDLE') {
+          stopFlySound();
+        }
       } else {
         // Cash out!
         const winAmt = Math.round(p.amount * state.multiplier * 100) / 100;
