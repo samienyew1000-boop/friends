@@ -216,16 +216,21 @@
   }
 
   const roadAudioClips = {
+    main: createRoadAudio('chicken_main.mp3', 'chiken main.mp3'),
     carPass1: createRoadAudio('car_pass1.mp3'),
     carPass2: createRoadAudio('car_pass2.mp3'),
     carPass3: createRoadAudio('car_pass3.mp3', 'car_pass 3.mp3'),
     chickenHit: createRoadAudio('chicken_hit.mp3'),
   };
 
+  if (roadAudioClips.main) {
+    roadAudioClips.main.loop = true;
+    roadAudioClips.main.volume = 0.45;
+  }
   if (roadAudioClips.carPass1) roadAudioClips.carPass1.volume = 0.55;
   if (roadAudioClips.carPass2) roadAudioClips.carPass2.volume = 0.55;
   if (roadAudioClips.carPass3) roadAudioClips.carPass3.volume = 0.55;
-  if (roadAudioClips.chickenHit) roadAudioClips.chickenHit.volume = 0.85;
+  if (roadAudioClips.chickenHit) roadAudioClips.chickenHit.volume = 0.95;
 
   const vehicleSoundMap = {
     car: roadAudioClips.carPass1,
@@ -243,34 +248,64 @@
     roadAudioClips.carPass3,
   ];
 
-  let lastCarPassTime = 0;
-
-  function playCarPassSound(vehicleKey) {
+  function ensureMainSound() {
     if (!state.soundOn) return;
-    const now = Date.now();
-    // Throttle car pass audio to prevent overlapping chaos
-    if (now - lastCarPassTime < 220) return;
-    lastCarPassTime = now;
+    if (roadAudioClips.main && roadAudioClips.main.paused) {
+      const p = roadAudioClips.main.play();
+      if (p !== undefined) p.catch(() => {});
+    }
+  }
 
+  function pauseMainSound() {
+    if (roadAudioClips.main) {
+      try { roadAudioClips.main.pause(); } catch(e) {}
+    }
+  }
+
+  let activeCarPassAudio = null;
+  let activeCarPassKey = null;
+
+  function startCarPassSound(vehicleKey) {
+    if (!state.soundOn) return;
     const baseAudio = (vehicleKey && vehicleSoundMap[vehicleKey])
       ? vehicleSoundMap[vehicleKey]
-      : carPassPool[Math.floor(Math.random() * carPassPool.length)];
+      : carPassPool[0];
 
-    if (baseAudio) {
+    if (!baseAudio) return;
+
+    if (activeCarPassAudio === baseAudio && !activeCarPassAudio.paused) {
+      return;
+    }
+
+    stopCarPassSound();
+    activeCarPassAudio = baseAudio;
+    activeCarPassKey = vehicleKey;
+    try {
+      activeCarPassAudio.currentTime = 0;
+      activeCarPassAudio.volume = 0.55;
+      const p = activeCarPassAudio.play();
+      if (p !== undefined) p.catch(() => {});
+    } catch(e) {}
+  }
+
+  function stopCarPassSound() {
+    if (activeCarPassAudio) {
       try {
-        const clip = baseAudio.cloneNode();
-        clip.volume = 0.55;
-        const p = clip.play();
-        if (p !== undefined) p.catch(() => {});
+        activeCarPassAudio.pause();
+        activeCarPassAudio.currentTime = 0;
       } catch(e) {}
+      activeCarPassAudio = null;
+      activeCarPassKey = null;
     }
   }
 
   function playChickenHitSound() {
     if (!state.soundOn) return;
+    stopCarPassSound(); // Stop any car pass sound immediately on impact
     if (roadAudioClips.chickenHit) {
       try {
         roadAudioClips.chickenHit.currentTime = 0;
+        roadAudioClips.chickenHit.volume = 0.95;
         const p = roadAudioClips.chickenHit.play();
         if (p !== undefined) p.catch(() => {});
       } catch(e) {}
@@ -282,13 +317,12 @@
 
   function sfx(kind, payload) {
     if (!state.soundOn) return;
+    ensureMainSound();
     if (kind === 'click') audio.beep(520, 0.06, 'square', 0.04);
     if (kind === 'hop') {
-      // Original authentic chicken walking/hop sound
       audio.beep(620, 0.09, 'square', 0.06);
     }
     if (kind === 'safe') {
-      // Original authentic landing sound
       audio.beep(880, 0.12, 'triangle', 0.07);
     }
     if (kind === 'win') {
@@ -297,15 +331,15 @@
       setTimeout(() => audio.beep(784, 0.2, 'triangle', 0.09), 180);
     }
     if (kind === 'bust') {
-      // Original authentic fail / crash sounds
       audio.noise(0.42);
       audio.beep(140, 0.4, 'sawtooth', 0.14);
-      audio.screech();
-      // Plus the new chicken hit MP3 audio
       playChickenHitSound();
     }
     if (kind === 'car_pass') {
-      playCarPassSound(payload);
+      startCarPassSound(payload);
+    }
+    if (kind === 'car_stop') {
+      stopCarPassSound();
     }
     if (kind === 'screech') audio.screech();
     if (kind === 'horn') audio.horn();
@@ -463,6 +497,7 @@
 
   function handlePlayAction() {
     audio.ensure();
+    ensureMainSound();
     if (state.phase === 'bust' || state.phase === 'returning') {
       return;
     }
@@ -581,7 +616,8 @@
           chickenBox.y < carBox.y + carBox.h &&
           chickenBox.y + chickenBox.h > carBox.y;
 
-        if (overlap || t >= 0.7) {
+        // Directly when the car physically collides with the chicken
+        if (overlap || (laneCar.y + laneCar.h >= state.chickenY - 16)) {
           triggerCrashImpact(endX, state.chickenY);
           return;
         }
@@ -1010,6 +1046,8 @@
     // Cars Movement: only the car on the lane where the chicken rests stops; others drive past!
     const roadH = stage.clientHeight || 520;
     const restingLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : -1;
+    const chickenLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : 0;
+    let activelyPassingCar = null;
 
     for (const car of state.cars) {
       // If actively crashing into chicken, car rushes without pausing
@@ -1022,11 +1060,13 @@
 
       const isRestingLane = car.lane === restingLane;
       const stopY = state.chickenY - car.h - 18;
+      let isCarStopped = false;
 
       if (isRestingLane && !isCrashingCar) {
         // Car stops right above the chicken while chicken is resting on this lane
         if (car.y >= stopY && car.y < state.chickenY + 30) {
           car.y = stopY;
+          isCarStopped = true;
           continue; // STOPPED ONLY ON THE RESTING LANE!
         }
       }
@@ -1036,16 +1076,18 @@
       const moveDist = car.speed * (dt / 1000);
       if (isRestingLane && !isCrashingCar && car.y < stopY && car.y + moveDist >= stopY) {
         car.y = stopY;
+        isCarStopped = true;
       } else {
         car.y += moveDist;
       }
 
-      // Trigger car_pass sound when vehicle drives past the chicken's vertical level
-      if (prevY < state.chickenY && car.y >= state.chickenY && !isCrashingCar) {
-        const chickenLane = (state.phase === 'playing' && state.step > 0) ? state.step - 1 : 0;
-        // If within 2 lanes of chicken or visible on screen
-        if (Math.abs(car.lane - chickenLane) <= 2) {
-          sfx('car_pass', car.key);
+      // Check if this vehicle is actively driving past the chicken right now
+      // (within nearby lanes, moving downwards, and its body is passing the chicken)
+      if (!isCarStopped && !isCrashingCar && Math.abs(car.lane - chickenLane) <= 1) {
+        const carFrontY = car.y + car.h;
+        const carBackY = car.y;
+        if (carFrontY >= state.chickenY - 20 && carBackY <= state.chickenY + 50) {
+          activelyPassingCar = car;
         }
       }
 
@@ -1059,6 +1101,14 @@
         const diff = DIFFICULTIES[state.difficulty];
         car.speed = diff.baseSpeed * laneLevelFactor * (0.92 + Math.random() * 0.16);
       }
+    }
+
+    // Car pass voice: strictly while a car is actively passing!
+    // As soon as it has passed, or when cars stop, stop the sound immediately!
+    if (activelyPassingCar && !state.isCrashing && state.phase !== 'bust') {
+      startCarPassSound(activelyPassingCar.key);
+    } else {
+      stopCarPassSound();
     }
 
     // Particles Update
@@ -1278,6 +1328,13 @@
 
   el.soundToggle.addEventListener('change', (e) => {
     state.soundOn = e.target.checked;
+    if (state.soundOn) {
+      audio.ensure();
+      ensureMainSound();
+    } else {
+      pauseMainSound();
+      stopCarPassSound();
+    }
   });
 
   el.btnToggleMode.addEventListener('click', () => {
@@ -1310,6 +1367,22 @@
     resizeCanvas();
     spawnCars();
     syncUi();
+
+    // Enable continuous chicken main sound as soon as user touches or clicks screen
+    const unlockUserAudio = () => {
+      audio.ensure();
+      ensureMainSound();
+      window.removeEventListener('pointerdown', unlockUserAudio);
+      window.removeEventListener('keydown', unlockUserAudio);
+      window.removeEventListener('touchstart', unlockUserAudio);
+    };
+    window.addEventListener('pointerdown', unlockUserAudio, { once: true });
+    window.addEventListener('keydown', unlockUserAudio, { once: true });
+    window.addEventListener('touchstart', unlockUserAudio, { once: true });
+
+    // Try starting continuous background sound right away
+    ensureMainSound();
+
     requestAnimationFrame(loop);
     if (window.hideGameLoader) {
       window.hideGameLoader(300);
