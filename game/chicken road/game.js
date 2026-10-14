@@ -216,7 +216,7 @@
   }
 
   const roadAudioClips = {
-    main: createRoadAudio('chicken_main.mp3', 'chiken main.mp3'),
+    main: createRoadAudio('chicken_main.mp3?v=20261014', 'chicken_main.mp3'),
     carPass1: createRoadAudio('car_pass1.mp3'),
     carPass2: createRoadAudio('car_pass2.mp3'),
     carPass3: createRoadAudio('car_pass3.mp3', 'car_pass 3.mp3'),
@@ -225,7 +225,7 @@
 
   if (roadAudioClips.main) {
     roadAudioClips.main.loop = true;
-    roadAudioClips.main.volume = 0.45;
+    roadAudioClips.main.volume = 0.5;
   }
   if (roadAudioClips.carPass1) roadAudioClips.carPass1.volume = 0.55;
   if (roadAudioClips.carPass2) roadAudioClips.carPass2.volume = 0.55;
@@ -302,47 +302,20 @@
   function playChickenHitSound() {
     if (!state.soundOn) return;
     stopCarPassSound(); // Stop any car pass sound immediately on impact
-    if (roadAudioClips.chickenHit) {
-      try {
-        roadAudioClips.chickenHit.currentTime = 0;
-        roadAudioClips.chickenHit.volume = 0.95;
-        const p = roadAudioClips.chickenHit.play();
-        if (p !== undefined) p.catch(() => {});
-      } catch(e) {}
-    }
-    // Deep physical impact and screech
-    audio.crash();
-    audio.screech();
+    // Moving and fail sounds removed as requested by user
   }
 
   function sfx(kind, payload) {
     if (!state.soundOn) return;
     ensureMainSound();
-    if (kind === 'click') audio.beep(520, 0.06, 'square', 0.04);
-    if (kind === 'hop') {
-      audio.beep(620, 0.09, 'square', 0.06);
-    }
-    if (kind === 'safe') {
-      audio.beep(880, 0.12, 'triangle', 0.07);
-    }
-    if (kind === 'win') {
-      audio.beep(523, 0.12, 'triangle', 0.08);
-      setTimeout(() => audio.beep(659, 0.12, 'triangle', 0.08), 90);
-      setTimeout(() => audio.beep(784, 0.2, 'triangle', 0.09), 180);
-    }
-    if (kind === 'bust') {
-      audio.noise(0.42);
-      audio.beep(140, 0.4, 'sawtooth', 0.14);
-      playChickenHitSound();
-    }
+    // User requested: remove sound when moving ("segoze emiyasemaw") and when failing ("fail siyader yalw")
+    // Only background chicken_main and car_pass remain active
     if (kind === 'car_pass') {
       startCarPassSound(payload);
     }
-    if (kind === 'car_stop') {
+    if (kind === 'car_stop' || kind === 'bust') {
       stopCarPassSound();
     }
-    if (kind === 'screech') audio.screech();
-    if (kind === 'horn') audio.horn();
   }
 
   // --- Wallet Helpers ---

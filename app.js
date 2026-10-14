@@ -525,8 +525,8 @@
       desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
     },
     'bingo': {
-      title: 'Dallol Bingo',
-      provider: 'Ethiopia Bingo',
+      title: 'Friendes Bingo',
+      provider: 'Friendes Games',
       multiplier: 'Live Rooms',
       category: 'Bingo 90',
       image: 'assets/game_bingo.jpg',

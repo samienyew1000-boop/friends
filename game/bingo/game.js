@@ -9,9 +9,9 @@ const ROOM_LIFECYCLE_KEY = "lucky-bingo-room-lifecycle-v1";
 const LAST_WINNING_CARDS_KEY = "lucky-bingo-last-winning-cards-v1";
 const CARD_DATA_URL = "card%20number.json";
 const START_BALANCE = 0;
-const DEFAULT_STARTING_BONUS = 50;
+const DEFAULT_STARTING_BONUS = 10;
 const CARD_COUNT = 1000;
-const MAX_PICK = 2;
+const MAX_PICK = 50;
 const CALL_MS = 3200;
 const DEFAULT_PICK_SECS = 60;
 const DEFAULT_WINNING_PATTERN = "1";
@@ -22,11 +22,11 @@ const ROOM_STATUS_UPDATE_MS = 1000;
 const COMMISSION_RATE = 0.2;
 const MIN_WALLET_AMOUNT = 50;
 const PLAYER_ID = "LB-PLAYER";
-const PLAYER_NAME = "Lucky Bingo Player";
+const PLAYER_NAME = "Friendes Bingo Player";
 const PAYMENT_METHODS = Object.freeze({
-  Telebirr: { accountName: "Lucky Bingo", accountNumber: "0911 000 000" },
-  "CBE Birr": { accountName: "Lucky Bingo CBE Birr", accountNumber: "1000 000 000" },
-  "M-Pesa": { accountName: "Lucky Bingo M-Pesa", accountNumber: "0700 000 000" },
+  Telebirr: { accountName: "Friendes Bingo", accountNumber: "0981247219" },
+  "CBE Birr": { accountName: "Friendes Bingo CBE Birr", accountNumber: "0981247219" },
+  "M-Pesa": { accountName: "Friendes Bingo M-Pesa", accountNumber: "0700 000 000" },
 });
 
 const ROOMS = [
@@ -73,7 +73,9 @@ let cardsReady = false;
 let cardsLoadError = false;
 let called = [];
 let manualMarked = new Set();
-let autoMarkingEnabled = true;
+let autoMarkingEnabled = false;
+let lastCalledNumber = null;
+let lastCallBlinkTimeout = null;
 let soundEffectsEnabled = localStorage.getItem("lucky-bingo-sound-enabled") !== "0";
 const VOICE_STORAGE_KEY = "lucky-bingo-selected-voice";
 const SUPPORTED_VOICES = ["amharic", "oromgna", "tigregna"];
@@ -229,34 +231,44 @@ function startServerLobbySync() {
 
 function handleServerRoomState(sState) {
   if (!sState || sState.error) return;
-  const rid = String(sState.room_id || activeRoomId);
+  const rid = String(sState.room_id || sState.id || activeRoomId);
   serverRoomStates[rid] = { ...serverRoomStates[rid], ...sState };
   if (activeRoomId && rid !== String(activeRoomId)) return;
+
+  const current = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+  const myId = current?.id;
+
+  // 1. Sync cards taken by other players in this room
   if (Array.isArray(sState.players)) {
-    const mine = sState.players.find((player) => {
-      const current = LuckyBingoAPI?.getTelegramUser?.();
-      return current && Number(player.user_id) === Number(current.id);
+    takenByOthers.clear();
+    sState.players.forEach((player) => {
+      const isMine = myId && String(player.user_id) === String(myId);
+      const cids = Array.isArray(player.card_ids) ? player.card_ids : (typeof player.card_ids === "string" ? JSON.parse(player.card_ids || "[]") : []);
+      if (!isMine) {
+        cids.forEach((cid) => takenByOthers.add(Number(cid)));
+      } else if (!playing && !gameWaiting && selected.size === 0) {
+        cids.forEach((cid) => selected.add(Number(cid)));
+      }
     });
-    if (mine && !playing && !gameWaiting) {
-      try { selected = new Set(JSON.parse(mine.card_ids || "[]").map(Number)); } catch (e) {}
+    if (views.pick && views.pick.classList.contains("is-on")) {
+      paintPicks();
+      renderCartelaPreview();
+      updatePickInfo();
     }
   }
 
-  // 1. Status is COUNTDOWN
+  // 2. Status is COUNTDOWN
   if (sState.status === "countdown" && sState.countdown_ends_at > 0) {
     const startsAt = sState.countdown_ends_at * 1000;
-    const remaining = Math.max(0, Math.ceil((startsAt - Date.now()) / 1000));
+    const remaining = sState.countdown_remaining != null ? sState.countdown_remaining : Math.max(0, Math.ceil((startsAt - Date.now()) / 1000));
     pickLeft = remaining;
     pickEndsAt = startsAt;
     updatePickCountdownDisplay();
     updatePickInfo();
     renderPickRoomSummary();
-
-    // The browser clock is display-only. The server status poll is the only
-    // authority allowed to transition a shared room into the live round.
   }
 
-  // 2. Status is LIVE
+  // 3. Status is LIVE
   if (sState.status === "live") {
     if (!playing && selected.size > 0) {
       entryCharged = true;
@@ -271,40 +283,40 @@ function handleServerRoomState(sState) {
     }
   }
 
-  // 3. Status is OPEN
+  // 4. Status is OPEN
   if (sState.status === "open") {
-    if (!pickTimer && !playing) {
+    if (!playing && views.pick && views.pick.classList.contains("is-on")) {
+      pickLeft = null;
+      pickEndsAt = 0;
       updatePickCountdownDisplay();
       renderPickRoomSummary();
     }
   }
-  // 4. Server reports round result (Winner announced!)
+
+  // 5. Server reports round result (Winner announced!)
   if (sState.last_result && !claimed) {
     const res = sState.last_result;
-    if (res.ended_at && (Date.now() / 1000 - res.ended_at) < 8) {
-      const myProfile = typeof LuckyBingoAPI !== "undefined" ? LuckyBingoAPI.getTelegramUser() : null;
-      const isMe = res.winner_id && myProfile && Number(res.winner_id) === Number(myProfile.id);
+    if (res.ended_at && (Date.now() / 1000 - res.ended_at) < 12) {
+      const isMe = res.winner_id && myId && String(res.winner_id) === String(myId);
       claimed = true;
       playing = false;
       clearInterval(callTimer);
+      callTimer = null;
       if (isMe) {
         roundOutcome = "win";
         roundWinnerName = res.winner_name || PLAYER_NAME;
-        showRoundResult("win", roundWinnerName, "LINE", selected.values().next().value);
-        showWinnerOverlay("win", roundWinnerName, res.prize, selected.values().next().value, "LINE");
+        showRoundResult("win", roundWinnerName, "LINE", res.card_id || selected.values().next().value);
+        showWinnerOverlay("win", roundWinnerName, res.prize, res.card_id || selected.values().next().value, "LINE");
         toast("YOU WON!", "win");
       } else {
         roundOutcome = "lose";
         roundWinnerName = res.winner_name || "Opponent";
-        showRoundResult("lose", roundWinnerName, "LINE", null);
+        showRoundResult("lose", roundWinnerName, "LINE", res.card_id);
         markLoserCards();
-        showWinnerOverlay("lose", roundWinnerName, res.prize || stake * 3, null, "LINE");
+        showWinnerOverlay("lose", roundWinnerName, res.prize || stake * 3, res.card_id, "LINE");
         toast((roundWinnerName).toUpperCase() + " WON!", "lose");
       }
       syncProfileWithServer();
-      setTimeout(() => {
-        returnToCardSelection();
-      }, 5000);
     }
   }
 }
@@ -548,6 +560,14 @@ function startRoomCountdown(room, now = Date.now(), seconds = null) {
 function roomDisplayState(room, now = Date.now()) {
   const roomKey = String(room.id);
   const server = serverRoomStates[roomKey];
+  if (server?.status === "open") {
+    return {
+      type: "open",
+      label: "Open",
+      ariaLabel: "Open for players",
+      roundKey: `open:${server.round_id || 0}:server`,
+    };
+  }
   if (server?.status === "countdown") {
     const startsAt = Number(server.countdown_ends_at || 0) * 1000;
     const safeLeft = Math.max(0, Math.ceil((startsAt - now) / 1000));
@@ -560,6 +580,15 @@ function roomDisplayState(room, now = Date.now()) {
     };
   }
   if (server?.status === "live") {
+    const hasActivePlayers = Number(server.player_count || 0) > 0 || Number(server.total_cards || 0) > 0;
+    if (!hasActivePlayers) {
+      return {
+        type: "open",
+        label: "Open",
+        ariaLabel: "Open for players",
+        roundKey: `open:${server.round_id || 0}:server`,
+      };
+    }
     return {
       type: "live",
       label: "In Play",
@@ -687,7 +716,7 @@ function checkAdminAccess() {
   const adminBtn = $("admin-link") || document.querySelector(".lb-admin-link");
   if (!adminBtn) return;
 
-  const ADMIN_USERNAMES = ["samtesfa19", "su121316"];
+  const ADMIN_USERNAMES = ["samtesfa19", "su121316", "africabingooo", "biregugsa"];
   const ADMIN_UIDS = ["5663531258"];
 
   let isAdmin = false;
@@ -752,13 +781,10 @@ function checkAdminAccess() {
     } catch (e) {}
   }
 
-  // Toggle button visibility: ONLY the authorized admin sees this button!
-  if (isAdmin) {
-    adminBtn.hidden = false;
-    adminBtn.style.display = "";
-  } else {
+  if (adminBtn) {
     adminBtn.hidden = true;
     adminBtn.style.display = "none";
+    adminBtn.remove();
   }
 }
 
@@ -790,6 +816,7 @@ function mobileNavLabel(tab) {
     game: "Game",
     history: "History",
     profile: "Profile",
+    wallet: "Wallet",
     deposit: "Deposit",
     settings: "Settings",
   })[tab] || "Player";
@@ -963,11 +990,11 @@ function renderMobilePanelContent(tab) {
     return;
   }
 
-  if (tab === "deposit") {
+  if (tab === "wallet" || tab === "deposit") {
     content.innerHTML = `
       <div class="lb-mobile-action-card">
         <div>
-          <strong style="font-size:16px;">Lucky Bingo Wallet</strong>
+          <strong style="font-size:16px;">Friendes Bingo Wallet</strong>
           <p>Top up your balance instantly using mobile money (Telebirr, CBE Birr, M-Pesa).</p>
         </div>
         <div class="lb-mobile-info-list" style="margin:0;">
@@ -1098,7 +1125,7 @@ function renderBalance() {
   const lobbyBalance = $("balance");
   if (lobbyBalance) lobbyBalance.textContent = fmtBal(balance);
   const pickBalance = $("pick-balance");
-  if (pickBalance) pickBalance.textContent = `${Number(balance).toFixed(2)} ETB`;
+  if (pickBalance) pickBalance.textContent = String(Math.floor(balance));
   const gameWallet = $("game-wallet-amount");
   if (gameWallet) gameWallet.textContent = `${Number(balance).toFixed(2)} ETB`;
   updateWalletBalances();
@@ -1197,15 +1224,33 @@ function renderPickRoomSummary() {
 
   if (title) title.textContent = `${roomStake} birr Game Lobby`;
   if (entry) entry.textContent = `${roomStake} ETB`;
-  if (pickStake) pickStake.textContent = `${roomStake} ETB`;
+  if (pickStake) pickStake.textContent = String(roomStake);
   if (players) players.textContent = room ? fmt(playerCount) : "—";
   if (availableEl) availableEl.textContent = cardNumbers.length ? fmt(available) : "—";
   const isCounting = pickTimer !== null && pickLeft !== null && pickLeft > 0;
-  if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}s` : (selected.size > 0 ? "Waiting" : "Open");
+  if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}` : (selected.size > 0 ? (pickLeft ? `${pickLeft}` : "30") : "30");
   const reservedStake = selected.size * roomStake;
   const availableBal = Math.max(0, balance - reservedStake);
-  if (pickBalance) pickBalance.textContent = `${availableBal.toFixed(2)} ETB`;
+  if (pickBalance) pickBalance.textContent = String(Math.floor(availableBal));
   if (bannerSeconds) bannerSeconds.textContent = isCounting ? formatCountdown(pickLeft) : "Open";
+
+  const serverCards = server ? Number(server.total_cards || 0) : 0;
+  const totalCards = Math.max(serverCards, selected.size + takenByOthers.size);
+  const liveDerash = (server && Number(server.derash) > 0)
+    ? Math.round(Number(server.derash))
+    : calculateDerash(Math.max(1, totalCards), roomStake);
+
+  if ($("pick-boards-counter")) {
+    $("pick-boards-counter").textContent = `Boards: ${selected.size}/${MAX_PICK} · Derash: ${fmt(liveDerash)} ETB`;
+  }
+  const rNum = room?.id || activeRoomId || 1;
+  if ($("pick-room-num")) {
+    $("pick-room-num").textContent = `${roomStake} № ${rNum}`;
+  }
+  const deselectBtn = $("pick-deselect-all");
+  if (deselectBtn) {
+    deselectBtn.classList.toggle("is-hidden", selected.size === 0);
+  }
 }
 
 function renderWinningCards() {
@@ -1249,9 +1294,14 @@ function setCallBall(letter, num) {
 function updateGameSummary() {
   const room = activeRoomId ? getLobbyRoom(activeRoomId) : null;
   const server = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
-  const players = server ? Number(server.player_count) || 0 : (botPlayers ? botPlayers + selected.size : 16);
   const roomStake = room?.stake || stake;
-  const derash = calculateDerash(players, roomStake);
+  const serverPlayers = server ? Number(server.player_count) || 0 : 0;
+  const serverCards = server ? Number(server.total_cards) || 0 : 0;
+  const players = serverPlayers > 0 ? serverPlayers : (botPlayers ? botPlayers + selected.size : Math.max(1, selected.size));
+  const activeCards = Math.max(serverCards, players);
+  const derash = (server && Number(server.derash) > 0)
+    ? Math.round(Number(server.derash))
+    : calculateDerash(Math.max(1, activeCards), roomStake);
   const roundId = room?.roundId || server?.round_id || "720";
   const derashEl = $("game-derash");
   const playersEl = $("game-players");
@@ -1417,22 +1467,34 @@ function renderRooms() {
       const roomOpen = canPlay && (state.type === "open" || state.type === "countdown");
       const roomClosed = state.type === "live" || state.type === "paused";
       const serverPlayers = server ? Number(server.player_count) || 0 : 0;
-      const derash = calculateDerash(serverPlayers, room.stake);
-      const displayRoom = { ...room, players: serverPlayers };
+      const serverCards = server ? Number(server.total_cards) || 0 : 0;
+      const activeCards = Math.max(serverCards, serverPlayers);
+
+      const derash = (server && Number(server.derash) > 0)
+        ? Math.round(Number(server.derash))
+        : (activeCards > 0
+            ? calculateDerash(activeCards, room.stake)
+            : Math.round(room.stake * 2 * (1 - COMMISSION_RATE)));
+
+      const displayPlayers = serverPlayers > 0
+        ? serverPlayers
+        : (state.type === "live" ? 2 : (state.type === "countdown" ? 1 : 0));
+
+      const displayRoom = { ...room, players: displayPlayers };
       const balanceMessage = roomBalanceMessage(displayRoom, canPlay, state);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "lb-room" + (canPlay ? "" : " is-locked") + (roomClosed ? " is-closed" : "");
       btn.disabled = roomClosed;
       btn.setAttribute("aria-disabled", String(roomClosed));
-      btn.setAttribute("aria-label", `${roomOpen ? "Play" : balanceMessage} ${room.stake} ETB room with ${serverPlayers} players and ${derash} ETB derash. ${state.ariaLabel}.`);
+      btn.setAttribute("aria-label", `${roomOpen ? "Play" : balanceMessage} ${room.stake} ETB room with ${displayPlayers} players and ${derash} ETB derash. ${state.ariaLabel}.`);
       btn.innerHTML = `
         <span class="lb-room-stake">${room.stake} ETB</span>
         <span class="lb-room-active is-${state.type}" aria-live="polite">
           ${roomStatusMarkup(state)}
           <span class="lb-room-active-copy">${balanceMessage}</span>
         </span>
-        <span class="lb-room-players">${fmt(serverPlayers)}</span>
+        <span class="lb-room-players">${fmt(displayPlayers)}</span>
         <span class="lb-room-prize">${fmt(derash)} ETB</span>
         <span class="lb-room-play${roomOpen ? " is-enabled" : " is-disabled"}">${roomOpen ? "Play" : roomClosed ? (state.type === "live" ? "In Play" : "Closed") : "Play"}</span>
       `;
@@ -1491,7 +1553,7 @@ function enterRoom(roomId) {
   botPlayers = 0;
   setGameWaitingState(false);
   showView("pick");
-  $("pick-stake").textContent = `${stake} ETB`;
+  if ($("pick-stake")) $("pick-stake").textContent = String(stake);
   $("pick-cost").textContent = String(stake);
   renderWinningCards();
   buildCardGrid();
@@ -1505,7 +1567,7 @@ function enterRoom(roomId) {
 
   if (typeof LuckyBingoAPI !== "undefined") {
     LuckyBingoAPI.stopLobbyPoll();
-    LuckyBingoAPI.startRoomPoll(activeRoomId, handleServerRoomState, 800);
+    LuckyBingoAPI.startRoomPoll(activeRoomId, handleServerRoomState, 500);
   }
 }
 
@@ -1574,49 +1636,49 @@ function paintPicks() {
   });
 }
 
-function createSelectionCard(card, removable = true) {
+function createSelectionCard(card) {
   const cardEl = document.createElement("article");
   cardEl.className = "lb-selection-card";
   cardEl.dataset.id = String(card.id);
   cardEl.innerHTML = `
-    <div class="lb-selection-card-title">Card #${card.id}</div>
-    ${removable ? `<button type="button" class="lb-selection-remove" data-remove-card="${card.id}" aria-label="Remove card ${card.id}">×</button>` : ""}
-    <div class="lb-selection-bingo-head">${LETTERS.map((letter) => `<span>${letter}</span>`).join("")}</div>
+    <div class="lb-selection-card-title">Cartela #${card.id}</div>
     <div class="lb-selection-cells"></div>
   `;
   const cells = cardEl.querySelector(".lb-selection-cells");
   card.cells.forEach((value) => {
     const cell = document.createElement("span");
     cell.className = "lb-selection-cell" + (value === "FREE" ? " is-free" : "");
-    cell.textContent = value === "FREE" ? "★" : String(value);
+    cell.textContent = value === "FREE" ? "*" : String(value);
     cells.appendChild(cell);
   });
-  cardEl.querySelector("[data-remove-card]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleCard(Number(event.currentTarget.dataset.removeCard));
+  cardEl.addEventListener("click", () => {
+    toggleCard(card.id);
   });
-  cardEl.addEventListener("click", () => previewCard(card.id));
   return cardEl;
 }
 
 function renderCartelaPreview() {
   const preview = $("cartela-preview");
+  const container = $("pick-selected-container");
   if (!preview) return;
   preview.replaceChildren();
-  if (!selected.size) {
-    preview.innerHTML = `<div class="lb-selection-slot is-empty"><span>Select Card 1</span></div><div class="lb-selection-slot is-empty"><span>Select Card 2</span></div>`;
+
+  const count = selected.size;
+  if (container) {
+    container.classList.toggle("is-empty", count === 0);
+  }
+
+  if (count === 0) {
+    preview.dataset.count = "0";
     return;
   }
+
+  preview.dataset.count = String(count);
+
   [...selected].slice(0, MAX_PICK).forEach((id) => {
     const card = ensureCard(id);
     if (card) preview.appendChild(createSelectionCard(card));
   });
-  while (preview.children.length < MAX_PICK) {
-    const slot = document.createElement("div");
-    slot.className = "lb-selection-slot is-empty";
-    slot.innerHTML = `<span>Select Card ${preview.children.length + 1}</span>`;
-    preview.appendChild(slot);
-  }
 }
 
 function previewCard(id) {
@@ -1701,7 +1763,7 @@ function setupPickWaitingState() {
   const timer = $("pick-timer");
   const banner = $("pick-banner-secs");
   const helper = $("pick-helper");
-  if (time) time.textContent = selected.size > 0 ? "Waiting" : "Open";
+  if (time) time.textContent = selected.size > 0 ? String(pickLeft || 30) : "30";
   if (seconds) seconds.textContent = "Open";
   if (banner) banner.textContent = "Open";
   if (timer) timer.classList.remove("is-urgent");
@@ -1717,6 +1779,11 @@ function scheduleOpponentJoin() {
   if (opponentJoinTimeout) {
     clearTimeout(opponentJoinTimeout);
     opponentJoinTimeout = null;
+  }
+  // When connected to the multiplayer server, do NOT simulate fake bots or timers!
+  // The server coordinates real players, countdown, and number calling.
+  if (activeRoomId && typeof LuckyBingoAPI !== "undefined") {
+    return;
   }
   opponentJoinTimeout = setTimeout(() => {
     opponentJoinTimeout = null;
@@ -1737,7 +1804,6 @@ function scheduleOpponentJoin() {
 
     // Now opponents have joined: Start the 1-minute countdown!
     startPickCountdown(Date.now() + 60 * 1000);
-    toast("OPPONENT JOINED — 1 MINUTE COUNTDOWN STARTED!", "win");
   }, 3500);
 }
 
@@ -1777,7 +1843,12 @@ function onCardSelectionChanged() {
           }
 
           if (res?.error === "Insufficient balance") {
-            selected = new Set();
+            if (selectedPreviewId && selected.has(selectedPreviewId)) {
+              selected.delete(selectedPreviewId);
+              selectedPreviewId = selected.size ? [...selected][selected.size - 1] : null;
+            } else {
+              selected = new Set();
+            }
             paintPicks();
             renderCartelaPreview();
             updatePickInfo();
@@ -1813,7 +1884,12 @@ function onCardSelectionChanged() {
             return;
           }
 
-          selected = new Set();
+          if (selectedPreviewId && selected.has(selectedPreviewId)) {
+            selected.delete(selectedPreviewId);
+            selectedPreviewId = selected.size ? [...selected][selected.size - 1] : null;
+          } else {
+            selected = new Set();
+          }
           paintPicks();
           renderCartelaPreview();
           updatePickInfo();
@@ -1825,44 +1901,52 @@ function onCardSelectionChanged() {
           balance = Number(res.balance);
           renderBalance();
         }
+        if (res && res.ok && activeRoomId) {
+          serverRoomStates[String(activeRoomId)] = {
+            ...(serverRoomStates[String(activeRoomId)] || {}),
+            ...res,
+          };
+          renderPickRoomSummary();
+          if (views.lobby && views.lobby.classList.contains("is-on")) {
+            renderRooms();
+          }
+        }
         syncProfileWithServer();
       }).catch((e) => {
         console.warn("[API] joinRoom network notice:", e);
       });
     }
 
-    // COUNTDOWN TRIGGER:
-    // When 2 cards are picked: Start 1-minute countdown immediately!
-    if (selected.size >= 2) {
-      if (opponentJoinTimeout) {
-        clearTimeout(opponentJoinTimeout);
-        opponentJoinTimeout = null;
-      }
-      if (!pickTimer) {
-        // Add simulated bot cards to fill room
-        if (takenByOthers.size === 0) {
-          const opponentCount = 3 + Math.floor(Math.random() * 3);
-          botPlayers = opponentCount;
-          for (let i = 0; i < opponentCount * 2; i++) {
-            const avail = cardNumbers.filter((id) => !selected.has(id) && !takenByOthers.has(id));
-            if (!avail.length) break;
-            const pickId = avail[Math.floor(Math.random() * avail.length)];
-            takenByOthers.add(pickId);
-          }
-          paintPicks();
-          updatePickInfo();
+    // When playing offline / standalone without active server room:
+    if (!activeRoomId || typeof LuckyBingoAPI === "undefined") {
+      if (selected.size >= 2) {
+        if (opponentJoinTimeout) {
+          clearTimeout(opponentJoinTimeout);
+          opponentJoinTimeout = null;
         }
-        startPickCountdown(Date.now() + 60 * 1000);
-        toast("2 CARDS PICKED — 1 MINUTE COUNTDOWN STARTED!", "win");
-      }
-    } else {
-      // 1 card picked:
-      if (!pickTimer && !opponentJoinTimeout) {
-        const time = $("pick-time");
-        if (time) time.textContent = "Waiting";
-        const helper = $("pick-helper");
-        if (helper) helper.textContent = "1 cartela selected! Pick another or wait for opponents to join…";
-        scheduleOpponentJoin();
+        if (!pickTimer) {
+          if (takenByOthers.size === 0) {
+            const opponentCount = 3 + Math.floor(Math.random() * 3);
+            botPlayers = opponentCount;
+            for (let i = 0; i < opponentCount * 2; i++) {
+              const avail = cardNumbers.filter((id) => !selected.has(id) && !takenByOthers.has(id));
+              if (!avail.length) break;
+              const pickId = avail[Math.floor(Math.random() * avail.length)];
+              takenByOthers.add(pickId);
+            }
+            paintPicks();
+            updatePickInfo();
+          }
+          startPickCountdown(Date.now() + 60 * 1000);
+        }
+      } else {
+        if (!pickTimer && !opponentJoinTimeout) {
+          const time = $("pick-time");
+          if (time) time.textContent = String(pickLeft || 30);
+          const helper = $("pick-helper");
+          if (helper) helper.textContent = `1 cartela selected! Pick up to ${MAX_PICK} or wait for opponents to join…`;
+          scheduleOpponentJoin();
+        }
       }
     }
   }
@@ -1876,7 +1960,7 @@ function updatePickCountdownDisplay() {
   const isCounting = pickTimer !== null && pickLeft !== null && pickLeft > 0;
   const label = isCounting ? formatCountdown(pickLeft) : (selected.size > 0 ? "Waiting" : "Open");
   if (seconds) seconds.textContent = label;
-  if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}s` : label;
+  if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}` : (selected.size > 0 ? (pickLeft ? `${pickLeft}` : "30") : "30");
   if (banner) banner.textContent = label;
   if (timer) timer.classList.toggle("is-urgent", isCounting && pickLeft <= 5);
   renderPickRoomSummary();
@@ -1901,8 +1985,11 @@ function startPickCountdown(roomStartsAt = null, roomRoundKey = null) {
       clearInterval(pickTimer);
       pickTimer = null;
       pickEndsAt = 0;
-      // Countdown ended! Lock room and start live game
       if (selected.size > 0 && !playing) {
+        if (activeRoomId && typeof LuckyBingoAPI !== "undefined") {
+          setGameWaitingState(true);
+          return;
+        }
         if (!entryCharged) {
           const cost = stake * selected.size;
           if (balance >= cost) {
@@ -2028,7 +2115,11 @@ function beginLiveGame() {
   buildBoard();
   renderMineCards();
   clearInterval(callTimer);
-  callTimer = setInterval(nextCall, CALL_MS);
+  callTimer = null;
+  // In multiplayer rooms, calls are delivered authoritatively by the server via sState.calls
+  if (!activeRoomId || typeof LuckyBingoAPI === "undefined") {
+    callTimer = setInterval(nextCall, CALL_MS);
+  }
 }
 
 function hideRoundResult() {
@@ -2097,7 +2188,7 @@ function returnToCardSelection() {
   botPlayers = 0;
   setGameWaitingState(false);
   showView("pick");
-  $("pick-stake").textContent = `${stake} ETB`;
+  if ($("pick-stake")) $("pick-stake").textContent = String(stake);
   $("pick-cost").textContent = String(stake);
   renderWinningCards();
   buildCardGrid();
@@ -2170,30 +2261,47 @@ function renderWinnerCard(cardId, hit = null, kind = "LINE") {
   if (!grid) return;
   grid.replaceChildren();
 
-  const cardObj = ensureCard(cardId) || {
+  const rawCard = ensureCard(cardId);
+  const cardObj = rawCard ? { id: rawCard.id, cells: [...rawCard.cells] } : {
     id: cardId,
     cells: [5, 16, 35, 58, 71, 9, 30, 41, 52, 66, 12, 21, "FREE", 59, 72, 11, 23, 33, 49, 73, 7, 25, 31, 53, 70]
   };
 
   const winIndexes = new Set();
-  const hits = hit instanceof Set ? new Set(hit) : new Set();
+  const hits = new Set(called);
+  if (hit instanceof Set) {
+    hit.forEach((val) => hits.add(val));
+  }
 
-  if (String(cardId) === "440") {
-    // Exact diagonal win line and hits matching the user reference image
-    [0, 6, 12, 18, 24].forEach((idx) => winIndexes.add(idx));
-    hits.add(58);
-    hits.add(9);
-    hits.add(52);
-  } else {
-    try {
-      const calculatedWins = winningCellIndexes(cardObj, hits, kind);
-      if (calculatedWins && calculatedWins.length > 0) {
-        calculatedWins.forEach((idx) => winIndexes.add(idx));
-      } else {
-        [0, 6, 12, 18, 24].forEach((idx) => winIndexes.add(idx));
-      }
-    } catch (e) {
+  try {
+    const calculatedWins = winningCellIndexes(cardObj, hits, kind);
+    if (calculatedWins && calculatedWins.length > 0) {
+      calculatedWins.forEach((idx) => winIndexes.add(idx));
+    } else {
       [0, 6, 12, 18, 24].forEach((idx) => winIndexes.add(idx));
+    }
+  } catch (e) {
+    [0, 6, 12, 18, 24].forEach((idx) => winIndexes.add(idx));
+  }
+
+  // Find index of the ball on this winning card that completed the bingo (or was called latest)
+  let lastCallIndex = -1;
+  let maxCallOrder = -1;
+  winIndexes.forEach((idx) => {
+    if (idx === 12) return;
+    const val = Number(cardObj.cells[idx]);
+    const order = called.lastIndexOf(val);
+    if (order > maxCallOrder) {
+      maxCallOrder = order;
+      lastCallIndex = idx;
+    }
+  });
+
+  // Fallback: if no winning line cells found in called history, pick last winning line cell
+  if (lastCallIndex === -1) {
+    const winArr = [...winIndexes].filter((i) => i !== 12);
+    if (winArr.length > 0) {
+      lastCallIndex = winArr[winArr.length - 1];
     }
   }
 
@@ -2203,9 +2311,15 @@ function renderWinnerCard(cardId, hit = null, kind = "LINE") {
     const isFree = index === 12 || val === "FREE" || val === 0;
     const isWin = winIndexes.has(index);
     const isHit = isWin || isFree || hits.has(val) || hits.has(Number(val));
+    const isLastCalled = (index === lastCallIndex);
 
     if (isWin) cell.classList.add("is-win");
     else if (isHit) cell.classList.add("is-hit");
+
+    // The winning number blinks!
+    if (isLastCalled && !isFree) {
+      cell.classList.add("is-last-call-blink");
+    }
 
     if (isFree) {
       cell.classList.add("is-free");
@@ -2241,20 +2355,40 @@ function showWinnerOverlay(outcome, winnerName, prize = null, cardId = null, kin
 
   playBingoVoice();
   renderWinnerConfetti();
-  renderWinnerCard(finalCardId, activeHitSet(), kind);
+  renderWinnerCard(finalCardId, new Set(called), kind);
 
-  overlay.onclick = () => returnToCardSelection();
+  let remaining = 7;
+  const hint = $("winner-overlay-hint");
+  const updateCountdownDisplay = () => {
+    if (seconds) seconds.textContent = String(Math.max(0, remaining));
+    if (hint) {
+      if (remaining > 2) {
+        hint.innerHTML = `<span>Returning to selection in <b id="winner-overlay-seconds">${Math.max(0, remaining)}</b>s</span>`;
+      } else {
+        hint.innerHTML = `<span>Returning to selection in <b id="winner-overlay-seconds">${Math.max(0, remaining)}</b>s · Tap to return</span>`;
+      }
+    }
+  };
 
-  let remaining = 6;
-  if (seconds) seconds.textContent = String(remaining);
+  updateCountdownDisplay();
   overlay.removeAttribute("hidden");
   overlay.hidden = false;
 
+  overlay.onclick = () => {
+    // Only allow manual dismissal when countdown is almost done (<= 2s) to prevent accidental immediate clicks
+    if (remaining <= 2) {
+      clearInterval(winnerTimer);
+      winnerTimer = null;
+      returnToCardSelection();
+    }
+  };
+
   winnerTimer = setInterval(() => {
     remaining -= 1;
-    if (seconds) seconds.textContent = String(Math.max(0, remaining));
+    updateCountdownDisplay();
     if (remaining <= 0) {
       clearInterval(winnerTimer);
+      winnerTimer = null;
       returnToCardSelection();
     }
   }, 1000);
@@ -2316,42 +2450,141 @@ function highlightWinningCard(cardId, kind) {
   const card = wrap?.querySelector(`[data-id="${cardId}"]`);
   if (!card) return;
   card.classList.add("is-winner");
-  const hit = activeHitSet();
+  const hit = new Set(called);
   const definition = ensureCard(cardId);
   const indexes = definition ? winningCellIndexes(definition, hit, kind) : [];
-  [...card.querySelectorAll(".lb-cell")].forEach((cell, index) => cell.classList.toggle("is-win", indexes.includes(index)));
-}
 
-function buildBoard() {
-  const board = $("board");
-  if (!board) return;
-  board.replaceChildren();
-  LETTERS.forEach((letter, colIndex) => {
-    const hdr = document.createElement("div");
-    hdr.className = "lb-h-letter";
-    hdr.dataset.letter = letter;
-    hdr.textContent = letter;
-    board.appendChild(hdr);
+  let lastCallIndex = -1;
+  let maxCallOrder = -1;
+  if (definition) {
+    indexes.forEach((idx) => {
+      if (idx === 12) return;
+      const val = Number(definition.cells[idx]);
+      const order = called.lastIndexOf(val);
+      if (order > maxCallOrder) {
+        maxCallOrder = order;
+        lastCallIndex = idx;
+      }
+    });
+    if (lastCallIndex === -1) {
+      const winArr = indexes.filter((i) => i !== 12);
+      if (winArr.length > 0) lastCallIndex = winArr[winArr.length - 1];
+    }
+  }
 
-    const [start, end] = COL_RANGES[colIndex];
-    for (let n = start; n <= end; n++) {
-      const d = document.createElement("div");
-      d.className = "lb-dot";
-      d.dataset.n = String(n);
-      d.dataset.letter = letter;
-      d.textContent = String(n);
-      board.appendChild(d);
+  [...card.querySelectorAll(".lb-cell")].forEach((cell, index) => {
+    const isWin = indexes.includes(index);
+    cell.classList.toggle("is-win", isWin);
+    if (index === lastCallIndex) {
+      cell.classList.add("is-last-call-blink");
+    } else {
+      cell.classList.remove("is-last-call-blink");
     }
   });
 }
 
+function buildBoard() {
+  const hBoard = $("h-board") || $("board");
+  if (hBoard) {
+    hBoard.replaceChildren();
+    LETTERS.forEach((letter, colIndex) => {
+      const hdr = document.createElement("div");
+      hdr.className = "lb-h-letter";
+      hdr.dataset.letter = letter;
+      hdr.textContent = letter;
+      hBoard.appendChild(hdr);
+
+      const [start, end] = COL_RANGES[colIndex];
+      for (let n = start; n <= end; n++) {
+        const d = document.createElement("button");
+        d.type = "button";
+        d.className = "lb-dot lb-h-dot";
+        d.dataset.n = String(n);
+        d.dataset.letter = letter;
+        d.textContent = String(n);
+        d.addEventListener("click", () => onBoardNumberClick(n));
+        hBoard.appendChild(d);
+      }
+    });
+  }
+
+  const vBoard = $("v-board");
+  if (vBoard) {
+    vBoard.replaceChildren();
+    LETTERS.forEach((letter, colIndex) => {
+      const col = document.createElement("div");
+      col.className = "lb-v-col";
+      col.dataset.letter = letter;
+
+      const hdr = document.createElement("div");
+      hdr.className = "lb-v-hdr";
+      hdr.innerHTML = `<span class="lb-v-letter">${letter}</span><div class="lb-v-bar"></div>`;
+      col.appendChild(hdr);
+
+      const cellsWrap = document.createElement("div");
+      cellsWrap.className = "lb-v-cells";
+
+      const [start, end] = COL_RANGES[colIndex];
+      for (let n = start; n <= end; n++) {
+        const d = document.createElement("button");
+        d.type = "button";
+        d.className = "lb-dot lb-v-dot";
+        d.dataset.n = String(n);
+        d.dataset.letter = letter;
+        d.textContent = String(n);
+        d.addEventListener("click", () => onBoardNumberClick(n));
+        cellsWrap.appendChild(d);
+      }
+
+      col.appendChild(cellsWrap);
+      vBoard.appendChild(col);
+    });
+  }
+}
+
+function onBoardNumberClick(n) {
+  if (claimed || !playing) return;
+
+  if (!called.includes(n)) {
+    return;
+  }
+
+  const wasMarked = manualMarked.has(n);
+  if (wasMarked) {
+    manualMarked.delete(n);
+  } else {
+    manualMarked.add(n);
+  }
+
+  paintBoard();
+  renderMineCards();
+  const ready = updateBingoButton();
+  $("game-status").textContent = ready && !claimed
+    ? "You have BINGO — claim now!"
+    : `${wasMarked ? "Unmarked" : "Marked"} ${letterFor(n)}-${n}`;
+
+  // Automatically declare Bingo if any card completed!
+  if (playerHasBingo() && !claimed && playing) {
+    claimBingo();
+  }
+}
+
 function paintBoard() {
-  const board = $("board");
-  if (!board) return;
   const set = new Set(called);
-  [...board.children].forEach((el) => {
+  const hits = activeHitSet();
+  const currentCall = called.length ? called[called.length - 1] : null;
+
+  document.querySelectorAll(".lb-dot").forEach((el) => {
     if (el.dataset.n) {
-      el.classList.toggle("is-on", set.has(Number(el.dataset.n)));
+      const n = Number(el.dataset.n);
+      const isCalled = set.has(n);
+      const isHit = hits.has(n) || (autoMarkingEnabled && isCalled);
+      const isCurrent = (n === currentCall);
+
+      el.classList.toggle("is-called", isCalled && !isHit);
+      el.classList.toggle("is-on", isCalled && !isHit);
+      el.classList.toggle("is-hit", isHit);
+      el.classList.toggle("is-current-call", isCurrent && !isHit);
     }
   });
 }
@@ -2408,12 +2641,37 @@ function renderMineCards() {
     bingoBtn.classList.add("is-visible");
   }
 
-  wrap.style.display = "grid";
+  const isMulti = cardList.length > 4;
+  const gameView = $("view-game");
+  if (gameView) {
+    gameView.classList.toggle("has-many-cards-layout", isMulti);
+    gameView.classList.toggle("is-standard-layout", !isMulti);
+  }
+  const arena = $("game-arena");
+  if (arena) {
+    arena.classList.toggle("has-many-cards-layout", isMulti);
+    arena.classList.toggle("is-standard-layout", !isMulti);
+  }
+
+  if (isMulti) {
+    const vBoard = $("v-board");
+    if (vBoard && vBoard.children.length === 0) {
+      buildBoard();
+    }
+  }
+
+  wrap.style.display = isMulti ? "flex" : "grid";
   wrap.classList.remove("is-hidden");
   wrap.hidden = false;
   wrap.removeAttribute("hidden");
-  wrap.classList.toggle("has-single-card", cardList.length === 1);
-  wrap.classList.toggle("has-multiple-cards", cardList.length > 1);
+
+  wrap.className = "lb-mine-cards-grid";
+  if (!isMulti) {
+    wrap.classList.toggle("has-single-card", cardList.length === 1);
+    wrap.classList.toggle("has-two-cards", cardList.length === 2);
+    wrap.classList.toggle("has-three-cards", cardList.length === 3);
+    wrap.classList.toggle("has-four-cards", cardList.length === 4);
+  }
 
   wrap.replaceChildren(
     ...cardList.map((id) => {
@@ -2424,11 +2682,9 @@ function renderMineCards() {
       el.className = "lb-card";
       el.dataset.id = String(id);
 
+      const cardTitleText = isMulti ? `Card ${id}` : `Cartela #${id}`;
       el.innerHTML = `
-        <div class="lb-card-top-bar">
-          <span class="lb-card-title">Card #${id}</span>
-          <span class="lb-card-live-dot">LIVE</span>
-        </div>
+        <div class="lb-cartela-title">${cardTitleText}</div>
         <div class="lb-card-header-row" aria-hidden="true">
           <span class="lb-hdr-b">B</span>
           <span class="lb-hdr-i">I</span>
@@ -2450,8 +2706,12 @@ function renderMineCards() {
           const hasHit = hit.has(value);
           const hasBeenCalled = calledSet.has(value);
           cell.textContent = String(value);
-          if (hasHit) cell.classList.add("is-hit");
-          if (!autoMarkingEnabled && playing && !claimed && hasBeenCalled && !hasHit) {
+          if (hasHit) {
+            cell.classList.add("is-hit");
+          } else if (value === lastCalledNumber) {
+            cell.classList.add("is-hint-blink");
+          }
+          if (playing && !claimed && hasBeenCalled && !hasHit) {
             cell.classList.add("is-callable");
             cell.title = `Tap to mark ${letterFor(value)}-${value}`;
           }
@@ -2469,10 +2729,9 @@ function renderMineCards() {
 }
 
 function toggleManualMark(value) {
-  if (autoMarkingEnabled || claimed || !playing || value === "FREE") return;
+  if (claimed || !playing || value === "FREE") return;
 
   if (!called.includes(value)) {
-    toast(`WAIT FOR ${letterFor(value)}-${value}`, "lose");
     return;
   }
 
@@ -2480,11 +2739,17 @@ function toggleManualMark(value) {
   if (wasMarked) manualMarked.delete(value);
   else manualMarked.add(value);
 
+  paintBoard();
   renderMineCards();
   const ready = updateBingoButton();
   $("game-status").textContent = ready && !claimed
     ? "You have BINGO — claim now!"
     : `${wasMarked ? "Unmarked" : "Marked"} ${letterFor(value)}-${value}`;
+
+  // Automatically declare Bingo if any card completed!
+  if (playerHasBingo() && !claimed && playing) {
+    claimBingo();
+  }
 }
 
 function playCallVoice(number, letter) {
@@ -2568,48 +2833,31 @@ function playBingoVoice() {
 
 let currentNopeAudio = null;
 function playNopeVoice() {
-  if (!soundEffectsEnabled) return;
-  try {
-    if (currentNopeAudio) {
-      currentNopeAudio.pause();
-      currentNopeAudio.currentTime = 0;
-    }
-    const voice = getSelectedVoice();
-    const candidates = [
-      `assets/audio/${voice}/nop.m4a`,
-      `assets/audio/${voice}/nop.mp3`,
-      "assets/audio/amharic/nop.m4a",
-      "assets/audio/nop.m4a",
-      "assets/audio/nop.mp3",
-    ];
-    let candidateIndex = 0;
-    const audio = new Audio();
-    audio.preload = "auto";
-    audio.onerror = () => {
-      candidateIndex++;
-      if (candidateIndex < candidates.length) {
-        audio.src = candidates[candidateIndex];
-        audio.play().catch(() => {});
-      }
-    };
-    audio.src = candidates[0];
-    currentNopeAudio = audio;
-    audio.play().catch(() => {});
-  } catch (err) {
-    // Graceful ignore
-  }
+  // Voice removed per user request
 }
 
 function handleSingleCall(n) {
   if (called.includes(n)) return;
   called.push(n);
-  if (!autoMarkingEnabled) manualMarked.delete(n);
+  lastCalledNumber = n;
+  clearTimeout(lastCallBlinkTimeout);
+  lastCallBlinkTimeout = setTimeout(() => {
+    lastCalledNumber = null;
+    document.querySelectorAll(".lb-dot.is-current-call").forEach((c) => c.classList.remove("is-current-call"));
+    document.querySelectorAll(".lb-cell.is-hint-blink").forEach((c) => c.classList.remove("is-hint-blink"));
+  }, 2200);
+
+  if (autoMarkingEnabled) {
+    manualMarked.add(n);
+  }
   const letter = letterFor(n);
   const ballEl = $("call-ball");
   if (ballEl) {
     ballEl.textContent = String(n);
     ballEl.dataset.letter = letter;
   }
+  const ballNumEl = $("call-ball-num");
+  if (ballNumEl) ballNumEl.textContent = String(n);
   const callLetterEl = $("call-letter");
   if (callLetterEl) callLetterEl.textContent = letter;
   const callCountEl = $("call-count");
@@ -2624,12 +2872,17 @@ function handleSingleCall(n) {
   const gameStatusEl = $("game-status");
   if (gameStatusEl) {
     if (ready && !claimed) {
-      gameStatusEl.textContent = "You have BINGO — claim now!";
+      gameStatusEl.textContent = "BINGO!";
     } else {
       gameStatusEl.textContent = autoMarkingEnabled
         ? "Called " + letter + "-" + n
-        : "Called " + letter + "-" + n + " — tap it on your card";
+        : "Called " + letter + "-" + n + " — tap it on the board";
     }
+  }
+
+  // Automatically declare Bingo if any card completed!
+  if (playerHasBingo() && !claimed && playing) {
+    claimBingo();
   }
 }
 
@@ -2676,8 +2929,8 @@ function bestWinKind(card, hit) {
   return `${requiredLines} ${requiredLines === 1 ? "LINE" : "LINES"}`;
 }
 
-function playerHasBingo() {
-  const hit = activeHitSet();
+function playerHasBingo(useCalled = true) {
+  const hit = useCalled ? new Set(called) : activeHitSet();
   for (const id of selected) {
     const card = ensureCard(id);
     if (card && bestWinKind(card, hit)) return true;
@@ -2687,7 +2940,8 @@ function playerHasBingo() {
 
 function claimBingo() {
   if (claimed || !playing) return;
-  const hit = activeHitSet();
+  // Always evaluate against called numbers so un-marked cards win automatically
+  const hit = new Set(called);
   let kind = null;
   let winCard = null;
   for (const id of selected) {
@@ -2700,11 +2954,34 @@ function claimBingo() {
     }
   }
   if (!kind) {
+    const manualHit = activeHitSet();
+    for (const id of selected) {
+      const card = ensureCard(id);
+      const currentKind = card ? bestWinKind(card, manualHit) : null;
+      if (currentKind) {
+        kind = currentKind;
+        winCard = id;
+        break;
+      }
+    }
+  }
+  if (!kind) {
     playNopeVoice();
     toast("FALSE CLAIM", "lose");
     $("bingo-btn").disabled = true;
     return;
   }
+
+  // Ensure all called numbers on this card are marked
+  const winDef = ensureCard(winCard);
+  if (winDef) {
+    winDef.cells.forEach((val) => {
+      if (val !== "FREE" && called.includes(val)) {
+        manualMarked.add(val);
+      }
+    });
+  }
+
   claimed = true;
   clearInterval(callTimer);
   callTimer = null;
@@ -2742,10 +3019,6 @@ function claimBingo() {
       syncProfileWithServer();
     }).catch(() => {});
   }
-
-  setTimeout(() => {
-    returnToCardSelection();
-  }, 5000);
 }
 
 function botWins() {
@@ -2773,9 +3046,6 @@ function botWins() {
   renderMineCards();
   toast(`${winnerName} CLAIMED BINGO!`, "lose");
   showWinnerOverlay("lose", winnerName, botPrize, botCardId, "LINE");
-  setTimeout(() => {
-    returnToCardSelection();
-  }, 5000);
 }
 
 function leaveGame() {
@@ -2863,21 +3133,21 @@ function showWalletFeedback(action, message, isError = false) {
 function getDepositPaymentAccount(method) {
   try {
     const adminSettings = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || "{}");
-    if (method === "Telebirr" && adminSettings.depositTelebirrPhone) {
+    if (method === "Telebirr") {
       return {
-        accountName: adminSettings.depositTelebirrName || "Lucky Bingo",
-        accountNumber: adminSettings.depositTelebirrPhone || "0911 000 000",
+        accountName: adminSettings.depositTelebirrName || "Friendes Bingo",
+        accountNumber: adminSettings.depositTelebirrPhone || "0981247219",
       };
     }
-    if (method === "CBE Birr" && adminSettings.depositCbeBirrPhone) {
+    if (method === "CBE Birr") {
       return {
-        accountName: adminSettings.depositCbeBirrName || "Lucky Bingo CBE Birr",
-        accountNumber: adminSettings.depositCbeBirrPhone || "1000 000 000",
+        accountName: adminSettings.depositCbeBirrName || "Friendes Bingo CBE Birr",
+        accountNumber: adminSettings.depositCbeBirrPhone || "0981247219",
       };
     }
     if (method === "M-Pesa" && adminSettings.depositMpesaPhone) {
       return {
-        accountName: adminSettings.depositMpesaName || "Lucky Bingo M-Pesa",
+        accountName: adminSettings.depositMpesaName || "Friendes Bingo M-Pesa",
         accountNumber: adminSettings.depositMpesaPhone || "0700 000 000",
       };
     }
@@ -3123,6 +3393,24 @@ function copyDepositAccount() {
 
 function bind() {
   $("start-game").addEventListener("click", startGame);
+  $("pick-leave-btn")?.addEventListener("click", leaveGame);
+  $("pick-refresh-btn")?.addEventListener("click", () => {
+    if (activeRoomId && typeof LuckyBingoAPI !== "undefined") {
+      LuckyBingoAPI.getRoomState(activeRoomId).then((data) => {
+        syncServerRoomState(data);
+      }).catch(() => {});
+    }
+    paintPicks();
+    updatePickInfo();
+    toast("REFRESHED", "win");
+  });
+  $("pick-deselect-all")?.addEventListener("click", () => {
+    if (selected.size > 0) {
+      selected.clear();
+      selectedPreviewId = null;
+      onCardSelectionChanged();
+    }
+  });
   document.querySelectorAll("[data-mobile-nav]").forEach((button) => {
     button.addEventListener("click", () => handleMobileNav(button.dataset.mobileNav));
   });
@@ -3136,8 +3424,8 @@ function bind() {
   $("leave-game").addEventListener("click", leaveGame);
   const autoToggle = $("auto-mark-toggle");
   if (autoToggle) {
-    autoToggle.checked = true;
-    autoMarkingEnabled = true;
+    autoToggle.checked = false;
+    autoMarkingEnabled = false;
     autoToggle.addEventListener("change", handleAutoMarkToggle);
   }
   const voiceToggle = $("voice-toggle");
@@ -3170,6 +3458,20 @@ function bind() {
   $("withdraw-form").addEventListener("submit", handleWithdrawSubmit);
   $("game-back-btn")?.addEventListener("click", () => {
     returnToCardSelection();
+  });
+  $("game-leave-btn")?.addEventListener("click", () => {
+    leaveGame();
+  });
+  $("game-refresh-btn")?.addEventListener("click", () => {
+    syncProfileWithServer();
+    renderMineCards();
+    paintBoard();
+    if (activeRoomId && typeof LuckyBingoAPI !== "undefined") {
+      LuckyBingoAPI.getRoomState(activeRoomId).then((data) => {
+        if (data) syncProfileWithServer();
+      }).catch(() => {});
+    }
+    toast("GAME REFRESHED", "win");
   });
   $("game-wallet-trigger")?.addEventListener("click", () => openWallet("deposit"));
   $("game-user-trigger")?.addEventListener("click", () => openMobilePanel("profile"));
@@ -3219,7 +3521,7 @@ if (window.location.hash === "#game" || window.location.search.includes("view=ga
 } else if (window.location.hash === "#pick" || window.location.search.includes("view=pick")) {
   showView("pick");
   stake = 10;
-  $("pick-stake").textContent = `${stake} ETB`;
+  if ($("pick-stake")) $("pick-stake").textContent = String(stake);
   $("pick-cost").textContent = String(stake);
   selected.clear();
   selected.add(97);
@@ -3246,4 +3548,8 @@ window.addEventListener("storage", (event) => {
     if (views.lobby && views.lobby.classList.contains("is-on")) renderRooms();
   }
 });
+
+if (window.hideGameLoader) {
+  window.hideGameLoader(300);
+}
 
