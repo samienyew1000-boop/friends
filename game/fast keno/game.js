@@ -34,7 +34,8 @@
 
   let balance = START_BAL;
   let picks = [];
-  let myTicket = null;
+  let myTickets = [];
+  let betOkTimer = null;
   let myHistory = [];
   let leaders = [];
   let results = [];
@@ -101,18 +102,21 @@
       if (Array.isArray(raw.leaders)) leaders = raw.leaders;
       if (Array.isArray(raw.results)) results = raw.results;
       if (Array.isArray(raw.freq) && raw.freq.length === 81) freq = raw.freq;
-      if (raw.myTicket) myTicket = raw.myTicket;
+      if (Array.isArray(raw.myTickets)) myTickets = raw.myTickets;
+      else if (raw.myTicket) myTickets = [raw.myTicket];
     } catch { /* ignore */ }
-    if (window.HabeshaWallet) {
-      balance = window.HabeshaWallet.get();
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      balance = w.get();
     }
   }
 
   function save() {
-    if (window.HabeshaWallet) {
-      window.HabeshaWallet.set(balance);
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      w.set(balance);
     }
-    localStorage.setItem(STORAGE, JSON.stringify({ balance, myHistory, leaders, results, freq, myTicket }));
+    localStorage.setItem(STORAGE, JSON.stringify({ balance, myHistory, leaders, results, freq, myTickets }));
   }
 
   function formatMoney(n) {
@@ -161,7 +165,7 @@
 
   function togglePick(n) {
     const { phase } = roundMeta();
-    if (phase !== "betting" || myTicket) return;
+    if (phase !== "betting") return;
     const i = picks.indexOf(n);
     if (i >= 0) picks.splice(i, 1);
     else if (picks.length < 10) picks.push(n);
@@ -172,13 +176,20 @@
   }
 
   function paintPicks() {
-    const { phase } = roundMeta();
-    const drawn = phase === "betting" ? [] : drawFor(roundMeta().id);
+    const { phase, id } = roundMeta();
+    const drawn = phase === "betting" ? [] : drawFor(id);
     const shown = phase === "draw" ? Math.min(20, Math.floor((roundMeta().elapsed - BET_MS) / BALL_MS)) : drawn.length;
     const visible = new Set(drawn.slice(0, shown));
+
+    const activeSet = new Set(picks);
+    if (phase !== "betting") {
+      const curTickets = myTickets.filter((t) => t.roundId === id);
+      curTickets.forEach((t) => t.numbers.forEach((n) => activeSet.add(n)));
+    }
+
     cells.forEach((btn, n) => {
       if (!btn) return;
-      const sel = picks.includes(n);
+      const sel = activeSet.has(n);
       btn.classList.toggle("sel", sel);
       btn.classList.toggle("drawn", visible.has(n));
       btn.classList.toggle("hit", sel && visible.has(n));
@@ -236,20 +247,39 @@
       betBtn.classList.add("wait");
       return;
     }
-    if (myTicket && myTicket.roundId === roundMeta().id) {
+    if (betOkTimer) {
       betBtn.classList.add("ok");
       return;
     }
     if (picks.length) betBtn.classList.add("on");
   }
 
+  function flashBetAccepted() {
+    if (betOkTimer) clearTimeout(betOkTimer);
+    betBtn.classList.remove("on", "wait");
+    betBtn.classList.add("ok");
+    betOkTimer = setTimeout(() => {
+      betOkTimer = null;
+      updateBetBtn();
+    }, 1200);
+  }
+
   function placeBet() {
     const { phase, id } = roundMeta();
-    if (phase !== "betting" || !picks.length || (myTicket && myTicket.roundId === id)) return;
+    if (phase !== "betting" || !picks.length) return;
     const amt = clampBet();
     if (amt > balance) return;
-    balance -= amt;
-    myTicket = { roundId: id, numbers: [...picks], amount: amt };
+
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      w.modify(-amt, 'Fast Keno', 'stake');
+      balance = w.get();
+    } else {
+      balance -= amt;
+    }
+
+    const tObj = { roundId: id, numbers: [...picks], amount: amt };
+    myTickets.push(tObj);
     liveTickets.unshift({
       user: "You",
       numbers: [...picks],
@@ -259,29 +289,55 @@
     });
     renderBalance();
     save();
-    updateBetBtn();
+    flashBetAccepted();
     renderLive();
   }
 
-  function settleTicket(id, drawn) {
-    if (!myTicket || myTicket.roundId !== id) return;
-    const hits = myTicket.numbers.filter((n) => drawn.includes(n)).length;
-    const mult = odds(myTicket.numbers.length, hits);
-    const win = myTicket.amount * mult;
-    if (win > 0) {
-      balance += win;
-      leaders.unshift({ user: "You", win, hits, spots: myTicket.numbers.length });
-      if (leaders.length > 20) leaders.pop();
-    }
-    myHistory.unshift({
-      roundId: id,
-      numbers: myTicket.numbers,
-      drawn,
-      hits,
-      amount: myTicket.amount,
-      payout: win,
+  function settleTickets(id, drawn) {
+    const roundTickets = myTickets.filter((t) => t.roundId === id);
+    if (!roundTickets.length) return;
+
+    let totalWin = 0;
+    let winCount = 0;
+    let bestHits = 0;
+    let bestSpots = 0;
+
+    roundTickets.forEach((t) => {
+      const hits = t.numbers.filter((n) => drawn.includes(n)).length;
+      const mult = odds(t.numbers.length, hits);
+      const win = t.amount * mult;
+      if (win > 0) {
+        totalWin += win;
+        winCount++;
+        leaders.unshift({ user: "You", win, hits, spots: t.numbers.length });
+        if (leaders.length > 20) leaders.pop();
+      }
+      if (hits > bestHits || bestSpots === 0) {
+        bestHits = hits;
+        bestSpots = t.numbers.length;
+      }
+      myHistory.unshift({
+        roundId: id,
+        numbers: t.numbers,
+        drawn,
+        hits,
+        amount: t.amount,
+        payout: win,
+      });
     });
-    if (myHistory.length > 40) myHistory.pop();
+
+    if (myHistory.length > 40) myHistory.splice(40);
+
+    if (totalWin > 0) {
+      const w = window.FriendesWallet || window.HabeshaWallet;
+      if (w) {
+        w.modify(totalWin, 'Fast Keno', 'win');
+        balance = w.get();
+      } else {
+        balance += totalWin;
+      }
+    }
+
     liveTickets.forEach((t) => {
       if (t.mine && t.status === "Waiting") {
         const h = t.numbers.filter((n) => drawn.includes(n)).length;
@@ -291,23 +347,26 @@
         t.drawn = drawn;
       }
     });
-    showResult(win, hits, myTicket.numbers.length);
-    myTicket = null;
+
+    showResult(totalWin, winCount, roundTickets.length, bestHits, bestSpots);
+    myTickets = myTickets.filter((t) => t.roundId !== id);
     renderBalance();
     save();
   }
 
-  function showResult(win, hits, spots) {
+  function showResult(win, winCount, totalCount, hits, spots) {
     const card = $("result-card");
     $("result-overlay").classList.remove("hidden");
     if (win > 0) {
       card.classList.remove("lose");
       $("result-title").textContent = "WIN";
-      $("result-detail").textContent = `${hits} / ${spots}  ·  +${formatMoney(win)} ETB`;
+      const extra = totalCount > 1 ? ` (${winCount}/${totalCount} tickets won)` : "";
+      $("result-detail").textContent = `${hits} / ${spots}  ·  +${formatMoney(win)} ETB${extra}`;
     } else {
       card.classList.add("lose");
       $("result-title").textContent = "TRY AGAIN";
-      $("result-detail").textContent = `${hits} / ${spots} matched`;
+      const extra = totalCount > 1 ? ` (${totalCount} tickets)` : "";
+      $("result-detail").textContent = `${hits} / ${spots} matched${extra}`;
     }
   }
 
@@ -363,6 +422,10 @@
     $("count-tickets").textContent = liveTickets.filter((t) => t.mine).length;
     $("count-bets").textContent = myHistory.length;
 
+    const myActiveCount = liveTickets.filter((t) => t.mine && t.status === "Waiting").length;
+    const mTab = document.querySelector('.m-tab[data-pane="live"]');
+    if (mTab) mTab.textContent = myActiveCount > 0 ? `Tickets (${myActiveCount})` : "Tickets";
+
     liveList.innerHTML = rows.map((t) => {
       const drawn = t.drawn || [];
       return `<article class="ticket-row${t.mine ? " mine" : ""}">
@@ -414,7 +477,7 @@
     $("result-overlay").classList.add("hidden");
     $("round-hash").textContent = "ID: " + hashFor(id).slice(0, 10);
     seedLive(id);
-    if (myTicket && myTicket.roundId !== id) myTicket = null;
+    myTickets = myTickets.filter((t) => t.roundId >= id);
     updateTicketCard();
     updateBetBtn();
     renderLive();
@@ -424,7 +487,7 @@
 
   function finishRound(id) {
     if (results[0] && results[0].id === id) {
-      settleTicket(id, drawFor(id));
+      settleTickets(id, drawFor(id));
       return;
     }
     const drawn = drawFor(id);
@@ -438,7 +501,7 @@
     });
     if (results.length > 40) results.pop();
     settleDemos(drawn);
-    settleTicket(id, drawn);
+    settleTickets(id, drawn);
     hotCold();
     save();
     renderLive();
@@ -542,17 +605,18 @@
       results.push({ id: rid, time: new Date(rid * CYCLE).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }), nums });
     }
   }
-  if (myTicket && myTicket.roundId === roundMeta().id) {
-    picks = [...myTicket.numbers];
-  } else if (myTicket && myTicket.roundId !== roundMeta().id && roundMeta().phase === "betting") {
-    myTicket = null;
+  myTickets = myTickets.filter((t) => t.roundId >= roundMeta().id);
+  const curRoundTickets = myTickets.filter((t) => t.roundId === roundMeta().id);
+  if (curRoundTickets.length && picks.length === 0) {
+    picks = [...curRoundTickets[curRoundTickets.length - 1].numbers];
   }
   buildBoard();
   buildPaytable();
   bind();
   renderBalance();
-  if (window.HabeshaWallet) {
-    window.HabeshaWallet.subscribe((newBal) => {
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w) {
+    w.subscribe((newBal) => {
       balance = newBal;
       renderBalance();
     });
@@ -560,4 +624,7 @@
   hotCold();
   onNewRound(roundMeta().id);
   requestAnimationFrame(tick);
+  if (window.hideGameLoader) {
+    window.hideGameLoader(300);
+  }
 })();
