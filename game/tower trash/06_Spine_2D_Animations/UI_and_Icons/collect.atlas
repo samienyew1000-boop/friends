@@ -1,0 +1,13 @@
+collect.png
+size:492,222
+filter:Linear,Linear
+scale:0.85
+particle_dot
+bounds:413,143,77,77
+offsets:4,4,85,85
+shine_shad
+bounds:221,29,191,190
+offsets:7,6,206,204
+rotate:90
+shine_white
+bounds:2,2,218,218

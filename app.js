@@ -863,6 +863,16 @@
       url: 'game/chicken-crash-game/public/index.html',
       likes: '9.4k',
       desc: 'Official 3D Chicken Crash experience! Step across traffic, dodge speeding cars, and cash out before getting hit!'
+    },
+    'tower_trash': {
+      title: 'Tower Dash',
+      provider: 'Galaxsys 3D',
+      multiplier: 'Build & Climb',
+      category: 'Instant Game',
+      image: 'game/tower trash/01_Blocks/Block_01_Temple/components_block1_1.png',
+      url: 'game/tower trash/index.html',
+      likes: '8.8k',
+      desc: 'Official Galaxsys high-altitude crane building game! Time your drops, stack skyscraper floors, and cash out before collapse!'
     }
   };
 
@@ -874,6 +884,10 @@
   gameData['chicken_crash_game'] = gameData['chicken_crash'];
   gameData['fish_road'] = gameData['fish'];
   gameData['bingo star'] = gameData['bingo_star'];
+  gameData['tower trash'] = gameData['tower_trash'];
+  gameData['tower-trash'] = gameData['tower_trash'];
+  gameData['tower_dash'] = gameData['tower_trash'];
+  gameData['tower dash'] = gameData['tower_trash'];
 
   let activeGameUrl = 'game/aviator/index.html';
   let activeGameId = 'aviator';

@@ -1,0 +1,85 @@
+free_spins.png
+size:721,1456
+filter:Linear,Linear
+blik
+bounds:2,3,182,282
+offsets:12,10,209,308
+rotate:90
+free_spins/Rectangle 25977
+bounds:344,454,86,359
+offsets:0,2,86,364
+free_spins/Start button text
+bounds:410,832,182,111
+offsets:1,1,184,113
+rotate:90
+free_spins/Start button text-1
+bounds:684,1137,317,34
+offsets:0,1,318,36
+rotate:90
+free_spins/image 1262
+bounds:2,469,340,344
+offsets:5,10,352,365
+free_spins/image 1309 copy
+bounds:542,1086,140,368
+free_spins/image 1309 copy222
+bounds:684,1115,22,20
+free_spins/image 1310
+bounds:2,815,406,639
+free_spins/image 1311
+bounds:286,2,159,224
+free_spins/image 1311-1
+bounds:278,228,159,224
+free_spins/image 1314 copy
+bounds:432,497,217,333
+free_spins/image 1338
+bounds:410,1016,438,130
+rotate:90
+free_spins/rays_00015
+bounds:2,187,274,280
+offsets:6,8,285,293
+free_spins/text_0
+bounds:542,984,100,143
+rotate:90
+free_spins/text_0 copy
+bounds:583,263,50,90
+free_spins/text_1
+bounds:639,353,69,142
+free_spins/text_1 copy
+bounds:634,26,35,89
+free_spins/text_2
+bounds:447,111,92,140
+free_spins/text_2 copy
+bounds:631,165,46,88
+rotate:90
+free_spins/text_3
+bounds:623,842,96,140
+free_spins/text_3 copy
+bounds:631,213,48,88
+rotate:90
+free_spins/text_4
+bounds:538,355,99,140
+free_spins/text_4 copy
+bounds:635,263,50,88
+free_spins/text_5
+bounds:447,17,92,139
+rotate:90
+free_spins/text_5 copy
+bounds:631,117,46,88
+rotate:90
+free_spins/text_6
+bounds:439,253,97,142
+rotate:90
+free_spins/text_6 copy
+bounds:651,659,49,89
+free_spins/text_7
+bounds:541,116,88,135
+free_spins/text_7 copy
+bounds:588,28,44,86
+free_spins/text_8
+bounds:523,840,98,142
+free_spins/text_8 copy
+bounds:651,568,49,89
+free_spins/text_9
+bounds:439,352,97,143
+free_spins/text_9 copy
+bounds:651,750,49,90

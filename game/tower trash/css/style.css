@@ -1,0 +1,583 @@
+/* ==========================================================================
+   Tower Dash / Tower Crash - Galaxsys Official 3D Experience CSS
+   ========================================================================== */
+
+:root {
+  --bg-dark: #0a0e17;
+  --bg-card: #131b26;
+  --bg-header: rgba(13, 19, 29, 0.95);
+  --accent-gold: #fbbf24;
+  --accent-gold-glow: rgba(251, 191, 36, 0.4);
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.4);
+  --accent-red: #ef4444;
+  --accent-blue: #3b82f6;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  font-family: var(--font-family);
+  color: var(--text-main);
+}
+
+.standalone-game-app {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  background: radial-gradient(circle at 50% 20%, #172338 0%, #080c14 100%);
+}
+
+/* Header */
+.game-top-header {
+  height: 54px;
+  background: var(--bg-header);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lobby-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.lobby-back-btn:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #34d399;
+}
+
+.game-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24, #fef08a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.game-header-logo-icon {
+  font-size: 20px;
+  -webkit-text-fill-color: initial;
+}
+
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.game-id-badge {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.game-balance-badge {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+}
+
+/* Main Viewport */
+.game-viewport-wrapper {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-canvas-area {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#towerCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: manipulation;
+}
+
+/* Floor & Multiplier HUD overlay */
+.tower-hud-overlay {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.floor-badge {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.multiplier-badge {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.9) 0%, rgba(217, 119, 6, 0.9) 100%);
+  padding: 6px 16px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+  box-shadow: 0 6px 20px var(--accent-gold-glow);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.multiplier-badge.bump {
+  transform: scale(1.15);
+}
+
+/* Floating Banner Notifications (PERFECT, BUST, etc.) */
+.game-floating-alert {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 35;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+
+.game-floating-alert.show {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+.game-floating-alert .alert-badge {
+  padding: 10px 24px;
+  border-radius: 16px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.alert-badge.perfect {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  border: 2px solid #6ee7b7;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+}
+
+.alert-badge.bust {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  color: #fff;
+  border: 2px solid #fca5a5;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+}
+
+.alert-badge.cashout {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #fff;
+  border: 2px solid #fde68a;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+}
+
+/* Risk / Difficulty Selector */
+.tower-risk-selector {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+  z-index: 25;
+}
+
+.risk-chip {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.risk-chip.active.easy {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.risk-chip.active.medium {
+  background: #f59e0b;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.risk-chip.active.hard {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Bottom Betting Dock Controller */
+.ingame-bet-controller {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background: linear-gradient(180deg, #18202d 0%, #0d121a 100%);
+  border-top: 2px solid #2d3b50;
+  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 30;
+}
+
+.controller-inner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bet-stepper-box {
+  display: flex;
+  align-items: center;
+  background: #0f1520;
+  border: 1px solid #2a374c;
+  border-radius: 12px;
+  padding: 2px 4px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.stepper-arrow-btn {
+  background: #1c2635;
+  border: 1px solid #33445c;
+  color: #94a3b8;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stepper-arrow-btn:hover {
+  background: #2a3b52;
+  color: #fff;
+}
+
+.stepper-amount-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 90px;
+  padding: 0 8px;
+}
+
+.stepper-amount {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.stepper-currency {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.quick-bet-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.chip-btn {
+  background: #1c2635;
+  border: 1px solid #33445c;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip-btn:hover {
+  background: #2a3b52;
+  color: #fff;
+}
+
+.controller-running-view {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.btn-action-collect {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 2px solid #fde68a;
+  border-radius: 12px;
+  padding: 10px 24px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.4);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 140px;
+}
+
+.btn-action-collect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.6);
+}
+
+.btn-action-collect .collect-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+.btn-action-collect .collect-amount {
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.controller-action-wrapper {
+  margin-left: auto;
+}
+
+.btn-action-main {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: 3px solid #34d399;
+  border-radius: 16px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  min-width: 160px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-action-main:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6);
+}
+
+.btn-action-main:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.btn-action-main.drop-state {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-color: #60a5fa;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+}
+
+/* Sidebar for Desktop */
+.game-sidebar-column {
+  width: 270px;
+  background: rgba(13, 19, 29, 0.95);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-top-header {
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.players-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.players-table th {
+  color: #64748b;
+  font-weight: 700;
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.players-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+}
+
+.players-table td.win {
+  color: #10b981;
+  font-weight: 800;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .game-sidebar-column {
+    display: none;
+  }
+  
+  .game-id-badge {
+    display: none;
+  }
+
+  .ingame-bet-controller {
+    padding: 0 12px;
+    height: 90px;
+  }
+
+  .quick-bet-chips {
+    display: none;
+  }
+
+  .btn-action-main {
+    min-width: 130px;
+    height: 52px;
+    font-size: 17px;
+  }
+
+  .btn-action-collect {
+    min-width: 110px;
+    padding: 8px 14px;
+  }
+}

@@ -1,0 +1,26 @@
+quality_cntrl.png
+size:417,587
+filter:Linear,Linear
+scale:0.85
+quality_cntrl/folder 2
+bounds:2,242,309,293
+rotate:90
+quality_cntrl/good
+bounds:335,2,238,80
+rotate:90
+quality_cntrl/perfect
+bounds:297,242,238,80
+rotate:90
+quality_cntrl/rejected
+bounds:253,2,238,80
+rotate:90
+quality_cntrl/txt_1
+bounds:2,553,154,11
+quality_cntrl/txt_2
+bounds:2,566,210,19
+quality_cntrl/well_done
+bounds:171,2,238,80
+rotate:90
+star
+bounds:2,76,167,164
+offsets:0,0,170,164
