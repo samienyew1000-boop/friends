@@ -104,7 +104,7 @@
 
   // --- State Management ---
   const state = {
-    balance: typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : parseFloat(localStorage.getItem('habesha_balance') || '1000.00'),
+    balance: typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : parseFloat(localStorage.getItem('habesha_balance') || '0.00'),
     isBalanceHidden: localStorage.getItem('habesha_balance_hidden') === 'true',
     favorites: JSON.parse(localStorage.getItem('habesha_favorites') || '[]'),
     activeSlide: 0,
@@ -422,7 +422,13 @@
     `;
 
     setTimeout(() => {
-      state.balance += amount;
+      const w = window.FriendesWallet || window.HabeshaWallet;
+      if (w) {
+        state.balance = w.modify(amount);
+      } else {
+        state.balance += amount;
+        localStorage.setItem('habesha_balance', state.balance.toFixed(2));
+      }
       updateBalanceDisplay();
       closeModal(depositModal);
       confirmDepositBtn.disabled = false;

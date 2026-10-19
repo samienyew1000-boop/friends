@@ -325,7 +325,7 @@
 
   function getBalance() {
     const w = getWallet();
-    return w ? w.get() : 1000.00;
+    return w ? w.get() : 0.00;
   }
 
   function modifyBalance(delta, method = 'stake') {

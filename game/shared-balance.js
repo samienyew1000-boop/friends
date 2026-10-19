@@ -11,7 +11,7 @@
   const USER_KEY = 'habesha_registered_user';
   const ADMIN_CONFIG_KEY = 'habesha_admin_config_v1';
   const DEFAULT_DEMO_BALANCE = 1000.0;
-  const DEFAULT_REAL_BALANCE = 1000.0;
+  const DEFAULT_REAL_BALANCE = 0.0;
 
   // Auto-detect mode from URL param (?mode=demo or ?mode=real)
   (function initUrlMode() {
@@ -102,7 +102,7 @@
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY_REAL);
-      if (raw === null || raw === '' || isNaN(parseFloat(raw)) || parseFloat(raw) === 50000) {
+      if (raw === null || raw === '' || isNaN(parseFloat(raw)) || parseFloat(raw) === 50000 || parseFloat(raw) === 10000 || parseFloat(raw) === 5000) {
         localStorage.setItem(STORAGE_KEY_REAL, DEFAULT_REAL_BALANCE.toFixed(2));
         syncLegacyStorages(DEFAULT_REAL_BALANCE);
         return DEFAULT_REAL_BALANCE;

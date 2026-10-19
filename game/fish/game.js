@@ -33,7 +33,7 @@ const THROW_DURATION = 1500;
 const RING_COLORS = ["#3ee06f", "#ff2f9e", "#ff8c1a", "#2fd3c8", "#a06bff", "#f4ef5a"];
 const MIN_BET = 1;
 const MAX_BET = 6000;
-const START_BALANCE = 10000;
+const START_BALANCE = 0;
 
 const BALANCE_KEY = "fish-balance";
 const MY_BETS_KEY = "fish-my-bets";
@@ -85,16 +85,18 @@ const bonusCloseEl = $("bonus-close");
 /* ------------------------------------------------------------------ */
 
 function loadBalance() {
-  if (window.HabeshaWallet) {
-    return window.HabeshaWallet.get();
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w) {
+    return w.get();
   }
   const raw = Number(localStorage.getItem(BALANCE_KEY));
-  return Number.isFinite(raw) && raw >= 1 ? raw : START_BALANCE;
+  return Number.isFinite(raw) && raw >= 0 ? raw : START_BALANCE;
 }
 
 function saveBalance() {
-  if (window.HabeshaWallet) {
-    window.HabeshaWallet.set(balance);
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w) {
+    w.set(balance);
   }
   localStorage.setItem(BALANCE_KEY, String(balance));
 }
@@ -534,8 +536,9 @@ if (window.innerWidth <= 900) {
 
 buildPoles();
 renderBalance();
-if (window.HabeshaWallet) {
-  window.HabeshaWallet.subscribe((newBal) => {
+const fWallet = window.FriendesWallet || window.HabeshaWallet;
+if (fWallet) {
+  fWallet.subscribe((newBal) => {
     balance = newBal;
     renderBalance();
   });

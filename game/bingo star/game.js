@@ -61,7 +61,7 @@ function sfxBingo() {
 const BET_STEPS = [1, 2, 4, 6, 8, 10, 15, 20, 25, 50, 100, 200, 400];
 const DRAW_BALLS_COUNT = 30;
 const MAX_EXTRA_BALLS = 10;
-const STARTING_BALANCE = 10000;
+const STARTING_BALANCE = 0;
 const STORAGE_BAL_KEY = "bingo-star-balance";
 
 // 12 Paytable Patterns (indices in 3 rows x 5 columns: 0..14)
@@ -85,7 +85,7 @@ const PATTERNS = [
 const $ = (id) => document.getElementById(id);
 
 // --- Game State ---
-let balance = typeof window.HabeshaWallet !== "undefined" ? window.HabeshaWallet.get() : (Number(localStorage.getItem(STORAGE_BAL_KEY)) || STARTING_BALANCE);
+let balance = typeof window.FriendesWallet !== "undefined" ? window.FriendesWallet.get() : (typeof window.HabeshaWallet !== "undefined" ? window.HabeshaWallet.get() : (Number(localStorage.getItem(STORAGE_BAL_KEY)) || STARTING_BALANCE));
 let betStepIdx = 3; // default bet per ticket = 6 ETB
 let isTurbo = false;
 let isAutoBet = false;
@@ -129,16 +129,18 @@ function fmtInt(num) {
 }
 
 function updateBalanceUI() {
-  if (typeof window.HabeshaWallet !== "undefined") {
-    balance = window.HabeshaWallet.get();
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w) {
+    balance = w.get();
   }
   const balEl = $("userBalanceText");
   if (balEl) balEl.textContent = fmtInt(balance);
 }
 
 function syncBalanceSave() {
-  if (typeof window.HabeshaWallet !== "undefined") {
-    window.HabeshaWallet.set(balance);
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w) {
+    w.set(balance);
   } else {
     localStorage.setItem(STORAGE_BAL_KEY, String(balance));
   }
@@ -1083,8 +1085,9 @@ function toggleSound() {
 // --- Setup & Initialization ---
 function init() {
   updateBalanceUI();
-  if (window.HabeshaWallet) {
-    window.HabeshaWallet.subscribe((newBal) => {
+  const bsWallet = window.FriendesWallet || window.HabeshaWallet;
+  if (bsWallet) {
+    bsWallet.subscribe((newBal) => {
       balance = newBal;
       updateBalanceUI();
     });

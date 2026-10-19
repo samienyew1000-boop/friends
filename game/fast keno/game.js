@@ -2,7 +2,7 @@
   const STORAGE = "fast_keno_v1";
   const MIN_BET = 1;
   const MAX_BET = 10000;
-  const START_BAL = 1000;
+  const START_BAL = 0;
   const BET_MS = 60000;
   const BALL_MS = 380;
   const DRAW_MS = 20 * BALL_MS + 400;

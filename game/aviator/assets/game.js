@@ -96,7 +96,7 @@
 
   // --- State Management ---
   const state = {
-    balance: 1000.0,
+    balance: 0.0,
     status: 'WAITING', // 'WAITING', 'FLYING', 'CRASHED'
     multiplier: 1.00,
     crashPoint: 3.33,
@@ -144,9 +144,9 @@
     } else {
       const stored = localStorage.getItem('habesha_balance');
       if (stored) {
-        state.balance = parseFloat(stored) || 1000.0;
+        state.balance = parseFloat(stored) || 0.0;
       } else {
-        state.balance = 1000.0;
+        state.balance = 0.0;
       }
     }
     updateBalanceUI();

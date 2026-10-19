@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE = "infinity_demo_v1";
-  const START_BALANCE = 1000;
+  const START_BALANCE = 0;
 
   const MIN_BET = 1;
   const MAX_BET = 1000;
