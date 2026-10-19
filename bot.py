@@ -34,6 +34,12 @@ ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
 ADMIN_USER_IDS.add("8474256363")
+ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19"}
+if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
+    for u in os.environ.get("TELEGRAM_ADMIN_USERNAMES", "").split(","):
+        if u.strip():
+            ADMIN_USERNAMES.add(u.strip().lstrip("@").lower())
+
 ADMIN_PASSWORDS = {"7DoGpDwZ4zpIvotZm9p", "admin123", os.environ.get("ADMIN_PASSWORD", "").strip()} - {""}
 
 try:
@@ -62,8 +68,16 @@ def api_call(method, payload=None):
         logging.error(f"API Error ({method}): {e}")
         return None
 
-def is_admin(user_id):
-    return str(user_id) in ADMIN_USER_IDS
+def is_admin(user_id=None, username=None):
+    if user_id and str(user_id) in ADMIN_USER_IDS:
+        return True
+    if username:
+        clean_user = str(username).strip().lstrip("@").lower()
+        if clean_user in ADMIN_USERNAMES:
+            if user_id:
+                ADMIN_USER_IDS.add(str(user_id))
+            return True
+    return False
 
 KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
 WITHDRAWALS_FILE = Path(__file__).resolve().parent / "withdrawals.json"
@@ -614,7 +628,9 @@ def main():
                         continue
 
                     chat_id = msg["chat"]["id"]
-                    first_name = msg["from"].get("first_name", "Player")
+                    from_user = msg.get("from") or {}
+                    first_name = from_user.get("first_name", "Player")
+                    username = from_user.get("username", "")
                     text = msg.get("text", "").strip()
                     web_app_data = msg.get("web_app_data")
                     contact = msg.get("contact")
@@ -662,6 +678,8 @@ def main():
 
                     # Save user basic profile in registry
                     user = save_known_user(msg.get("from"))
+                    if username and username.lower() in ADMIN_USERNAMES:
+                        ADMIN_USER_IDS.add(str(chat_id))
 
                     logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
 
@@ -737,26 +755,27 @@ def main():
                             send_welcome(chat_id, user)
 
                     elif text.startswith("/admin"):
-                        parts = text.split(" ", 1)
-                        if len(parts) > 1:
-                            input_pass = parts[1].strip()
-                            if input_pass in ADMIN_PASSWORDS:
-                                ADMIN_USER_IDS.add(str(chat_id))
-                                send_text_message(chat_id, "✅ <b>የአድሚን መለያዎ ተረጋግጧል! (Admin access granted)</b>")
-                                send_admin_menu(chat_id)
-                            else:
-                                send_text_message(chat_id, "❌ <b>የተሳሳተ የአድሚን የይለፍ ቃል! (Incorrect password)</b>\nእባክዎ ትክክለኛውን የአድሚን የይለፍ ቃል ያስገቡ።")
-                        elif is_admin(chat_id):
+                        if is_admin(chat_id, username):
                             send_admin_menu(chat_id)
                         else:
-                            send_text_message(chat_id, (
-                                "🔐 <b>Friendes Game | Admin Access</b>\n\n"
-                                "ይህ ክፍል ለተፈቀደላቸው አድሚኖች ብቻ የተወሰነ ነው።\n"
-                                "እባክዎ የአድሚን የይለፍ ቃልዎን በሚከተለው መልኩ ይላኩ:\n\n"
-                                "👉 <code>/admin &lt;password&gt;</code>"
-                            ))
+                            parts = text.split(" ", 1)
+                            if len(parts) > 1:
+                                input_pass = parts[1].strip()
+                                if input_pass in ADMIN_PASSWORDS:
+                                    ADMIN_USER_IDS.add(str(chat_id))
+                                    send_text_message(chat_id, "✅ <b>የአድሚን መለያዎ ተረጋግጧል! (Admin access granted)</b>")
+                                    send_admin_menu(chat_id)
+                                else:
+                                    send_text_message(chat_id, "❌ <b>የተሳሳተ የአድሚን የይለፍ ቃል! (Incorrect password)</b>\nእባክዎ ትክክለኛውን የአድሚን የይለፍ ቃል ያስገቡ።")
+                            else:
+                                send_text_message(chat_id, (
+                                    "🔐 <b>Friendes Game | Admin Access</b>\n\n"
+                                    "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Ninjaaj7, @samTesfa19) ብቻ የተወሰነ ነው።\n"
+                                    "የይለፍ ቃል ካለዎት በሚከተለው መልኩ ይላኩ:\n\n"
+                                    "👉 <code>/admin &lt;password&gt;</code>"
+                                ))
 
-                    elif text.startswith("/broadcast ") and is_admin(chat_id):
+                    elif text.startswith("/broadcast ") and is_admin(chat_id, username):
                         broadcast_text = text.split(" ", 1)[1].strip()
                         if not broadcast_text:
                             send_text_message(chat_id, "Usage: /broadcast <message>")
@@ -764,7 +783,7 @@ def main():
                             sent, failed = broadcast_message(broadcast_text)
                             send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s) (Failed: {failed}).")
 
-                    elif text.startswith("/send ") and is_admin(chat_id):
+                    elif text.startswith("/send ") and is_admin(chat_id, username):
                         parts = text.split(" ", 2)
                         if len(parts) < 3:
                             send_text_message(chat_id, "Usage: /send <chat_id> <message>")
