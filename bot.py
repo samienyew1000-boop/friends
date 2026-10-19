@@ -50,6 +50,10 @@ if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
 
 ADMIN_PASSWORDS = {"7DoGpDwZ4zpIvotZm9p", "admin123", os.environ.get("ADMIN_PASSWORD", "").strip()} - {""}
 
+REQUIRED_GROUP_USERNAME = os.environ.get("REQUIRED_GROUP_USERNAME", "friendsgame1").lstrip("@")
+REQUIRED_GROUP_ID = int(os.environ.get("REQUIRED_GROUP_ID", "-1001332933972"))
+REQUIRED_GROUP_URL = os.environ.get("REQUIRED_GROUP_URL", f"https://t.me/{REQUIRED_GROUP_USERNAME}")
+
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)
@@ -181,6 +185,77 @@ def get_main_reply_keyboard(chat_id, user=None):
         "resize_keyboard": True,
         "is_persistent": True
     }
+
+def check_user_membership(user_id):
+    """
+    Checks if a user is a member/admin/creator of the required group @friendsgame1.
+    Returns: (is_member: bool, reason: str)
+    """
+    if is_admin(user_id=user_id):
+        return True, "admin"
+
+    for target in (f"@{REQUIRED_GROUP_USERNAME}", REQUIRED_GROUP_ID):
+        try:
+            res = api_call("getChatMember", {
+                "chat_id": target,
+                "user_id": int(user_id)
+            })
+            if res and res.get("ok"):
+                status = res.get("result", {}).get("status", "")
+                if status in ("creator", "administrator", "member", "restricted"):
+                    return True, "member"
+                elif status in ("left", "kicked"):
+                    return False, "left"
+        except Exception as e:
+            logging.warning(f"Error checking chat member on {target}: {e}")
+
+    err_desc = (res.get("description", "") if res else "").lower()
+    logging.warning(f"getChatMember check for user {user_id}: {err_desc}")
+    if "admin" in err_desc:
+        return False, "bot_needs_admin"
+    return False, "not_member"
+
+def send_channel_join_prompt(chat_id):
+    """Prompt unregistered user that joining the official group is mandatory."""
+    text = (
+        "📢 <b>እንኳን ወደ Friendes Game በደህና መጡ!</b>\n\n"
+        "የጨዋታ አካውንትዎን ለመመዝገብ እና ቦቱን ለመጠቀም መጀመሪያ ይፋዊውን የቴሌግራም ግሩፓችንን መቀላቀል (Join) ግዴታ ነው::\n\n"
+        f"1️⃣ ከታች ያለውን <b>'📢 ግሩፑን ተቀላቀል (Join Group)'</b> የሚለውን ተጭነው {REQUIRED_GROUP_URL} ይቀላቀሉ\n"
+        "2️⃣ ግሩፑን ከተቀላቀሉ በኋላ <b>'✅ ተቀላቅያለሁ አረጋግጥ'</b> የሚለውን ይጫኑ:"
+    )
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "📢 ግሩፑን ተቀላቀል (Join Group)", "url": REQUIRED_GROUP_URL}
+            ],
+            [
+                {"text": "✅ ተቀላቅያለሁ አረጋግጥ (Verify)", "callback_data": "check_channel_join"}
+            ]
+        ]
+    }
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
+    })
+
+def ensure_user_registered_or_prompt(chat_id):
+    """
+    Check if the user is registered.
+    If not, enforce group membership first, then contact registration.
+    Returns True if user is fully registered with phone.
+    """
+    if is_user_registered(chat_id):
+        return True
+
+    is_member, reason = check_user_membership(chat_id)
+    if not is_member:
+        send_channel_join_prompt(chat_id)
+        return False
+
+    request_phone_registration(chat_id)
+    return False
 
 def request_phone_registration(chat_id):
     """Prompt user to share their contact phone number for account creation (matching the UI screenshot)."""
@@ -849,10 +924,38 @@ def main():
                                     })
                             continue
 
+                        if cb_data == "check_channel_join":
+                            is_member, reason = check_user_membership(cb_chat_id)
+                            if is_member:
+                                api_call("answerCallbackQuery", {
+                                    "callback_query_id": cb_id,
+                                    "text": "✅ ግሩፑን መቀላቀልዎ ተረጋግጧል! አሁን ስልክዎን ያጋሩ።",
+                                    "show_alert": False
+                                })
+                                if not is_user_registered(cb_chat_id):
+                                    request_phone_registration(cb_chat_id)
+                                else:
+                                    send_welcome(cb_chat_id, cb_user)
+                            else:
+                                if reason == "bot_needs_admin":
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": "⚠️ እባክዎ መጀመሪያ ግሩፑን (@friendsgame1) ይቀላቀሉ! (እንዲሁም ቦቱ ግሩፑ ውስጥ አድሚን መሆን አለበት)",
+                                        "show_alert": True
+                                    })
+                                else:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": "⚠️ እስካሁን ግሩፑን አልተቀላቀሉም! እባክዎ መጀመሪያ ግሩፑን ይቀላቀሉ።",
+                                        "show_alert": True
+                                    })
+                                send_channel_join_prompt(cb_chat_id)
+                            continue
+
                         api_call("answerCallbackQuery", {"callback_query_id": cb_id})
 
-                        if not is_user_registered(cb_chat_id):
-                            request_phone_registration(cb_chat_id)
+                        if not ensure_user_registered_or_prompt(cb_chat_id):
+                            continue
                         elif cb_data == "deposit":
                             send_deposit_info(cb_chat_id, cb_user)
                         elif cb_data == "withdraw":
@@ -873,6 +976,20 @@ def main():
 
                     # Handle Contact Sharing (Registration)
                     if contact:
+                        # First verify mandatory group membership
+                        is_member, reason = check_user_membership(chat_id)
+                        if not is_member:
+                            api_call("sendMessage", {
+                                "chat_id": chat_id,
+                                "text": (
+                                    "⚠️ <b>ምዝገባውን ለማጠናቀቅ መጀመሪያ ይፋዊ ግሩፓችንን መቀላቀል አለብዎት!</b>\n\n"
+                                    f"እባክዎ መጀመሪያ ከስር ያለውን ሊንክ ተጭነው {REQUIRED_GROUP_URL} ይቀላቀሉ፤ ከተቀላቀሉ በኋላ ስልክዎን በድጋሚ ያጋሩ::"
+                                ),
+                                "parse_mode": "HTML"
+                            })
+                            send_channel_join_prompt(chat_id)
+                            continue
+
                         raw_phone = contact.get("phone_number", "").strip()
                         phone = raw_phone
                         if not phone.startswith("+"):
@@ -945,6 +1062,8 @@ def main():
 
                     # --- Custom Keyboard Choices ---
                     if text in ("🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
                         app_url = get_user_webapp_url(chat_id, user)
                         api_call("sendMessage", {
                             "chat_id": chat_id,
@@ -957,24 +1076,28 @@ def main():
                             }
                         })
                     elif text == "🎁 ፕሮሞ ኮድ":
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
                         send_promo_info(chat_id, user)
                     elif text == "💰 ገቢ ለማድረግ" or text.startswith("/deposit"):
-                        if not is_user_registered(chat_id):
-                            request_phone_registration(chat_id)
-                        else:
-                            send_deposit_info(chat_id, user)
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
+                        send_deposit_info(chat_id, user)
                     elif text == "💸 ወጪ ለማድረግ" or text.startswith("/withdraw"):
-                        if not is_user_registered(chat_id):
-                            request_phone_registration(chat_id)
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
+                        parts = text.split(" ", 1)
+                        if len(parts) > 1 and parts[1].strip():
+                            handle_withdraw_request(chat_id, user, parts[1].strip())
                         else:
-                            parts = text.split(" ", 1)
-                            if len(parts) > 1 and parts[1].strip():
-                                handle_withdraw_request(chat_id, user, parts[1].strip())
-                            else:
-                                send_withdraw_info(chat_id, user)
+                            send_withdraw_info(chat_id, user)
                     elif text in ("🔗 ጋብዝ & አግኝ", "/referral"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
                         send_referral_info(chat_id, user)
                     elif text in ("👤 ፕሮፋይል & ሂሳብ", "/profile", "/account"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
                         send_profile_info(chat_id, user)
                     elif text in ("🆘 እርዳታ", "/help"):
                         send_help_info(chat_id, user)
@@ -986,7 +1109,7 @@ def main():
                     # --- Standard Bot Commands ---
                     elif text.startswith("/start"):
                         if not is_user_registered(chat_id):
-                            request_phone_registration(chat_id)
+                            ensure_user_registered_or_prompt(chat_id)
                         else:
                             send_welcome(chat_id, user)
 
@@ -1030,7 +1153,7 @@ def main():
 
                     else:
                         if not is_user_registered(chat_id):
-                            request_phone_registration(chat_id)
+                            ensure_user_registered_or_prompt(chat_id)
                         else:
                             lower = text.lower()
                             if any(k in lower for k in ["telebirr", "cbe", "trans", "tx", "ብር", "etb", "deposit", "ክፍያ", "09"]) or len(text.strip()) >= 6:
