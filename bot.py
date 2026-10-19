@@ -336,6 +336,21 @@ def send_registration_success(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
     app_url = get_user_webapp_url(chat_id, user)
 
+    inline_kb = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": f"🎮 ጨዋታዎችን ክፈት ({bal:.2f} ETB)",
+                    "web_app": {"url": app_url}
+                }
+            ],
+            [
+                {"text": "💰 ገቢ ለማድረግ", "callback_data": "deposit"},
+                {"text": "💸 ወጪ ለማድረግ", "callback_data": "withdraw"}
+            ]
+        ]
+    }
+
     # Sync user's custom webapp URL (with exact balance) to their menu button
     api_call("setChatMenuButton", {
         "chat_id": chat_id,
@@ -351,15 +366,23 @@ def send_registration_success(chat_id, user):
         "photo": photo_url,
         "caption": caption,
         "parse_mode": "HTML",
-        "reply_markup": main_kb
+        "reply_markup": inline_kb
     })
     if not res or not res.get("ok"):
         api_call("sendMessage", {
             "chat_id": chat_id,
             "text": caption,
             "parse_mode": "HTML",
-            "reply_markup": main_kb
+            "reply_markup": inline_kb
         })
+
+    # Also attach the bottom persistent reply keyboard
+    api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": "👇 <i>ከታች ካሉት ምርጫዎች አንዱን መምረጥ ወይም ቀጥታ '🎮 ጨዋታዎችን ክፈት' የሚለውን ተጭነው መጫወት ይችላሉ:</i>",
+        "parse_mode": "HTML",
+        "reply_markup": main_kb
+    })
 
 def send_welcome(chat_id, user=None):
     if not user:
@@ -390,20 +413,43 @@ def send_welcome(chat_id, user=None):
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
+    inline_kb = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": f"🎮 ጨዋታዎችን ክፈት ({bal:.2f} ETB)",
+                    "web_app": {"url": app_url}
+                }
+            ],
+            [
+                {"text": "💰 ገቢ ለማድረግ", "callback_data": "deposit"},
+                {"text": "💸 ወጪ ለማድረግ", "callback_data": "withdraw"}
+            ]
+        ]
+    }
+
     photo_res = api_call("sendPhoto", {
         "chat_id": chat_id,
         "photo": photo_url,
         "caption": caption,
         "parse_mode": "HTML",
-        "reply_markup": main_kb
+        "reply_markup": inline_kb
     })
     if not photo_res or not photo_res.get("ok"):
         api_call("sendMessage", {
             "chat_id": chat_id,
             "text": caption,
             "parse_mode": "HTML",
-            "reply_markup": main_kb
+            "reply_markup": inline_kb
         })
+
+    # Also attach the bottom persistent reply keyboard
+    api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": "👇 <i>ከታች ካሉት ምርጫዎች አንዱን መምረጥ ወይም ቀጥታ '🎮 ጨዋታዎችን ክፈት' የሚለውን ተጭነው መጫወት ይችላሉ:</i>",
+        "parse_mode": "HTML",
+        "reply_markup": main_kb
+    })
 
 def send_deposit_info(chat_id, user):
     phone = user.get("phone", "")
@@ -950,14 +996,22 @@ def main():
         ]
     })
 
-    # Ensure menu button is configured
-    api_call("setChatMenuButton", {
-        "menu_button": {
-            "type": "web_app",
-            "text": "🎮 Play Games",
-            "web_app": {"url": WEBAPP_URL}
-        }
-    })
+    # Sync personalized menu buttons for known registered users on startup
+    try:
+        known = load_known_users()
+        for uid, udata in known.items():
+            if udata.get("registered") or udata.get("phone"):
+                user_app_url = get_user_webapp_url(uid, udata)
+                api_call("setChatMenuButton", {
+                    "chat_id": int(uid),
+                    "menu_button": {
+                        "type": "web_app",
+                        "text": "🎮 Play Games",
+                        "web_app": {"url": user_app_url}
+                    }
+                })
+    except Exception as e:
+        logging.warning(f"Error syncing menu buttons on startup: {e}")
 
     last_heartbeat = time.time()
     while True:

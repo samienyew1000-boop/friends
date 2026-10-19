@@ -29,6 +29,28 @@
         const parsed = Math.max(0, round2(parseFloat(urlBal)));
         localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
         syncLegacyStorages(parsed);
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', parsed.toFixed(2), () => {});
+          }
+        } catch (e) {}
+      } else {
+        // If balance not provided in URL, try restoring from Telegram CloudStorage
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
+              if (!err && val && !isNaN(parseFloat(val))) {
+                const cloudBal = Math.max(0, round2(parseFloat(val)));
+                const cur = round2(parseFloat(localStorage.getItem(STORAGE_KEY_REAL) || 0));
+                if (cur === 0 && cloudBal > 0) {
+                  localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
+                  syncLegacyStorages(cloudBal);
+                  notifyAll(cloudBal);
+                }
+              }
+            });
+          }
+        } catch (e) {}
       }
     } catch (e) {}
   })();
@@ -159,6 +181,11 @@
         setDemoBalance(safeAmount);
       } else {
         localStorage.setItem(STORAGE_KEY_REAL, safeAmount.toFixed(2));
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', safeAmount.toFixed(2), () => {});
+          }
+        } catch (e) {}
       }
     } catch (e) {
       console.warn('HabeshaWallet set error:', e);

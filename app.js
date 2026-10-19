@@ -211,9 +211,36 @@
     sound.playClick();
     triggerHaptic('impact');
     refreshBalanceBtn.classList.add('rotate-180');
+
+    // 1. Re-check URL parameter
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlBal = params.get('balance');
+      if (urlBal !== null && !isNaN(parseFloat(urlBal)) && window.HabeshaWallet) {
+        window.HabeshaWallet.set(parseFloat(urlBal));
+      }
+    } catch (e) {}
+
+    // 2. Check Telegram CloudStorage if local balance is 0
+    try {
+      if (window.Telegram?.WebApp?.CloudStorage && window.HabeshaWallet) {
+        window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
+          if (!err && val && !isNaN(parseFloat(val))) {
+            const parsedCloud = parseFloat(val);
+            if (parsedCloud > 0 && window.HabeshaWallet.get() === 0) {
+              window.HabeshaWallet.set(parsedCloud);
+              updateBalanceDisplay();
+            }
+          }
+        });
+      }
+    } catch (e) {}
+
     setTimeout(() => {
       refreshBalanceBtn.classList.remove('rotate-180');
-      showToast('Balance synchronized successfully', 'info');
+      updateBalanceDisplay();
+      const currentFormatted = window.HabeshaWallet ? window.HabeshaWallet.format(window.HabeshaWallet.get()) : state.balance.toFixed(2) + ' ETB';
+      showToast(`የሂሳብ መጠን ተመሳስሏል: ${currentFormatted}`, 'success');
     }, 400);
   });
 
