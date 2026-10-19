@@ -853,12 +853,25 @@
       url: 'game/infinity/index.html',
       likes: '7.2k',
       desc: 'Fast-paced 1-second candlestick financial trading! Predict Buy or Sell and ride the profit waves!'
+    },
+    'chicken_crash': {
+      title: 'Chicken Crash',
+      provider: 'Galaxsys 3D',
+      multiplier: 'Cross & Win',
+      category: 'Instant Game',
+      image: 'game/chicken-crash-game/public/img/gameLogo.webp',
+      url: 'game/chicken-crash-game/public/index.html',
+      likes: '9.4k',
+      desc: 'Official 3D Chicken Crash experience! Step across traffic, dodge speeding cars, and cash out before getting hit!'
     }
   };
 
   // Support folder aliases (spaces, legacy IDs)
   gameData['fast keno'] = gameData['fast_keno'];
   gameData['chicken road'] = gameData['chicken_road'];
+  gameData['chicken crash'] = gameData['chicken_crash'];
+  gameData['chicken-crash-game'] = gameData['chicken_crash'];
+  gameData['chicken_crash_game'] = gameData['chicken_crash'];
   gameData['fish_road'] = gameData['fish'];
   gameData['bingo star'] = gameData['bingo_star'];
 

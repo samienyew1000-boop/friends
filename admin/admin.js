@@ -14,6 +14,7 @@
     { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.jpg', defaultMargin: 5 },
     { id: 'bingo_star', name: 'Bingo Star', provider: 'Star Gaming', category: 'Instant bingo', image: '../assets/game_bingo_star.png', defaultMargin: 4.5 },
     { id: 'infinity', name: 'Infinity', provider: 'CandleTrade', category: 'Trading & crash', image: '../assets/game_infinity.png', defaultMargin: 3.5 },
+    { id: 'chicken_crash', name: 'Chicken Crash', provider: 'Galaxsys 3D', category: 'Instant game', image: '../game/chicken-crash-game/public/img/gameLogo.webp', defaultMargin: 3.5 },
   ];
   const DEMO_TRANSACTIONS = [
     { id: 'TX-80291', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Aviator', amount: 250, status: 'completed', time: 'Today, 10:42' },

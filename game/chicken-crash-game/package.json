@@ -1,0 +1,16 @@
+{
+  "name": "chicken-crash-game",
+  "version": "1.0.0",
+  "description": "Galaxsys Chicken Crash Standalone 3D Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "chicken-crash",
+    "game",
+    "galaxsys"
+  ],
+  "author": "",
+  "license": "ISC"
+}

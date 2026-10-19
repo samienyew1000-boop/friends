@@ -1,0 +1,569 @@
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+
+:root {
+  --brand-green: #00803e;
+  --brand-green-hover: #006b34;
+  --accent-gold: #ffe45b;
+  --accent-gold-light: #faeba0;
+  --white: #ffffff;
+  --black: #000000;
+  --bg-dark: #0a0e17;
+  --bg-card: #151c28;
+  --bg-controller: #181d26;
+  --border-color: #263345;
+  --text-muted: #8e9bb0;
+  --text-bright: #ffffff;
+  --danger-red: #ef4444;
+  --success-green: #10b981;
+  --font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  color: var(--white);
+}
+
+.standalone-game-app {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background: radial-gradient(circle at center, #131a26 0%, #070a10 100%);
+}
+
+/* ---------------- Top Mobile / Desktop Header ---------------- */
+.game-top-header {
+  height: 48px;
+  background: rgba(14, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lobby-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.lobby-back-btn:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #34d399;
+}
+
+.game-header-logo {
+  height: 30px;
+  object-fit: contain;
+}
+
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.game-id-badge {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.game-id-badge strong {
+  color: var(--white);
+}
+
+.game-balance-badge {
+  background: linear-gradient(135deg, rgba(0, 128, 62, 0.25) 0%, rgba(0, 128, 62, 0.1) 100%);
+  border: 1px solid rgba(0, 128, 62, 0.4);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.05);
+}
+
+.ingame-dots-settings-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #00803e;
+  border: 1.5px solid #34d399;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 128, 62, 0.5);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* ---------------- Main Game Viewport Layout ---------------- */
+.game-viewport-wrapper {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-canvas-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0c1017;
+}
+
+#chickenCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Traffic Light Risk Pill */
+.traffic-light-selector {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  gap: 6px;
+  background: rgba(15, 20, 28, 0.85);
+  padding: 4px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  z-index: 25;
+}
+
+.traffic-lamp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lamp-lens {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.lamp-lens.red { background: #ef4444; }
+.lamp-lens.yellow { background: #eab308; }
+.lamp-lens.green { background: #22c55e; }
+
+.traffic-lamp.active.easy {
+  background: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.traffic-lamp.active.medium {
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde047;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+}
+
+.traffic-lamp.active.hard {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+/* ---------------- Bottom Docked Tire-Bezel Betting Controller ---------------- */
+.ingame-bet-controller {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 105px;
+  background: linear-gradient(180deg, #18202d 0%, #0d121a 100%);
+  border-top: 2px solid #2d3b50;
+  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 30;
+}
+
+/* Idle State: Stepper & Chips */
+.controller-inner-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bet-stepper-box {
+  display: flex;
+  align-items: center;
+  background: #0f1520;
+  border: 1px solid #2a374c;
+  border-radius: 12px;
+  padding: 2px 4px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.stepper-arrow-btn {
+  background: #1e2838;
+  border: 1px solid #33435c;
+  color: #94a3b8;
+  width: 36px;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stepper-arrow-btn:active {
+  transform: scale(0.92);
+  background: #2a374c;
+}
+
+.stepper-amount-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  padding: 0 10px;
+}
+
+.stepper-amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.stepper-currency {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.quick-bet-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.chip-btn {
+  background: #182232;
+  border: 1px solid #2f4059;
+  color: #cbd5e1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip-btn:hover {
+  background: #233147;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.chip-btn:active {
+  transform: scale(0.95);
+}
+
+/* Running State: Collect & Flip */
+.controller-running-view {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.controller-collect-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.btn-action-collect {
+  height: 60px;
+  min-width: 170px;
+  border-radius: 30px;
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+  border: 2px solid #fef3c7;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-action-collect:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
+}
+
+.collect-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.collect-amount {
+  font-size: 18px;
+  font-weight: 900;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.btn-flip-mode {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1e2838;
+  border: 1.5px solid #3b82f6;
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-flip-mode:hover {
+  background: #253347;
+  transform: rotate(180deg);
+}
+
+/* Big GO! Button with Tire-Bezel */
+.controller-go-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controller-go-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #252e3d 40%, #0d1219 100%);
+  border: 4px dashed #3a4b63;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+  z-index: 1;
+}
+
+.btn-action-go {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 60%, #15803d 100%);
+  border: 3px solid #86efac;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.7), inset 0 3px 6px rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: all 0.15s;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.btn-action-go:hover {
+  transform: scale(1.04);
+  box-shadow: 0 8px 25px rgba(22, 163, 74, 0.85);
+}
+
+.btn-action-go:active {
+  transform: scale(0.94);
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.5);
+}
+
+/* ---------------- Desktop Live Players Sidebar ---------------- */
+.game-sidebar-column {
+  width: 320px;
+  background: #0f1520;
+  border-left: 1px solid #1e2838;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-top-header {
+  padding: 14px 16px;
+  background: #141c2b;
+  border-bottom: 1px solid #1e2838;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.sidebar-clock {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.players-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.players-table th {
+  color: #64748b;
+  text-align: left;
+  padding: 6px 4px;
+  font-weight: 600;
+  border-bottom: 1px solid #1e2838;
+}
+
+.players-table td {
+  padding: 8px 4px;
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.players-table td.win {
+  color: #34d399;
+  font-weight: 700;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #253347;
+  border-radius: 4px;
+}
+
+/* ---------------- Mobile Responsive Media Queries ---------------- */
+@media (max-width: 900px) {
+  .game-sidebar-column {
+    display: none;
+  }
+  .ingame-bet-controller {
+    height: 95px;
+    padding: 0 16px;
+  }
+  .btn-action-collect {
+    min-width: 130px;
+    height: 52px;
+  }
+  .collect-amount {
+    font-size: 16px;
+  }
+  .controller-go-wrapper::before {
+    width: 78px;
+    height: 78px;
+  }
+  .btn-action-go {
+    width: 66px;
+    height: 66px;
+    font-size: 20px;
+  }
+  .stepper-amount {
+    font-size: 17px;
+  }
+  .chip-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+}
