@@ -63,16 +63,21 @@ class ChickenCrashGame {
     // Chicken Entity State
     this.chicken = {
       x: this.width * 0.44, // Centered on road
-      y: 70 * this.scale,
-      width: 38,
-      height: 68,
+      y: 54,
+      width: 36,
+      height: 76,
       animTime: 0,
       blinkTimer: 0,
       isBlinking: false,
       isDead: false,
+      isRespawning: false,
+      respawnProgress: 1.0,
+      sparkles: [],
       feathers: [],
       winCoins: []
     };
+    this.deathSignAlpha = 0.0;
+    this.tombstoneLaneY = 0;
 
     // Load High-Fidelity Official Assets
     this.loadAssets();
@@ -143,8 +148,8 @@ class ChickenCrashGame {
     });
 
     window.addEventListener('message', (e) => {
-      if (e.data && e.data.type === 'HABESHA_BALANCE_UPDATE') {
-        this.balance = parseFloat(e.data.balance) || 0;
+      if (e.data && (e.data.type === 'SYNC_BALANCE' || e.data.balance !== undefined)) {
+        this.balance = this.getBalance();
         this.updateBalanceUI();
       }
     });
@@ -170,7 +175,7 @@ class ChickenCrashGame {
       }
     };
 
-    // Sources (Relative paths with accurate asset locations)
+    // Sources (Relative paths without leading slash for GitHub Pages compatibility)
     this.assets.bgRoad.src = 'img/lowLevelBg.webp';
     this.assets.tireTrack.src = 'img/tire_track.png';
     this.assets.tireTrackGreen.src = 'img/tire_track_green.png';
@@ -322,15 +327,22 @@ class ChickenCrashGame {
     if (isMobile) {
       this.laneHeight = Math.max(80, Math.min(94, (this.height - 120) / 5.8));
     } else {
-      this.laneHeight = Math.max(68, Math.min(84, (this.height - 110) / 6.5));
+      this.laneHeight = Math.max(72, Math.min(88, (this.height - 110) / 6.5));
     }
-    this.scale = this.width / 1080;
+    this.bgScale = this.laneHeight / 76.0;
+    this.scale = this.bgScale;
 
-    // Lane 0: Starting Top Sidewalk Safe Zone (Cobblestone pavement with trees)
-    const sidewalkY = isMobile ? 62 : 68;
+    // Curb line Y coordinate from lowLevelBg.webp (curb is at y=124 in 1080px texture)
+    const curbY = 124.0 * this.bgScale;
+
+    // Lane 0: Starting Top Sidewalk Safe Zone (Cobblestone pavement with trees, 100% OFF THE ROAD)
+    // Chicken height is 76px (half = 38px).
+    // Placing chicken center at (curbY - 50px) puts feet at (curbY - 12px) - firmly on the stone pavement ABOVE the curb line!
+    const sidewalkChickenY = curbY - 50.0;
     this.lanes.push({
       index: 0,
-      y: sidewalkY,
+      y: sidewalkChickenY,
+      curbY: curbY,
       multiplier: 1.0,
       isRoad: false
     });
@@ -348,7 +360,7 @@ class ChickenCrashGame {
     const baseList = initialSteps[this.riskLevel] || initialSteps.EASY;
     let lastMult = 1.0;
 
-    const roadStartY = isMobile ? 110 : 120;
+    const roadStartY = curbY;
 
     for (let i = 1; i <= this.totalLanes; i++) {
       let laneMult;
@@ -460,8 +472,8 @@ class ChickenCrashGame {
     }
 
     // Chicken starts at top sidewalk (Lane 0)
-    this.chicken.x = this.width * 0.5;
-    this.chicken.y = sidewalkY;
+    this.chicken.x = this.width * 0.44;
+    this.chicken.y = sidewalkChickenY;
   }
 
   setupEventListeners() {
@@ -503,13 +515,15 @@ class ChickenCrashGame {
     if (isMobile) {
       this.laneHeight = Math.max(80, Math.min(94, (this.height - 120) / 5.8));
     } else {
-      this.laneHeight = Math.max(68, Math.min(84, (this.height - 110) / 6.5));
+      this.laneHeight = Math.max(72, Math.min(88, (this.height - 110) / 6.5));
     }
-    this.scale = this.width / 1080;
+    this.bgScale = this.laneHeight / 76.0;
+    this.scale = this.bgScale;
 
-    this.chicken.x = this.width * 0.5;
-    if (this.state === 'IDLE') {
-      this.chicken.y = isMobile ? 62 : 68;
+    this.chicken.x = this.width * 0.44;
+    this.generateLanes();
+    if (this.state === 'IDLE' || this.state === 'RETURNING') {
+      this.chicken.y = this.lanes[0] ? this.lanes[0].y : 80;
     } else if (this.barrier.visible) {
       this.updateBarrierPosition(this.barrier.laneIndex);
     }
@@ -518,13 +532,6 @@ class ChickenCrashGame {
   setRiskLevel(level) {
     if (this.state === 'RUNNING') return;
     this.riskLevel = level;
-    if (level === 'HARD') {
-      this.assets.bgRoad.src = 'img/highLevelBg.webp';
-    } else if (level === 'MEDIUM') {
-      this.assets.bgRoad.src = 'img/mediumLevelBg.webp';
-    } else {
-      this.assets.bgRoad.src = 'img/lowLevelBg.webp';
-    }
     this.generateLanes();
     this.playAudioSprite('click');
 
@@ -539,9 +546,7 @@ class ChickenCrashGame {
 
   setBetAmount(val) {
     if (this.state === 'RUNNING') return;
-    const curBal = this.getBalance();
-    const maxAllowed = curBal > 0 ? Math.max(1.0, curBal) : 1000.0;
-    this.betAmount = Math.max(1.0, Math.min(parseFloat(val) || 1.0, maxAllowed));
+    this.betAmount = Math.max(1.0, Math.min(parseFloat(val) || 1.0, this.balance));
     const display = document.getElementById('betAmountDisplay');
     const input = document.getElementById('betAmountInput');
     if (display) display.innerText = Math.round(this.betAmount);
@@ -613,13 +618,12 @@ class ChickenCrashGame {
     if (this.state === 'RUNNING') return;
     const curBal = this.getBalance();
     if (curBal < this.betAmount) {
-      alert(`የማይበቃ ቀሪ ሂሳብ! ያለዎት ቀሪ ሂሳብ ${curBal.toFixed(2)} ETB ነው። እባክዎ ሂሳብ ይሙሉ ወይም የውርርድ መጠን ይቀንሱ።`);
+      alert('የሂሳብ መጠንዎ በቂ አይደለም (Insufficient balance). እባክዎ ሂሳብዎን ይሙሉ ወይም Demo ይጠቀሙ።');
       return;
     }
 
-    // Deduct bet amount from unified balance
+    // Deduct bet amount & update session stats
     this.modifyBalance(-this.betAmount, 'stake');
-    this.balance = this.getBalance();
     this.sessionStats.totalBet += this.betAmount;
     this.sessionStats.rounds += 1;
     this.updateBalanceUI();
@@ -635,7 +639,8 @@ class ChickenCrashGame {
     this.chicken.feathers = [];
     this.chicken.winCoins = [];
     this.chicken.x = this.width * 0.44;
-    this.chicken.y = 70 * this.scale;
+    this.chicken.y = this.lanes[0] ? this.lanes[0].y : 80;
+    this.chicken.isRespawning = false;
 
     // Reset vehicles stop states & normal speeds
     for (const v of this.vehicles) {
@@ -804,6 +809,33 @@ class ChickenCrashGame {
     }
   }
 
+  startRespawnAnimation() {
+    this.chicken.isDead = false;
+    this.chicken.isRespawning = true;
+    this.chicken.respawnProgress = 0.0;
+    this.playAudioSprite('step');
+
+    // Spawn burst of dust and star sparkles on the sidewalk
+    const sidewalkFeetY = this.lanes[0] ? (this.lanes[0].y + 34) : 80;
+
+    for (let i = 0; i < 22; i++) {
+      const angle = (Math.PI * 2 / 22) * i;
+      const speed = 2.0 + Math.random() * 4.5;
+      this.chicken.sparkles.push({
+        x: this.chicken.x + (Math.random() - 0.5) * 20,
+        y: sidewalkFeetY + (Math.random() - 0.5) * 8,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed * 0.5 - 1.6,
+        size: 3 + Math.random() * 4.5,
+        color: Math.random() > 0.4 ? '#fde047' : '#ffffff',
+        isStar: Math.random() > 0.3,
+        rot: Math.random() * Math.PI,
+        rotSpeed: (Math.random() - 0.5) * 0.4,
+        alpha: 1.0
+      });
+    }
+  }
+
   triggerCrash(impactCar = null) {
     if (this.state !== 'RUNNING') return;
 
@@ -813,8 +845,10 @@ class ChickenCrashGame {
     this.barrier.visible = false;
     this.playAudioSprite('crash');
 
-    // Create explosion feathers bursting outward in car's collision direction
-    const impactLaneY = this.lanes[this.targetLane] ? this.lanes[this.targetLane].y + 20 : (70 * this.scale);
+    // Impact location
+    const impactLaneY = this.lanes[this.targetLane] ? (this.lanes[this.targetLane].y + this.laneHeight * 0.5) : 140;
+    this.tombstoneLaneY = impactLaneY;
+    this.deathSignAlpha = 1.0;
     const carDir = impactCar ? impactCar.direction : 1;
 
     for (let i = 0; i < 36; i++) {
@@ -830,7 +864,7 @@ class ChickenCrashGame {
       });
     }
 
-    // Update buttons
+    // Update button to CRASH
     const goBtn = document.getElementById('btnActionGo');
     if (goBtn) {
       goBtn.classList.add('disabled');
@@ -839,18 +873,29 @@ class ChickenCrashGame {
 
     this.addHistoryRecord(this.currentMultiplier, false);
 
-    // Reset to IDLE after 3.2s
+    // Phase 2: After 1.1s, smooth glide camera back to safe sidewalk zone
     setTimeout(() => {
-      this.state = 'IDLE';
-      this.targetLane = 0;
+      this.state = 'RETURNING';
       this.currentLane = 0;
-      this.cameraY = 0;
-      this.chicken.isDead = false;
-      this.chicken.y = 70 * this.scale;
+      this.targetLane = 0;
+      this.laneTransitionProgress = 1.0;
+      this.targetCameraY = 0;
       this.barrier.visible = false;
       this.isCrashStep = false;
+    }, 1100);
 
-      // Restore controller to IDLE view
+    // Phase 3: At 2.0s, trigger magnificent respawn drop-in animation onto the sidewalk
+    setTimeout(() => {
+      this.startRespawnAnimation();
+    }, 2000);
+
+    // Phase 4: At 2.9s, restore controller to IDLE & enable GO! button
+    setTimeout(() => {
+      this.state = 'IDLE';
+      this.cameraY = 0;
+      this.targetCameraY = 0;
+      this.chicken.y = this.lanes[0] ? this.lanes[0].y : 80;
+
       const idleView = document.getElementById('controllerIdleView');
       const runningView = document.getElementById('controllerRunningView');
       if (idleView) idleView.style.display = 'flex';
@@ -869,7 +914,7 @@ class ChickenCrashGame {
         v.stopDuration = 0;
         v.speed = (this.riskLevel === 'EASY' ? 1.5 : (this.riskLevel === 'MEDIUM' ? 2.2 : 3.2)) + (Math.random() * 0.4);
       }
-    }, 3200);
+    }, 2900);
   }
 
   cashOut() {
@@ -880,15 +925,12 @@ class ChickenCrashGame {
     this.isCrashStep = false;
     const winAmount = parseFloat((this.betAmount * this.currentMultiplier).toFixed(2));
     this.sessionStats.totalWon += winAmount;
-    
-    // Credit winnings to unified balance
     this.modifyBalance(winAmount, 'win');
-    this.balance = this.getBalance();
     this.updateBalanceUI();
     this.playAudioSprite('win');
 
     // Spawn win coins shower
-    const targetLaneY = this.lanes[this.currentLane] ? this.lanes[this.currentLane].y + 20 : 120;
+    const targetLaneY = this.lanes[this.currentLane] ? (this.lanes[this.currentLane].y + this.laneHeight * 0.5) : 120;
     for (let i = 0; i < 28; i++) {
       this.chicken.winCoins.push({
         x: this.chicken.x + (Math.random() - 0.5) * 40,
@@ -903,18 +945,32 @@ class ChickenCrashGame {
 
     this.addHistoryRecord(this.currentMultiplier, true, winAmount);
 
-    // Update collect button to show WIN
+    // Update collect button to show WON
     const collectBtn = document.getElementById('btnActionCollect');
     if (collectBtn) {
-      collectBtn.innerHTML = `<span class="collect-title">WON!</span><span class="collect-amount">+${winAmount.toFixed(2)} ETB</span>`;
+      collectBtn.innerHTML = `<span class="collect-title">WON!</span><span class="collect-amount">+${winAmount.toFixed(2)}</span>`;
     }
 
+    // Phase 2: After 1.1s, smooth glide back to sidewalk
+    setTimeout(() => {
+      this.state = 'RETURNING';
+      this.currentLane = 0;
+      this.targetLane = 0;
+      this.laneTransitionProgress = 1.0;
+      this.targetCameraY = 0;
+    }, 1100);
+
+    // Phase 3: At 2.0s, happy celebratory hop onto sidewalk
+    setTimeout(() => {
+      this.startRespawnAnimation();
+    }, 2000);
+
+    // Phase 4: At 2.9s, restore IDLE
     setTimeout(() => {
       this.state = 'IDLE';
-      this.targetLane = 0;
-      this.currentLane = 0;
       this.cameraY = 0;
-      this.chicken.y = 70 * this.scale;
+      this.targetCameraY = 0;
+      this.chicken.y = this.lanes[0] ? this.lanes[0].y : 80;
 
       const idleView = document.getElementById('controllerIdleView');
       const runningView = document.getElementById('controllerRunningView');
@@ -925,7 +981,7 @@ class ChickenCrashGame {
         v.isStopped = false;
         v.honked = false;
       }
-    }, 2400);
+    }, 2900);
   }
 
   updateCashoutUI() {
@@ -939,17 +995,12 @@ class ChickenCrashGame {
   updateBalanceUI() {
     this.balance = this.getBalance();
     const w = this.getWallet();
-    const mode = w && typeof w.getMode === 'function' ? w.getMode() : 'real';
-    const tag = mode === 'demo' ? 'DEMO ETB' : 'ETB';
-    const formatted = (Math.round(this.balance * 100) / 100).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-    const text = `${formatted} ${tag}`;
-    const userBalanceText = document.getElementById('userBalanceText');
-    if (userBalanceText) userBalanceText.innerText = text;
-    const balEl = document.getElementById('hudUserBalance');
-    if (balEl && !userBalanceText) balEl.innerText = text;
+    const mode = (w && typeof w.getMode === 'function') ? w.getMode() : 'real';
+    const formatted = Number(this.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const suffix = mode === 'demo' ? ' DEMO ETB' : ' ETB';
+    const text = `${formatted}${suffix}`;
+    const balEl = document.getElementById('userBalanceText') || document.getElementById('hudUserBalance');
+    if (balEl) balEl.innerText = text;
     const mobileBalEl = document.getElementById('mobileHudBalance');
     if (mobileBalEl) mobileBalEl.innerText = text;
   }
@@ -1085,14 +1136,44 @@ class ChickenCrashGame {
       }
     }
 
-    // Camera follow chicken smoothly downward
+    // Camera follow chicken smoothly downward or return to safe sidewalk
     if (this.state === 'RUNNING') {
-      const currentLaneY = this.lanes[this.currentLane] ? this.lanes[this.currentLane].y : 70 * this.scale;
-      const targetLaneY = this.lanes[this.targetLane] ? this.lanes[this.targetLane].y : 70 * this.scale;
-      const chickenWorldY = currentLaneY + (targetLaneY - currentLaneY) * this.laneTransitionProgress;
+      const currentY = this.currentLane === 0 ? (this.lanes[0]?.y || 80) : ((this.lanes[this.currentLane]?.y || 80) + this.laneHeight * 0.5);
+      const targetY = this.targetLane === 0 ? (this.lanes[0]?.y || 80) : ((this.lanes[this.targetLane]?.y || 80) + this.laneHeight * 0.5);
+      const chickenWorldY = currentY + (targetY - currentY) * this.laneTransitionProgress;
 
       this.targetCameraY = Math.max(0, chickenWorldY - this.height * 0.42);
       this.cameraY += (this.targetCameraY - this.cameraY) * 0.12;
+    } else if (this.state === 'RETURNING' || this.state === 'RESPAWNING') {
+      this.targetCameraY = 0;
+      this.cameraY += (0 - this.cameraY) * 0.10;
+    }
+
+    // Death tombstone fade
+    if (this.deathSignAlpha > 0 && (this.state === 'RETURNING' || this.state === 'RESPAWNING' || this.state === 'IDLE')) {
+      this.deathSignAlpha = Math.max(0, this.deathSignAlpha - dt * 1.5);
+    }
+
+    // Respawn Animation Progress
+    if (this.chicken.isRespawning) {
+      this.chicken.respawnProgress += dt * 1.5;
+      if (this.chicken.respawnProgress >= 1.0) {
+        this.chicken.respawnProgress = 1.0;
+        this.chicken.isRespawning = false;
+      }
+    }
+
+    // Sparkles & Dust Particles
+    for (let i = this.chicken.sparkles.length - 1; i >= 0; i--) {
+      const s = this.chicken.sparkles[i];
+      s.x += s.vx * 60 * dt;
+      s.y += s.vy * 60 * dt;
+      s.vy += 0.18;
+      s.rot += s.rotSpeed;
+      s.alpha -= dt * 1.4;
+      if (s.alpha <= 0) {
+        this.chicken.sparkles.splice(i, 1);
+      }
     }
 
     // Feathers particles
@@ -1140,11 +1221,13 @@ class ChickenCrashGame {
 
     // 1. Draw Highway Road Background (lowLevelBg.webp - Official 1080x2087 texture)
     if (this.assets.bgRoad.complete && this.assets.bgRoad.naturalWidth > 0) {
-      const bgW = this.width;
-      const bgH = (bgW / this.assets.bgRoad.naturalWidth) * this.assets.bgRoad.naturalHeight;
+      const bgScale = this.bgScale || (this.laneHeight / 76.0);
+      const bgW = 1080 * bgScale;
+      const bgH = 2087 * bgScale;
+      const bgX = (this.width - bgW) / 2;
       let drawY = 0;
       while (drawY < (this.totalLanes + 4) * this.laneHeight) {
-        ctx.drawImage(this.assets.bgRoad, 0, drawY, bgW, bgH);
+        ctx.drawImage(this.assets.bgRoad, bgX, drawY, bgW, bgH);
         drawY += bgH;
       }
     } else {
@@ -1266,18 +1349,53 @@ class ChickenCrashGame {
     }
 
     // 6. Draw Animated 3D Chicken
-    const currentLaneY = this.lanes[this.currentLane] ? this.lanes[this.currentLane].y : 70 * this.scale;
-    const targetLaneY = this.lanes[this.targetLane] ? this.lanes[this.targetLane].y : 70 * this.scale;
-    const smoothY = currentLaneY + (targetLaneY - currentLaneY) * this.laneTransitionProgress;
+    const getLaneCenterY = (idx) => {
+      if (idx === 0) return this.lanes[0] ? this.lanes[0].y : 80;
+      return this.lanes[idx] ? (this.lanes[idx].y + this.laneHeight * 0.5) : (80 + idx * this.laneHeight);
+    };
 
-    if (!this.chicken.isDead) {
-      this.drawAnimatedChicken(ctx, this.chicken.x, smoothY + this.laneHeight * 0.25);
-    } else {
-      // Draw Death Tombstone Sign
-      this.drawDeathSite(ctx, this.chicken.x, smoothY + this.laneHeight * 0.25);
+    const currentY = getLaneCenterY(this.currentLane);
+    const targetY = getLaneCenterY(this.targetLane);
+    const smoothY = currentY + (targetY - currentY) * this.laneTransitionProgress;
+
+    // Draw Death Tombstone Sign at crash site
+    if (this.deathSignAlpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = this.deathSignAlpha;
+      this.drawDeathSite(ctx, this.chicken.x, this.tombstoneLaneY);
+      ctx.restore();
     }
 
-    // 7. Draw Feathers Burst Particles
+    if (!this.chicken.isDead) {
+      this.drawAnimatedChicken(ctx, this.chicken.x, smoothY);
+    }
+
+    // 7. Draw Landing Sparkles & Dust
+    for (const s of this.chicken.sparkles) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, s.alpha);
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      if (s.isStar) {
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        const size = s.size;
+        ctx.moveTo(0, -size);
+        ctx.quadraticCurveTo(0, 0, size, 0);
+        ctx.quadraticCurveTo(0, 0, 0, size);
+        ctx.quadraticCurveTo(0, 0, -size, 0);
+        ctx.quadraticCurveTo(0, 0, 0, -size);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(240, 240, 245, 0.65)';
+        ctx.beginPath();
+        ctx.arc(0, 0, s.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 8. Draw Feathers Burst Particles
     for (const p of this.chicken.feathers) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, p.alpha);
@@ -1294,7 +1412,7 @@ class ChickenCrashGame {
       ctx.restore();
     }
 
-    // 8. Draw Win Gold Coins
+    // 9. Draw Win Gold Coins
     for (const c of this.chicken.winCoins) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, c.alpha);
@@ -1376,7 +1494,32 @@ class ChickenCrashGame {
     let scaleX = 1.0;
     let scaleY = 1.0;
 
-    if (isMoving) {
+    if (this.chicken.isRespawning) {
+      // Magnificent sky-drop & bounce landing onto sidewalk!
+      const rp = this.chicken.respawnProgress; // 0.0 to 1.0
+      if (rp < 0.65) {
+        // High sky fall with gravity acceleration
+        const fallT = rp / 0.65;
+        hopY = -150 * Math.pow(1 - fallT, 2);
+        scaleY = 1.18;
+        scaleX = 0.88;
+      } else if (rp < 0.82) {
+        // Landing squash on stone sidewalk
+        const squashT = (rp - 0.65) / 0.17;
+        const factor = Math.sin(squashT * Math.PI);
+        hopY = 0;
+        scaleY = 1.0 - 0.30 * factor;
+        scaleX = 1.0 + 0.30 * factor;
+      } else {
+        // Elastic rebound bounce & settle
+        const bounceT = (rp - 0.82) / 0.18;
+        const factor = Math.sin(bounceT * Math.PI);
+        hopY = -12 * factor;
+        scaleY = 1.0 + 0.12 * factor;
+        scaleX = 1.0 - 0.10 * factor;
+        tilt = Math.sin(bounceT * Math.PI * 2) * 0.06;
+      }
+    } else if (isMoving) {
       // High parabolic leap arc
       hopY = -Math.sin(p * Math.PI) * 28;
 
@@ -1405,9 +1548,19 @@ class ChickenCrashGame {
       scaleX = 1.0 - Math.sin(t * 3.8) * 0.035;
     }
 
-    // 2. Realistic Ground Shadow on Asphalt (contracts & blurs when airborne)
-    const shadowScale = isMoving ? Math.max(0.32, 1.0 - Math.abs(hopY) / 32) : (1.0 + Math.sin(t * 3.8) * 0.05);
-    const shadowAlpha = isMoving ? Math.max(0.18, 0.55 - Math.abs(hopY) / 55) : 0.55;
+    // 2. Realistic Ground Shadow on Sidewalk / Asphalt
+    let shadowScale = 1.0;
+    let shadowAlpha = 0.55;
+    if (this.chicken.isRespawning) {
+      const heightFactor = Math.max(0.08, 1.0 - Math.abs(hopY) / 150);
+      shadowScale = heightFactor;
+      shadowAlpha = 0.15 + 0.45 * heightFactor;
+    } else if (isMoving) {
+      shadowScale = Math.max(0.32, 1.0 - Math.abs(hopY) / 32);
+      shadowAlpha = Math.max(0.18, 0.55 - Math.abs(hopY) / 55);
+    } else {
+      shadowScale = 1.0 + Math.sin(t * 3.8) * 0.05;
+    }
 
     ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
     ctx.beginPath();
@@ -1417,43 +1570,63 @@ class ChickenCrashGame {
     ctx.rotate(tilt);
     ctx.scale(scaleX, scaleY);
 
-    // 3. Draw 3D Chicken Sprite
-    const img = (this.assets.chicken3d.complete && this.assets.chicken3d.naturalWidth > 0)
+    // 3. Draw 3D Chicken Sprite (Exact Official Galaxsys Model)
+    const img = (this.assets.chicken3d && this.assets.chicken3d.complete && this.assets.chicken3d.naturalWidth > 0)
       ? this.assets.chicken3d
-      : this.assets.chickenFull;
+      : (this.assets.chickenFull && this.assets.chickenFull.complete && this.assets.chickenFull.naturalWidth > 0 ? this.assets.chickenFull : null);
 
-    const renderW = 34;
-    const renderH = 72;
+    const renderW = 36;
+    const renderH = 76;
 
-    if (img && img.complete && img.naturalWidth > 0) {
+    if (img) {
       // Draw 3D chicken body
       ctx.drawImage(img, -renderW / 2, -renderH / 2 + hopY, renderW, renderH);
 
-      // Blinking animation: draw eyelid over eyes smoothly
-      if (this.chicken.isBlinking && !isMoving) {
+      // Blinking animation: draw smooth cartoon eyelids over eyes
+      if (this.chicken.isBlinking && !isMoving && !this.chicken.isRespawning) {
         ctx.fillStyle = '#f8fafc';
         ctx.strokeStyle = '#334155';
         ctx.lineWidth = 1;
-        // Left eyelid
+        // Left eyeball lid
         ctx.beginPath();
-        ctx.arc(-renderW * 0.304, -renderH * 0.217 + hopY, 3.5, 0, Math.PI);
+        ctx.arc(-renderW * 0.269, -renderH * 0.331 + hopY, 4.2, 0, Math.PI);
         ctx.fill();
         ctx.stroke();
-        // Right eyelid
+        // Right eyeball lid
         ctx.beginPath();
-        ctx.arc(renderW * 0.226, -renderH * 0.231 + hopY, 3.5, 0, Math.PI);
+        ctx.arc(renderW * 0.329, -renderH * 0.312 + hopY, 4.2, 0, Math.PI);
         ctx.fill();
         ctx.stroke();
       }
     } else {
-      ctx.fillStyle = '#ffffff';
+      // Clean temporary placeholder while asset finishes decoding
+      ctx.fillStyle = '#f1f5f9';
       ctx.beginPath();
-      ctx.ellipse(0, hopY, 16, 22, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, hopY + 8, 15, 18, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#ef4444';
+      // Head & Googly Eyes
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, -20 + hopY, 6, 0, Math.PI * 2);
+      ctx.arc(-7, hopY - 14, 7, 0, Math.PI * 2);
+      ctx.arc(7, hopY - 14, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(-7, hopY - 14, 3, 0, Math.PI * 2);
+      ctx.arc(7, hopY - 14, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Red Comb
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.arc(0, hopY - 24, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Orange Beak & Feet
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.polygon ? ctx.polygon([(0, hopY - 8), (-4, hopY - 12), (4, hopY - 12)]) : ctx.arc(0, hopY - 8, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
