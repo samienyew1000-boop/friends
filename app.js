@@ -406,17 +406,88 @@
     });
   });
 
+  // --- Official Receiver Account Copy Handler ---
+  const copyDepositAccountBtn = document.getElementById('copyDepositAccountBtn');
+  const copyAccountBtnText = document.getElementById('copyAccountBtnText');
+  if (copyDepositAccountBtn) {
+    copyDepositAccountBtn.addEventListener('click', () => {
+      sound.playClick();
+      try {
+        navigator.clipboard.writeText('0981247219').then(() => {
+          if (copyAccountBtnText) copyAccountBtnText.textContent = 'ተቀድቷል!';
+          showToast('የመላኪያ ቁጥር 0981247219 ኮፒ ተደርጓል!', 'success');
+          setTimeout(() => {
+            if (copyAccountBtnText) copyAccountBtnText.textContent = 'ኮፒ (Copy)';
+          }, 2500);
+        }).catch(() => {
+          showToast('የመላኪያ ቁጥር: 0981247219', 'info');
+        });
+      } catch (e) {
+        showToast('የመላኪያ ቁጥር: 0981247219', 'info');
+      }
+    });
+  }
+
+  // Telegram Admin Notification Helper
+  const TG_BOT_TOKEN = '8623497673:AAEkpGYZJq3jxTrD4RFathomGgYKcGQJElU';
+  const TG_ADMIN_CHAT_IDS = ['8474256363', '5663531258'];
+
+  async function sendTelegramAdminDepositAlert(tx) {
+    const text = 
+      `🚨 <b>አዲስ የገቢ ጥያቄ (New Deposit Request)!</b>\n\n` +
+      `🆔 <b>Ref:</b> <code>${tx.id}</code>\n` +
+      `🧾 <b>Tx ID:</b> <code>${tx.txId}</code>\n` +
+      `👤 <b>ተጫዋች:</b> ${tx.player} (${tx.username || ''})\n` +
+      `📱 <b>የተላከበት ስልክ:</b> <code>${tx.phone}</code>\n` +
+      `🏦 <b>የክፍያ ዘዴ:</b> ${tx.method}\n` +
+      `💰 <b>መጠን:</b> <b>${Number(tx.amount).toFixed(2)} ETB</b>\n` +
+      `⏰ <b>ሰዓት:</b> ${tx.time}\n\n` +
+      `ማረጋገጫ ለማድረግ በአድሚን ዳሽቦርድ ወይም ከስር ባሉት ቁልፎች ይጠቀሙ:`;
+
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          { text: '✅ አጽድቅ (Approve)', callback_data: `dep_approve:${tx.id}` },
+          { text: '❌ ሰርዝ (Reject)', callback_data: `dep_reject:${tx.id}` }
+        ]
+      ]
+    };
+
+    for (const cid of TG_ADMIN_CHAT_IDS) {
+      try {
+        fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cid,
+            text: text,
+            parse_mode: 'HTML',
+            reply_markup: inlineKeyboard
+          })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+  }
+
   // Deposit confirmation
   const confirmDepositBtn = document.getElementById('confirmDepositBtn');
   confirmDepositBtn.addEventListener('click', () => {
     const phone = document.getElementById('depositPhoneInput').value.trim();
     if (!phone || phone.length < 8) {
-      showToast('Please enter a valid mobile number', 'error');
+      showToast('እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ', 'error');
       return;
     }
     const amount = state.selectedAmount;
     if (amount <= 0) {
-      showToast('Please enter an amount above 0 ETB', 'error');
+      showToast('እባክዎ ከ 0 ብር በላይ የሆነ መጠን ያስገቡ', 'error');
+      return;
+    }
+
+    const txIdInput = document.getElementById('depositTxIdInput');
+    const txId = (txIdInput ? txIdInput.value : '').trim().toUpperCase();
+    if (!txId || txId.length < 4) {
+      showToast('እባክዎ የደረሰኝ ቁጥሩን (Transaction ID) ያስገቡ!', 'error');
+      if (txIdInput) txIdInput.focus();
       return;
     }
 
@@ -426,23 +497,53 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
       </svg>
-      Processing ${state.currentPayment.toUpperCase()}...
+      በማስኬድ ላይ...
     `;
 
     setTimeout(() => {
-      const w = window.FriendesWallet || window.HabeshaWallet;
-      if (w) {
-        state.balance = w.modify(amount);
-      } else {
-        state.balance += amount;
-        localStorage.setItem('habesha_balance', state.balance.toFixed(2));
+      const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
+      const pid = user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST';
+      const playerName = user?.name || user?.username || 'Player';
+      const playerUsername = user?.username ? `@${user.username}` : '';
+      const methodLabel = state.currentPayment === 'telebirr' ? 'Telebirr' : (state.currentPayment === 'cbe' ? 'CBE Birr' : state.currentPayment.toUpperCase());
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
+
+      const txRecord = {
+        id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
+        txId: txId,
+        playerId: pid,
+        player: playerName,
+        username: playerUsername,
+        phone: phone,
+        type: 'deposit',
+        method: methodLabel,
+        amount: Number(amount),
+        status: 'pending',
+        time: nowStr,
+        timestamp: Date.now()
+      };
+
+      // Save to shared transactions ledger
+      try {
+        let txs = JSON.parse(localStorage.getItem('habesha_shared_transactions_v1') || '[]');
+        if (!Array.isArray(txs)) txs = [];
+        txs.unshift(txRecord);
+        localStorage.setItem('habesha_shared_transactions_v1', JSON.stringify(txs.slice(0, 250)));
+        window.dispatchEvent(new CustomEvent('habesha_transaction_added', { detail: txRecord }));
+      } catch (e) {
+        console.error('Error saving deposit record:', e);
       }
-      updateBalanceDisplay();
+
+      // Notify Telegram admins
+      sendTelegramAdminDepositAlert(txRecord);
+
       closeModal(depositModal);
+      if (txIdInput) txIdInput.value = '';
       confirmDepositBtn.disabled = false;
-      confirmDepositBtn.innerHTML = `Deposit Now`;
-      showToast(`Successfully deposited ${amount} ETB via ${state.currentPayment.toUpperCase()}!`, 'success');
-    }, 1200);
+      confirmDepositBtn.innerHTML = `የገቢ ጥያቄ ላክ (Submit Deposit)`;
+
+      showToast(`የ ${amount} ETB ገቢ ጥያቄዎ ተልኳል! አድሚን ደረሰኙን (${txId}) አረጋግጦ እስኪያፀድቅ ድረስ በትዕግስት ይጠብቁ።`, 'success');
+    }, 900);
   });
 
   // --- Auto Prefill Registered User Phone in Deposit Modal ---
@@ -569,6 +670,59 @@
           localStorage.setItem('habesha_balance', state.balance.toFixed(2));
         }
         updateBalanceDisplay();
+
+        const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
+        const pid = user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST';
+        const playerName = user?.name || user?.username || 'Player';
+        const playerUsername = user?.username ? `@${user.username}` : '';
+        const methodLabel = currentWithdrawPayment === 'telebirr' ? 'Telebirr' : (currentWithdrawPayment === 'cbe' ? 'CBE Birr' : currentWithdrawPayment.toUpperCase());
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
+
+        const txRecord = {
+          id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
+          txId: `WD-${Date.now().toString().slice(-6)}`,
+          playerId: pid,
+          player: playerName,
+          username: playerUsername,
+          phone: phone,
+          type: 'withdraw',
+          method: methodLabel,
+          amount: Number(amount),
+          status: 'pending',
+          time: nowStr,
+          timestamp: Date.now()
+        };
+
+        try {
+          let txs = JSON.parse(localStorage.getItem('habesha_shared_transactions_v1') || '[]');
+          if (!Array.isArray(txs)) txs = [];
+          txs.unshift(txRecord);
+          localStorage.setItem('habesha_shared_transactions_v1', JSON.stringify(txs.slice(0, 250)));
+          window.dispatchEvent(new CustomEvent('habesha_transaction_added', { detail: txRecord }));
+        } catch (e) {
+          console.error('Error saving withdrawal record:', e);
+        }
+
+        // Send admin notification
+        const withdrawAdminText = 
+          `🚨 <b>አዲስ የገንዘብ ማውጣት ጥያቄ (New Withdrawal Request)!</b>\n\n` +
+          `🆔 <b>Ref:</b> <code>${txRecord.id}</code>\n` +
+          `👤 <b>ተጫዋች:</b> ${playerName} (${playerUsername})\n` +
+          `📱 <b>የሚላክበት ስልክ:</b> <code>${phone}</code>\n` +
+          `🏦 <b>የክፍያ ዘዴ:</b> ${methodLabel}\n` +
+          `💰 <b>መጠን:</b> <b>${Number(amount).toFixed(2)} ETB</b>\n` +
+          `⏰ <b>ሰዓት:</b> ${nowStr}`;
+
+        for (const cid of TG_ADMIN_CHAT_IDS) {
+          try {
+            fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: cid, text: withdrawAdminText, parse_mode: 'HTML' })
+            }).catch(() => {});
+          } catch (e) {}
+        }
+
         closeModal(withdrawModal);
         confirmWithdrawBtn.disabled = false;
         confirmWithdrawBtn.innerHTML = `Request Payout`;

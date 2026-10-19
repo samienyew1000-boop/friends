@@ -19,3 +19,10 @@
 .login-back-link:hover{color:var(--teal)}
 .logout-btn{background:rgba(255,108,127,.12);border:1px solid rgba(255,108,127,.3);color:#ff8b99;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;margin-left:10px;cursor:pointer;transition:.2s}
 .logout-btn:hover{background:rgba(255,108,127,.25);color:#fff}
+.action-btn{padding:5px 9px;border-radius:6px;font-size:10px;font-weight:700;border:0;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:4px}
+.approve-btn{background:#12392f;color:#55dfb7;border:1px solid #1c5e4d}
+.approve-btn:hover{background:#1c5e4d;color:#fff}
+.cancel-btn{background:#38232c;color:#ff8291;border:1px solid #5a303e;margin-left:5px}
+.cancel-btn:hover{background:#5a303e;color:#fff}
+.tx-id-badge{font-family:monospace;letter-spacing:.5px;background:#0d1e32;border:1px solid #233e59;padding:3px 7px;border-radius:5px;color:#71d9c9;font-size:10px;font-weight:bold}
+.status-tag.pending{background:#3d3020;color:#f6bb54}

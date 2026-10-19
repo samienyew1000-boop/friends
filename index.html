@@ -471,19 +471,43 @@
         </div>
       </div>
 
+      <!-- Official Receiver Account Details (Telebirr / CBE) -->
+      <div class="p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-between">
+        <div>
+          <p class="text-[10px] text-teal-300 uppercase font-semibold">ገንዘብ መላኪያ ቁጥር (Official Receiver)</p>
+          <p id="depositReceiverNumber" class="text-xs sm:text-sm font-extrabold text-white">0981247219 <span class="text-teal-400 font-normal">(Friendes Game)</span></p>
+        </div>
+        <button type="button" id="copyDepositAccountBtn" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 border border-teal-500/40 transition-all active:scale-95 flex items-center space-x-1">
+          <span>📋</span>
+          <span id="copyAccountBtnText">ኮፒ (Copy)</span>
+        </button>
+      </div>
+
       <!-- Mobile Phone Number Input -->
       <div>
-        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Mobile Phone Number</label>
+        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Mobile Phone Number (የተላከበት ስልክ)</label>
         <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-teal-500">
           <span id="phoneInputPrefix" class="px-3 text-xs font-bold text-slate-400 border-r border-slate-800">+251 9</span>
           <input type="tel" id="depositPhoneInput" placeholder="12345678" value="12345678" class="w-full bg-transparent px-3 py-2 text-sm text-white focus:outline-none" />
         </div>
-        <p class="text-[10px] text-slate-400 mt-1">A payment prompt will be sent to your mobile wallet.</p>
+      </div>
+
+      <!-- Mandatory Transaction ID / Reference Number Input -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-300">የደረሰኝ ቁጥር (Transaction ID) <span class="text-rose-400">*</span></label>
+          <span class="text-[10px] text-amber-400 font-semibold">ግዴታ ነው (Required)</span>
+        </div>
+        <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-teal-500">
+          <span class="px-3 text-xs font-bold text-slate-400 border-r border-slate-800">🧾</span>
+          <input type="text" id="depositTxIdInput" placeholder="e.g. TF894204892 or TX102948" class="w-full bg-transparent px-3 py-2 text-sm text-white focus:outline-none font-mono uppercase tracking-wider" required />
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">ክፍያውን ወደ <code>0981247219</code> ከላኩ በኋላ ከቴሌብር/ባንክ የተላከላችሁን Transaction ID ያስገቡ።</p>
       </div>
 
       <!-- Confirm Button -->
       <button id="confirmDepositBtn" class="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-teal-500/25 active:scale-95 transition-all">
-        Deposit Now
+        የገቢ ጥያቄ ላክ (Submit Deposit)
       </button>
     </div>
   </div>

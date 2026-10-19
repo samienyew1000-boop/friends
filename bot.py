@@ -93,6 +93,7 @@ def is_admin(user_id=None, username=None):
 
 KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
 WITHDRAWALS_FILE = Path(__file__).resolve().parent / "withdrawals.json"
+DEPOSITS_FILE = Path(__file__).resolve().parent / "deposits.json"
 
 def load_known_users():
     try:
@@ -437,6 +438,171 @@ def handle_withdraw_request(chat_id, user, amount_str):
         "reply_markup": get_main_reply_keyboard(chat_id, user)
     })
 
+def load_deposits():
+    if DEPOSITS_FILE.exists():
+        try:
+            with open(DEPOSITS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_deposits(deposits):
+    try:
+        with open(DEPOSITS_FILE, "w", encoding="utf-8") as f:
+            json.dump(deposits, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"Error saving deposits: {e}")
+
+def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebirr"):
+    now_str = time.strftime("%Y-%m-%d %H:%M:%S")
+    deposits = load_deposits()
+    req_id = f"TX-{int(time.time())}"
+    full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
+    phone = user.get("phone", "")
+    username = user.get("username", "")
+
+    record = {
+        "id": req_id,
+        "tx_id": str(tx_id).strip(),
+        "chat_id": chat_id,
+        "name": full_name,
+        "username": username,
+        "phone": phone,
+        "amount": float(amount),
+        "method": method,
+        "status": "pending",
+        "created_at": now_str
+    }
+    deposits.append(record)
+    save_deposits(deposits)
+
+    kb = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ አጽድቅ (Approve)", "callback_data": f"dep_approve:{req_id}"},
+                {"text": "❌ ሰርዝ (Reject)", "callback_data": f"dep_reject:{req_id}"}
+            ]
+        ]
+    }
+    admin_text = (
+        f"🚨 <b>አዲስ የገቢ ጥያቄ (New Deposit Request)!</b>\n\n"
+        f"🆔 <b>Ref:</b> <code>{req_id}</code>\n"
+        f"🧾 <b>Tx ID:</b> <code>{tx_id}</code>\n"
+        f"👤 <b>ተጫዋች:</b> {full_name} (@{username})\n"
+        f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
+        f"🏦 <b>ዘዴ:</b> {method}\n"
+        f"💰 <b>መጠን:</b> <b>{amount:.2f} ETB</b>\n"
+        f"⏰ <b>ሰዓት:</b> {now_str}"
+    )
+    for admin_id in ADMIN_USER_IDS:
+        api_call("sendMessage", {
+            "chat_id": admin_id,
+            "text": admin_text,
+            "parse_mode": "HTML",
+            "reply_markup": kb
+        })
+
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": (
+            f"✅ <b>የገቢ ጥያቄዎ በተሳካ ሁኔታ ተመዝግቧል!</b>\n\n"
+            f"🆔 <b>የጥያቄ ቁጥር:</b> <code>{req_id}</code>\n"
+            f"🧾 <b>የደረሰኝ ቁጥር (Tx ID):</b> <code>{tx_id}</code>\n"
+            f"💰 <b>የተመዘገበው መጠን:</b> <b>{amount:.2f} ETB</b>\n"
+            f"⏳ <b>ሁኔታ:</b> በመጠባበቅ ላይ (Pending Approval)\n\n"
+            f"አድሚን የደረሰኝ ቁጥሩን አረጋግጦ በጥቂት ደቂቃዎች ውስጥ ወደ ሂሳብዎ ይጨምራል። እናመሰግናለን!"
+        ),
+        "parse_mode": "HTML",
+        "reply_markup": get_main_reply_keyboard(chat_id, user)
+    })
+
+def approve_deposit(dep_id, admin_id):
+    deposits = load_deposits()
+    target = None
+    for d in deposits:
+        if d.get("id") == dep_id or d.get("tx_id") == dep_id:
+            target = d
+            break
+
+    if not target:
+        target = {
+            "id": dep_id,
+            "tx_id": dep_id,
+            "status": "pending",
+            "amount": 100.0,
+            "chat_id": None
+        }
+        deposits.append(target)
+
+    if target.get("status") == "completed":
+        return False, "ቀድሞ ጸድቋል (Already approved)"
+
+    target["status"] = "completed"
+    target["approved_by"] = admin_id
+    target["approved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    save_deposits(deposits)
+
+    chat_id = target.get("chat_id")
+    amt = float(target.get("amount", 100.0))
+    if chat_id:
+        users = load_known_users()
+        if str(chat_id) in users:
+            users[str(chat_id)]["balance"] = round(users[str(chat_id)].get("balance", 0.0) + amt, 2)
+            save_all_users(users)
+
+        api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
+                f"የ <b>{amt:.2f} ETB</b> የገቢ ክፍያዎ በአድሚን ተረጋግጦ ጸድቋል (Approved)!\n"
+                f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n\n"
+                f"ገንዘቡ ወደ ሂሳብዎ ገብቷል። አሁን ጨዋታውን ከፍተው መጫወት ይችላሉ። መልካም እድል! 🍀"
+            ),
+            "parse_mode": "HTML"
+        })
+    return True, "Approved"
+
+def reject_deposit(dep_id, admin_id):
+    deposits = load_deposits()
+    target = None
+    for d in deposits:
+        if d.get("id") == dep_id or d.get("tx_id") == dep_id:
+            target = d
+            break
+
+    if not target:
+        target = {
+            "id": dep_id,
+            "tx_id": dep_id,
+            "status": "pending",
+            "amount": 0.0,
+            "chat_id": None
+        }
+        deposits.append(target)
+
+    if target.get("status") == "rejected":
+        return False, "ቀድሞ ተሰርዟል (Already rejected)"
+
+    target["status"] = "rejected"
+    target["rejected_by"] = admin_id
+    target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    save_deposits(deposits)
+
+    chat_id = target.get("chat_id")
+    amt = float(target.get("amount", 0.0))
+    if chat_id:
+        api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"⚠️ <b>የገቢ ጥያቄዎ ውድቅ ተደርጓል (Cancelled/Rejected)</b>\n\n"
+                f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n\n"
+                f"ያስገቡት የደረሰኝ ቁጥር አልተገኘም ወይም ትክክል አይደለም። እባክዎ ትክክለኛውን ደረሰኝ በማረጋገጥ በድጋሚ ይሞክሩ ወይም እርዳታ ያነጋግሩ።"
+            ),
+            "parse_mode": "HTML"
+        })
+    return True, "Rejected"
+
 def send_profile_info(chat_id, user):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
@@ -623,7 +789,65 @@ def main():
                         cb_data = callback_query.get("data", "")
                         cb_msg = callback_query.get("message", {})
                         cb_chat_id = cb_msg.get("chat", {}).get("id")
+                        cb_from = callback_query.get("from", {})
                         cb_user = load_known_users().get(str(cb_chat_id), {})
+
+                        if cb_data.startswith("dep_approve:") or cb_data.startswith("dep_reject:"):
+                            action, dep_id = cb_data.split(":", 1)
+                            caller_id = cb_from.get("id")
+                            caller_username = cb_from.get("username", "")
+
+                            if not is_admin(caller_id, caller_username):
+                                api_call("answerCallbackQuery", {
+                                    "callback_query_id": cb_id,
+                                    "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
+                                    "show_alert": True
+                                })
+                                continue
+
+                            if action == "dep_approve":
+                                ok, info = approve_deposit(dep_id, caller_id)
+                                if ok:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"✅ ገቢ {dep_id} ጸድቋል!"
+                                    })
+                                    admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                                    orig_text = cb_msg.get("text", "")
+                                    api_call("editMessageText", {
+                                        "chat_id": cb_chat_id,
+                                        "message_id": cb_msg.get("message_id"),
+                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>",
+                                        "parse_mode": "HTML"
+                                    })
+                                else:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"⚠️ {info}",
+                                        "show_alert": True
+                                    })
+                            else:
+                                ok, info = reject_deposit(dep_id, caller_id)
+                                if ok:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"❌ ገቢ {dep_id} ተሰርዟል!"
+                                    })
+                                    admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                                    orig_text = cb_msg.get("text", "")
+                                    api_call("editMessageText", {
+                                        "chat_id": cb_chat_id,
+                                        "message_id": cb_msg.get("message_id"),
+                                        "text": orig_text + f"\n\n<b>❌ CANCELLED/REJECTED by {admin_tag}</b>",
+                                        "parse_mode": "HTML"
+                                    })
+                                else:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"⚠️ {info}",
+                                        "show_alert": True
+                                    })
+                            continue
 
                         api_call("answerCallbackQuery", {"callback_query_id": cb_id})
 
@@ -809,21 +1033,9 @@ def main():
                             request_phone_registration(chat_id)
                         else:
                             lower = text.lower()
-                            if any(k in lower for k in ["telebirr", "cbe", "trans", "tx", "ብር", "etb", "deposit", "ክፍያ", "09"]):
-                                full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
-                                for admin_id in ADMIN_USER_IDS:
-                                    api_call("sendMessage", {
-                                        "chat_id": admin_id,
-                                        "text": (
-                                            f"📩 <b>አዲስ የክፍያ መልእክት (Player Payment Message)!</b>\n\n"
-                                            f"👤 <b>ተጫዋች:</b> {full_name} (@{msg['from'].get('username','')})\n"
-                                            f"📱 <b>ስልክ:</b> <code>{user.get('phone','')}</code>\n"
-                                            f"🆔 <b>ID:</b> <code>{chat_id}</code>\n"
-                                            f"📝 <b>መልእክት:</b>\n{text}"
-                                        ),
-                                        "parse_mode": "HTML"
-                                    })
-                                send_text_message(chat_id, "✅ <b>የክፍያ መረጃዎ ለአስተዳዳሪው ተላልፏል!</b>\nአድሚኑ ደረሰኙን አረጋግጦ በጥቂት ደቂቃዎች ውስጥ ወደ ሂሳብዎ ይጨምራል። እናመሰግናለን!", reply_markup=get_main_reply_keyboard(chat_id, user))
+                            if any(k in lower for k in ["telebirr", "cbe", "trans", "tx", "ብር", "etb", "deposit", "ክፍያ", "09"]) or len(text.strip()) >= 6:
+                                clean_tx = text.strip().replace("\n", " ")
+                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / CBE")
                             else:
                                 send_welcome(chat_id, user)
 

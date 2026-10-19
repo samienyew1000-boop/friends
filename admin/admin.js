@@ -45,13 +45,32 @@
   function loadQueue() {
     try { const saved = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); return Array.isArray(saved) ? saved : []; } catch (error) { return []; }
   }
+  const SHARED_TX_KEY = 'habesha_shared_transactions_v1';
   function loadTransactions() {
     let records = [];
     try {
-      const bingo = JSON.parse(localStorage.getItem('lucky-bingo-admin-state-v1') || '{}');
-      if (Array.isArray(bingo.transactions)) records = bingo.transactions.map((item) => ({ ...item, time: item.requested || 'Recent' }));
-    } catch (error) { /* optional game records */ }
+      const shared = JSON.parse(localStorage.getItem(SHARED_TX_KEY) || '[]');
+      if (Array.isArray(shared) && shared.length > 0) {
+        records = shared;
+      }
+    } catch (e) {}
+
+    if (!records.length) {
+      try {
+        const bingo = JSON.parse(localStorage.getItem('lucky-bingo-admin-state-v1') || '{}');
+        if (Array.isArray(bingo.transactions) && bingo.transactions.length > 0) {
+          records = bingo.transactions.map((item) => ({ ...item, time: item.requested || 'Recent' }));
+        }
+      } catch (error) { /* optional game records */ }
+    }
+
     return records.length ? records : (localStorage.getItem(SEED_KEY) ? DEMO_TRANSACTIONS : []);
+  }
+
+  function saveTransactions() {
+    try {
+      localStorage.setItem(SHARED_TX_KEY, JSON.stringify(transactions.slice(0, 300)));
+    } catch (e) {}
   }
   function refreshFromStorage() {
     config = loadConfig();
@@ -216,9 +235,167 @@
 
   function renderTransactions() {
     const filter = $('transactionFilter').value;
-    const records = transactions.filter((item) => filter === 'all' || item.type === filter);
+    const records = transactions.filter((item) => {
+      if (filter === 'all') return true;
+      if (filter === 'pending') return item.status === 'pending';
+      return item.type === filter;
+    });
+
     $('transactionCount').textContent = `${records.length} record${records.length === 1 ? '' : 's'}`;
-    $('transactionsTable').innerHTML = records.length ? records.map((item) => `<tr><td><strong>${escapeHTML(item.id || 'TX-LOCAL')}</strong></td><td>${escapeHTML(item.player || 'Player')}<small>${escapeHTML(item.playerId || '')}</small></td><td><span class="type-label type-${escapeHTML(item.type)}">${escapeHTML(item.type || 'activity')}</span></td><td>${escapeHTML(item.method || 'Wallet')}</td><td><strong>${money(item.amount)}</strong></td><td><span class="status-tag ${item.status === 'pending' ? 'off' : ''}">${escapeHTML(item.status || 'completed')}</span></td><td>${escapeHTML(item.time || item.requested || 'Recent')}</td></tr>`).join('') : '<tr><td colspan="7"><span class="muted">No records found.</span></td></tr>';
+    $('transactionsTable').innerHTML = records.length ? records.map((item) => {
+      const isPending = item.status === 'pending';
+      const isRejected = item.status === 'rejected' || item.status === 'cancelled';
+      const txBadge = item.txId ? `<span class="tx-id-badge">${escapeHTML(item.txId)}</span>` : '<span class="muted">-</span>';
+      
+      let statusHtml = '';
+      if (isPending) {
+        statusHtml = '<span class="status-tag pending">PENDING ⏳</span>';
+      } else if (isRejected) {
+        statusHtml = '<span class="status-tag off">REJECTED ✕</span>';
+      } else {
+        statusHtml = '<span class="status-tag">COMPLETED ✓</span>';
+      }
+
+      let actionsHtml = '';
+      if (isPending) {
+        actionsHtml = `
+          <button class="action-btn approve-btn" data-action="approve" data-tx-id="${escapeHTML(item.id)}" title="Approve & Credit Balance">
+            ✅ Approve
+          </button>
+          <button class="action-btn cancel-btn" data-action="cancel" data-tx-id="${escapeHTML(item.id)}" title="Cancel / Reject">
+            ❌ Cancel
+          </button>
+        `;
+      } else {
+        actionsHtml = `<span class="muted" style="font-size:10px;">Processed</span>`;
+      }
+
+      return `<tr>
+        <td><strong>${escapeHTML(item.id || 'TX-LOCAL')}</strong></td>
+        <td>${txBadge}</td>
+        <td>
+          <strong>${escapeHTML(item.player || 'Player')}</strong>
+          <small>${escapeHTML(item.playerId || '')} ${item.phone ? '• ' + escapeHTML(item.phone) : ''}</small>
+        </td>
+        <td><span class="type-label type-${escapeHTML(item.type)}">${escapeHTML(item.type || 'activity')}</span></td>
+        <td>${escapeHTML(item.method || 'Wallet')}</td>
+        <td><strong>${money(item.amount)}</strong></td>
+        <td>${statusHtml}</td>
+        <td>${escapeHTML(item.time || item.requested || 'Recent')}</td>
+        <td>${actionsHtml}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="9"><span class="muted">No transactions found matching this filter.</span></td></tr>';
+
+    // Attach approve / cancel button handlers
+    $('transactionsTable').querySelectorAll('.approve-btn').forEach((btn) => {
+      btn.addEventListener('click', () => approveTx(btn.dataset.txId));
+    });
+    $('transactionsTable').querySelectorAll('.cancel-btn').forEach((btn) => {
+      btn.addEventListener('click', () => cancelTx(btn.dataset.txId));
+    });
+  }
+
+  async function approveTx(txId) {
+    const tx = transactions.find((t) => t.id === txId);
+    if (!tx) return;
+    if (tx.status !== 'pending') {
+      showToast('This transaction has already been processed.');
+      return;
+    }
+
+    tx.status = 'completed';
+    tx.processedAt = new Date().toLocaleString();
+    saveTransactions();
+
+    const amt = Number(tx.amount) || 0;
+    const cleanPid = String(tx.playerId || '').replace(/^TG-/, '').trim();
+
+    // 1. If it's a deposit: credit real balance
+    if (tx.type === 'deposit') {
+      try {
+        const curReal = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
+        const newReal = Math.max(0, curReal + amt);
+        localStorage.setItem('habesha_balance', newReal.toFixed(2));
+        window.dispatchEvent(new CustomEvent('habesha_balance_updated', {
+          detail: { balance: newReal, mode: 'real' }
+        }));
+      } catch (e) {}
+
+      // Notify player via Telegram bot
+      if (/^\d+$/.test(cleanPid)) {
+        const approveMsg = 
+          `🎉 <b>እንኳን ደስ አለዎት ${escapeHTML(tx.player)}!</b>\n\n` +
+          `የ <b>${amt.toFixed(2)} ETB</b> የገቢ ጥያቄዎ በአድሚን ተረጋግጦ ጸድቋል (Approved)!\n` +
+          `ገንዘቡ በቀጥታ ወደ ጨዋታ ሂሳብዎ ተጨምሯል።\n\n` +
+          `🧾 <b>Transaction ID:</b> <code>${escapeHTML(tx.txId || tx.id)}</code>\n\n` +
+          `አሁኑኑ ጨዋታውን ከፍተው መጫወት ይችላሉ። መልካም እድል! 🍀`;
+        sendTelegramMessage(cleanPid, approveMsg);
+      }
+
+      showToast(`✅ Deposit of ${money(amt)} approved and credited to player!`);
+    } else if (tx.type === 'withdraw') {
+      // Notify player payout was dispatched
+      if (/^\d+$/.test(cleanPid)) {
+        const approveMsg = 
+          `💸 <b>የገንዘብ ማውጣት ጥያቄዎ ጸድቋል (Withdrawal Approved)!</b>\n\n` +
+          `የ <b>${amt.toFixed(2)} ETB</b> ክፍያ ወደ ተመዘገበው ስልክዎ (<code>${escapeHTML(tx.phone || '')}</code>) ተልኳል።\n` +
+          `Friendes Gameን ስለመረጡ እናመሰግናለን!`;
+        sendTelegramMessage(cleanPid, approveMsg);
+      }
+      showToast(`✅ Withdrawal ${tx.id} marked as sent!`);
+    }
+
+    renderOverview();
+    renderPlayers();
+    renderTransactions();
+  }
+
+  async function cancelTx(txId) {
+    const tx = transactions.find((t) => t.id === txId);
+    if (!tx) return;
+    if (tx.status !== 'pending') {
+      showToast('This transaction has already been processed.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to cancel / reject transaction ${tx.id} (${money(tx.amount)})?`)) {
+      return;
+    }
+
+    tx.status = 'rejected';
+    tx.processedAt = new Date().toLocaleString();
+    saveTransactions();
+
+    const amt = Number(tx.amount) || 0;
+    const cleanPid = String(tx.playerId || '').replace(/^TG-/, '').trim();
+
+    // If it was a withdrawal, refund balance back to player
+    if (tx.type === 'withdraw') {
+      try {
+        const curReal = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
+        const newReal = Math.max(0, curReal + amt);
+        localStorage.setItem('habesha_balance', newReal.toFixed(2));
+        window.dispatchEvent(new CustomEvent('habesha_balance_updated', {
+          detail: { balance: newReal, mode: 'real' }
+        }));
+      } catch (e) {}
+    }
+
+    // Notify player via Telegram
+    if (/^\d+$/.test(cleanPid)) {
+      const cancelMsg = 
+        `⚠️ <b>የ${tx.type === 'deposit' ? 'ገቢ' : 'ወጪ'} ጥያቄዎ ውድቅ ተደርጓል (Cancelled/Rejected)</b>\n\n` +
+        `🆔 <b>Ref:</b> <code>${escapeHTML(tx.id)}</code>\n` +
+        `${tx.txId ? `🧾 <b>Tx ID:</b> <code>${escapeHTML(tx.txId)}</code>\n` : ''}` +
+        `💰 <b>መጠን:</b> ${money(tx.amount)}\n\n` +
+        `ያስገቡት የደረሰኝ ቁጥር አልተገኘም ወይም ትክክል አይደለም። እባክዎ ትክክለኛውን ደረሰኝ በማረጋገጥ በድጋሚ ይሞክሩ ወይም እርዳታ ያነጋግሩ።`;
+      sendTelegramMessage(cleanPid, cancelMsg);
+    }
+
+    showToast(`❌ Transaction ${tx.id} rejected / cancelled.`);
+    renderOverview();
+    renderPlayers();
+    renderTransactions();
   }
 
   function renderQueue() {
@@ -301,9 +478,10 @@
   }
 
   window.addEventListener('storage', (event) => {
-    if ([CONFIG_KEY, QUEUE_KEY, 'lucky-bingo-admin-state-v1'].includes(event.key)) refreshFromStorage();
+    if ([CONFIG_KEY, QUEUE_KEY, 'lucky-bingo-admin-state-v1', SHARED_TX_KEY, 'habesha_balance'].includes(event.key)) refreshFromStorage();
   });
   window.addEventListener('habesha_admin_config_updated', refreshFromStorage);
+  window.addEventListener('habesha_transaction_added', refreshFromStorage);
   document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => showSection(button.dataset.section)));
   document.querySelectorAll('[data-section-link]').forEach((button) => button.addEventListener('click', () => showSection(button.dataset.sectionLink)));
   $('globalMarginRange').addEventListener('input', (event) => { config.globalMargin = clamp(event.target.value, 0, 25); $('globalMarginValue').textContent = `${Number(config.globalMargin).toFixed(1)}%`; $('settingsMargin').value = config.globalMargin; });
@@ -343,7 +521,7 @@
   $('seedDemoData').addEventListener('click', () => { transactions = DEMO_TRANSACTIONS; localStorage.setItem(SEED_KEY, '1'); renderOverview(); renderPlayers(); renderTransactions(); showToast('Demo reporting data loaded'); });
   $('resetAdminData').addEventListener('click', () => { if (!window.confirm('Reset all admin settings and queued messages?')) return; config = defaultConfig(); queue = []; localStorage.removeItem(CONFIG_KEY); localStorage.removeItem(QUEUE_KEY); renderGameControls(); renderQueue(); renderOverview(); showToast('Admin configuration reset'); });
   $('exportPlayers').addEventListener('click', () => exportCSV('habesha-players.csv', [['Player', 'Username', 'ID', 'Last seen'], ...[...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()].map((item) => [item.player, item.username, item.playerId, item.time])]));
-  $('exportTransactions').addEventListener('click', () => exportCSV('habesha-transactions.csv', [['Reference', 'Player', 'Type', 'Method', 'Amount', 'Status', 'Time'], ...transactions.map((item) => [item.id, item.player, item.type, item.method, item.amount, item.status, item.time])]));
+  $('exportTransactions').addEventListener('click', () => exportCSV('habesha-transactions.csv', [['Reference', 'Tx ID', 'Player', 'Type', 'Method', 'Amount', 'Status', 'Time'], ...transactions.map((item) => [item.id, item.txId || '', item.player, item.type, item.method, item.amount, item.status, item.time])]));
 
   // --- Admin Authentication Gate ---
   const AUTH_KEY = 'habesha_admin_session_auth_v1';
