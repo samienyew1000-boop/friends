@@ -102,6 +102,14 @@
     }
   }
 
+  // Ensure default mode is REAL unless explicitly specified as demo in URL
+  if (typeof window.HabeshaWallet !== 'undefined') {
+    const initParams = new URLSearchParams(window.location.search);
+    if (initParams.get('mode') !== 'demo') {
+      window.HabeshaWallet.setMode('real');
+    }
+  }
+
   // --- State Management ---
   const state = {
     balance: typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : parseFloat(localStorage.getItem('habesha_balance') || '0.00'),

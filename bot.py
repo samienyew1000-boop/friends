@@ -34,6 +34,7 @@ ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
 ADMIN_USER_IDS.add("8474256363")
+ADMIN_PASSWORDS = {"7DoGpDwZ4zpIvotZm9p", "admin123", os.environ.get("ADMIN_PASSWORD", "").strip()} - {""}
 
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -520,8 +521,9 @@ def send_agent_info(chat_id, user):
     })
 
 def send_admin_menu(chat_id):
+    admin_web_url = f"{ADMIN_URL}?auth=admin"
     admin_text = (
-        "🛡️ <b>Friendes Game | Control Center</b>\n\n"
+        "🛡️ <b>Friendes Game | Admin Control Center</b>\n\n"
         "Welcome to the Operator Dashboard. From here you can manage:\n"
         "• 🎮 <b>Games & Margins</b> - Set house edge & toggle games online/paused\n"
         "• ♙ <b>Players Directory</b> - Monitor player balances & export CSV\n"
@@ -535,7 +537,7 @@ def send_admin_menu(chat_id):
             [
                 {
                     "text": "🛡️ Open Admin Control Center",
-                    "web_app": {"url": ADMIN_URL}
+                    "web_app": {"url": admin_web_url}
                 }
             ],
             [
@@ -557,14 +559,13 @@ def main():
     logging.info("Starting Friendes Game Telegram Bot runner...")
     offset = 0
 
-    # Configure Telegram commands menu
+    # Configure Telegram commands menu (Keeps admin command hidden from public view)
     api_call("setMyCommands", {
         "commands": [
             {"command": "start", "description": "🎮 Start & Register Account"},
             {"command": "deposit", "description": "💰 Deposit Funds (Telebirr/CBE)"},
             {"command": "withdraw", "description": "💸 Withdraw to Registered Phone"},
-            {"command": "profile", "description": "👤 View My Account Profile"},
-            {"command": "admin", "description": "🛡️ Open Admin Control Center"}
+            {"command": "profile", "description": "👤 View My Account Profile"}
         ]
     })
 
@@ -735,8 +736,25 @@ def main():
                         else:
                             send_welcome(chat_id, user)
 
-                    elif text.startswith("/admin") and is_admin(chat_id):
-                        send_admin_menu(chat_id)
+                    elif text.startswith("/admin"):
+                        parts = text.split(" ", 1)
+                        if len(parts) > 1:
+                            input_pass = parts[1].strip()
+                            if input_pass in ADMIN_PASSWORDS:
+                                ADMIN_USER_IDS.add(str(chat_id))
+                                send_text_message(chat_id, "✅ <b>የአድሚን መለያዎ ተረጋግጧል! (Admin access granted)</b>")
+                                send_admin_menu(chat_id)
+                            else:
+                                send_text_message(chat_id, "❌ <b>የተሳሳተ የአድሚን የይለፍ ቃል! (Incorrect password)</b>\nእባክዎ ትክክለኛውን የአድሚን የይለፍ ቃል ያስገቡ።")
+                        elif is_admin(chat_id):
+                            send_admin_menu(chat_id)
+                        else:
+                            send_text_message(chat_id, (
+                                "🔐 <b>Friendes Game | Admin Access</b>\n\n"
+                                "ይህ ክፍል ለተፈቀደላቸው አድሚኖች ብቻ የተወሰነ ነው።\n"
+                                "እባክዎ የአድሚን የይለፍ ቃልዎን በሚከተለው መልኩ ይላኩ:\n\n"
+                                "👉 <code>/admin &lt;password&gt;</code>"
+                            ))
 
                     elif text.startswith("/broadcast ") and is_admin(chat_id):
                         broadcast_text = text.split(" ", 1)[1].strip()

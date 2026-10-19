@@ -13,19 +13,26 @@
   const DEFAULT_DEMO_BALANCE = 1000.0;
   const DEFAULT_REAL_BALANCE = 0.0;
 
-  // Auto-detect mode from URL param (?mode=demo or ?mode=real)
+  // Auto-detect mode from URL param (?mode=demo). If not explicitly 'demo', default to 'real'
   (function initUrlMode() {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlMode = params.get('mode');
-      if (urlMode === 'demo' || urlMode === 'real') {
-        localStorage.setItem(MODE_KEY, urlMode);
+      if (urlMode === 'demo') {
+        localStorage.setItem(MODE_KEY, 'demo');
+      } else {
+        // Enforce REAL balance standard
+        localStorage.setItem(MODE_KEY, 'real');
       }
     } catch (e) {}
   })();
 
   function getMode() {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const urlMode = params.get('mode');
+      if (urlMode === 'demo') return 'demo';
+      if (urlMode === 'real') return 'real';
       const m = localStorage.getItem(MODE_KEY);
       return m === 'demo' ? 'demo' : 'real';
     } catch (e) {

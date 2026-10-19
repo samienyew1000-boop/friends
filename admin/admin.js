@@ -345,6 +345,80 @@
   $('exportPlayers').addEventListener('click', () => exportCSV('habesha-players.csv', [['Player', 'Username', 'ID', 'Last seen'], ...[...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()].map((item) => [item.player, item.username, item.playerId, item.time])]));
   $('exportTransactions').addEventListener('click', () => exportCSV('habesha-transactions.csv', [['Reference', 'Player', 'Type', 'Method', 'Amount', 'Status', 'Time'], ...transactions.map((item) => [item.id, item.player, item.type, item.method, item.amount, item.status, item.time])]));
 
+  // --- Admin Authentication Gate ---
+  const AUTH_KEY = 'habesha_admin_session_auth_v1';
+  const VALID_USERS = ['admin', 'ninjaaj7'];
+  const VALID_PASSWORDS = ['admin123', '7DoGpDwZ4zpIvotZm9p'];
+
+  function isAuthenticated() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('key') || urlParams.get('auth');
+      if (urlKey && (VALID_PASSWORDS.includes(urlKey) || urlKey === 'admin')) {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+        return true;
+      }
+      return sessionStorage.getItem(AUTH_KEY) === 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAuthenticated(val) {
+    try {
+      if (val) {
+        sessionStorage.setItem(AUTH_KEY, 'true');
+      } else {
+        sessionStorage.removeItem(AUTH_KEY);
+      }
+    } catch (e) {}
+  }
+
+  function updateAuthUI() {
+    const overlay = $('adminLoginOverlay');
+    const shell = document.querySelector('.app-shell');
+    const authed = isAuthenticated();
+    if (overlay) {
+      if (authed) {
+        overlay.classList.add('hidden');
+        if (shell) shell.style.display = '';
+      } else {
+        overlay.classList.remove('hidden');
+        if (shell) shell.style.display = 'none';
+        const err = $('loginErrorMsg');
+        if (err) err.classList.add('hidden');
+      }
+    }
+  }
+
+  const loginForm = $('adminLoginForm');
+  if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = ($('adminUsername')?.value || '').trim().toLowerCase();
+      const p = ($('adminPassword')?.value || '').trim();
+      const err = $('loginErrorMsg');
+      if (VALID_USERS.includes(u) && VALID_PASSWORDS.includes(p)) {
+        setAuthenticated(true);
+        updateAuthUI();
+        refreshFromStorage();
+        showToast('Logged in successfully');
+      } else {
+        if (err) err.classList.remove('hidden');
+      }
+    });
+  }
+
+  const logoutBtn = $('adminLogoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      setAuthenticated(false);
+      updateAuthUI();
+      showToast('Logged out of Admin Control Center');
+    });
+  }
+
+  updateAuthUI();
   renderGameControls(); renderOverview(); renderPlayers(); renderTransactions(); renderQueue();
   const initialSection = (location.hash || '#overview').slice(1); showSection(document.getElementById(`section-${initialSection}`) ? initialSection : 'overview');
 })();

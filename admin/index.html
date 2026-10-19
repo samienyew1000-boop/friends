@@ -36,7 +36,12 @@
     <main class="main-content">
       <header class="topbar">
         <div class="mobile-brand"><span class="brand-mark">FG</span><strong>Friendes Game Admin</strong></div>
-        <div class="topbar-actions"><span class="live-pill"><i></i> Live control</span><span class="admin-avatar">SA</span><span class="admin-name">Super admin</span></div>
+        <div class="topbar-actions">
+          <span class="live-pill"><i></i> Live control</span>
+          <span class="admin-avatar">SA</span>
+          <span class="admin-name">Super admin</span>
+          <button id="adminLogoutBtn" class="logout-btn" title="Log out">Log out ⎋</button>
+        </div>
       </header>
 
       <div class="content-wrap">
@@ -67,6 +72,35 @@
       </div>
     </main>
   </div>
+  
+  <!-- Admin Authentication Gate -->
+  <div id="adminLoginOverlay" class="login-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-badge">FG</div>
+        <h2>Friendes Game</h2>
+        <p>Admin Control Center Login</p>
+      </div>
+      <form id="adminLoginForm" onsubmit="return false;" class="login-form">
+        <div class="login-field">
+          <label for="adminUsername">Username</label>
+          <input type="text" id="adminUsername" placeholder="e.g. admin" autocomplete="username" required autofocus>
+        </div>
+        <div class="login-field">
+          <label for="adminPassword">Password</label>
+          <input type="password" id="adminPassword" placeholder="••••••••••••" autocomplete="current-password" required>
+        </div>
+        <div id="loginErrorMsg" class="login-error hidden">❌ Invalid username or password</div>
+        <button type="submit" id="adminLoginBtn" class="login-submit-btn">
+          <span>🔓 Sign In to Control Center</span>
+        </button>
+      </form>
+      <div class="login-footer">
+        <a href="../index.html" class="login-back-link">← Return to Player App</a>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status"></div>
   <script src="admin.js"></script>
 </body>
