@@ -425,7 +425,7 @@
     state.cars = [];
     const lanes = state.ladder.length;
     const diff = DIFFICULTIES[state.difficulty];
-    const roadH = canvas.height || 520;
+    const roadH = stage.clientHeight || 520;
 
     for (let i = 0; i < lanes; i++) {
       // Prioritize green delivery truck in early lane matching screenshot
@@ -458,7 +458,7 @@
     state.step = 0;
     state.phase = 'idle';
     state.chickenX = 78;
-    state.chickenY = CHICKEN_BASE_Y;
+    state.chickenY = getChickenBaseY();
     state.hopY = 0;
     state.fallY = 0;
     state.fallRotation = 0;
@@ -770,6 +770,11 @@
     }
   }
 
+  function getChickenBaseY() {
+    const h = stage.clientHeight || 520;
+    return Math.round(h * 0.52);
+  }
+
   // --- Canvas Sizing & Rendering ---
   function resizeCanvas() {
     const rect = stage.getBoundingClientRect();
@@ -777,6 +782,9 @@
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (state.phase === 'idle' || state.phase === 'won') {
+      state.chickenY = getChickenBaseY();
+    }
   }
 
   window.addEventListener('resize', resizeCanvas);
@@ -865,6 +873,23 @@
       const isNextTarget = i === state.step && (state.phase === 'playing' || state.phase === 'hopping');
 
       drawManhole(cx, cy, multiplierForStep(i + 1), isCleared, isCurrent, isNextTarget);
+    }
+
+    // 4. Right Finish Sidewalk (Goal Area)
+    const finishX = SIDEWALK_W + state.ladder.length * LANE_W - camX;
+    if (finishX < w + 300) {
+      if (images.sidewalk) {
+        ctx.save();
+        ctx.translate(finishX + SIDEWALK_W, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(images.sidewalk, 0, 0, SIDEWALK_W, h);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#b0b5bc';
+        ctx.fillRect(finishX, 0, SIDEWALK_W, h);
+      }
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(finishX, 0, 6, h);
     }
   }
 

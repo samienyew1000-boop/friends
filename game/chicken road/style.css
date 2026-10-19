@@ -60,6 +60,32 @@ html, body {
   z-index: 20;
 }
 
+.cr-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cr-lobby-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.15s ease;
+}
+
+.cr-lobby-back:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
 .cr-logo-wrap {
   display: flex;
   align-items: center;
@@ -787,4 +813,166 @@ input:checked + .cr-slider:before {
 
 .cr-rules-card li {
   margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   Desktop Responsive View for Chicken Road (Widescreen Gaming Arena)
+   ========================================================================== */
+@media (min-width: 768px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 25%, #1d222b 0%, #0a0b0e 80%);
+    min-height: 100vh;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .cr-shell {
+    width: 100%;
+    max-width: 1080px;
+    height: 92vh;
+    min-height: 640px;
+    max-height: 840px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85), 0 0 60px rgba(34, 197, 94, 0.06);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cr-topbar {
+    height: 60px;
+    padding: 0 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cr-lobby-back {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+
+  .cr-logo-wrap {
+    font-size: 1.3rem;
+  }
+
+  .cr-balance-pill {
+    padding: 7px 16px;
+    font-size: 1.05rem;
+  }
+
+  .cr-subbar {
+    top: 60px;
+    padding: 8px 24px;
+    font-size: 0.85rem;
+  }
+
+  .cr-stage {
+    flex: 1;
+    min-height: 380px;
+  }
+
+  /* Desktop Betting Control Panel - 3 Column Layout */
+  .cr-panel {
+    border-radius: 0 0 20px 20px;
+    padding: 18px 24px calc(18px + var(--safe-bottom));
+    display: grid;
+    grid-template-columns: 1.35fr 1fr 1.15fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "bet   diff   action"
+      "chips diff   action";
+    gap: 12px 20px;
+    align-items: center;
+  }
+
+  .cr-bet-row {
+    grid-area: bet;
+    margin: 0;
+    padding: 5px;
+  }
+
+  .cr-minmax-btn {
+    padding: 9px 18px;
+    font-size: 0.85rem;
+  }
+
+  #bet-input {
+    font-size: 1.25rem;
+  }
+
+  .cr-presets-row {
+    grid-area: chips;
+    margin: 0;
+    gap: 8px;
+  }
+
+  .cr-preset-chip {
+    padding: 9px 4px;
+    font-size: 1rem;
+  }
+
+  .cr-diff-wrap {
+    grid-area: diff;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .cr-diff-btn {
+    height: 100%;
+    min-height: 52px;
+    padding: 12px 18px;
+    font-size: 1rem;
+  }
+
+  .cr-diff-menu {
+    bottom: calc(100% + 8px);
+    width: 100%;
+  }
+
+  .cr-action-row {
+    grid-area: action;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .cr-play-btn {
+    height: 100%;
+    min-height: 86px;
+    font-size: 1.45rem;
+    letter-spacing: 0.04em;
+    border-radius: 14px;
+  }
+
+  .cr-inplay-group {
+    height: 100%;
+    min-height: 86px;
+    gap: 12px;
+  }
+
+  .cr-cashout-btn {
+    height: 100%;
+    padding: 12px 16px;
+    border-radius: 14px;
+  }
+
+  .cr-cashout-title {
+    font-size: 1.05rem;
+  }
+
+  .cr-cashout-val {
+    font-size: 1.2rem;
+  }
+
+  .cr-go-btn {
+    height: 100%;
+    border-radius: 14px;
+    font-size: 1.35rem;
+  }
 }
