@@ -8,7 +8,7 @@ const ROOM_CATALOG_KEY = "lucky-bingo-room-catalog-v1";
 const ROOM_LIFECYCLE_KEY = "lucky-bingo-room-lifecycle-v1";
 const LAST_WINNING_CARDS_KEY = "lucky-bingo-last-winning-cards-v1";
 const CARD_DATA_URL = "card%20number.json";
-const START_BALANCE = 0;
+const START_BALANCE = 1000;
 const DEFAULT_STARTING_BONUS = 10;
 const CARD_COUNT = 1000;
 const MAX_PICK = 50;
@@ -340,8 +340,9 @@ function getStartingBonusSettings() {
 }
 
 function loadInitialBalance() {
-  if (typeof window.HabeshaWallet !== "undefined") {
-    return window.HabeshaWallet.get();
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (typeof w !== "undefined") {
+    return w.get();
   }
   const stored = Number(localStorage.getItem(BALANCE_KEY));
   return Number.isFinite(stored) && stored >= 0 ? stored : START_BALANCE;
@@ -670,8 +671,9 @@ function scheduleRoomCountdown(roomId, now = Date.now()) {
 }
 
 function saveBalance() {
-  if (typeof window.HabeshaWallet !== "undefined") {
-    window.HabeshaWallet.set(balance);
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (typeof w !== "undefined") {
+    w.set(balance);
   }
   localStorage.setItem(BALANCE_KEY, String(balance));
 }
@@ -3336,8 +3338,9 @@ function syncPlayerWalletFromStorage() {
 
 window.addEventListener("storage", (event) => {
   if (event.key === BALANCE_KEY || event.key === "habesha_balance" || event.key === ADMIN_STATE_KEY) {
-    if (typeof window.HabeshaWallet !== "undefined") {
-      balance = window.HabeshaWallet.get();
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (typeof w !== "undefined") {
+      balance = w.get();
       renderBalance();
       updatePickInfo();
     }
@@ -3345,8 +3348,9 @@ window.addEventListener("storage", (event) => {
   }
 });
 
-if (typeof window.HabeshaWallet !== "undefined") {
-  window.HabeshaWallet.subscribe((newBal) => {
+const bWallet = window.FriendesWallet || window.HabeshaWallet;
+if (typeof bWallet !== "undefined") {
+  bWallet.subscribe((newBal) => {
     balance = newBal;
     renderBalance();
     updatePickInfo();

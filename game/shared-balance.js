@@ -11,7 +11,7 @@
   const USER_KEY = 'habesha_registered_user';
   const ADMIN_CONFIG_KEY = 'habesha_admin_config_v1';
   const DEFAULT_DEMO_BALANCE = 1000.0;
-  const DEFAULT_REAL_BALANCE = 0.0;
+  const DEFAULT_REAL_BALANCE = 1000.0;
 
   // Auto-detect mode from URL param (?mode=demo or ?mode=real)
   (function initUrlMode() {
@@ -102,8 +102,9 @@
 
     try {
       const raw = localStorage.getItem(STORAGE_KEY_REAL);
-      if (raw === null || raw === '' || isNaN(parseFloat(raw))) {
+      if (raw === null || raw === '' || isNaN(parseFloat(raw)) || parseFloat(raw) === 50000) {
         localStorage.setItem(STORAGE_KEY_REAL, DEFAULT_REAL_BALANCE.toFixed(2));
+        syncLegacyStorages(DEFAULT_REAL_BALANCE);
         return DEFAULT_REAL_BALANCE;
       }
       return round2(parseFloat(raw));
@@ -204,6 +205,8 @@
           kenoData.balance = val;
           localStorage.setItem('fast_keno_v1', JSON.stringify(kenoData));
         } catch (err) {}
+      } else {
+        localStorage.setItem('fast_keno_v1', JSON.stringify({ balance: val }));
       }
 
       // 3. Fish (fish-balance)
@@ -217,6 +220,8 @@
           infData.balance = val;
           localStorage.setItem('infinity_demo_v1', JSON.stringify(infData));
         } catch (err) {}
+      } else {
+        localStorage.setItem('infinity_demo_v1', JSON.stringify({ balance: val }));
       }
 
       // 5. Bingo Star (bingo-star-balance)
@@ -235,8 +240,8 @@
 
     // Listen to storage event (changes from another tab or window)
     window.addEventListener('storage', function (e) {
-      if (e.key === STORAGE_KEY && e.newValue !== null) {
-        callback(round2(e.newValue));
+      if ((e.key === STORAGE_KEY_REAL || e.key === STORAGE_KEY_DEMO || e.key === 'lucky-bingo-balance' || e.key === 'fast_keno_v1' || e.key === 'infinity_demo_v1') && e.newValue !== null) {
+        callback(get());
       }
     });
 
@@ -362,6 +367,7 @@
   global.FriendesWallet = HabeshaWallet;
 
   // Initialize and synchronize immediately
-  get();
+  const initialBal = get();
+  syncLegacyStorages(initialBal);
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

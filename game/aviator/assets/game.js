@@ -96,7 +96,7 @@
 
   // --- State Management ---
   const state = {
-    balance: 50000.0,
+    balance: 1000.0,
     status: 'WAITING', // 'WAITING', 'FLYING', 'CRASHED'
     multiplier: 1.00,
     crashPoint: 3.33,
@@ -134,15 +134,20 @@
 
   // --- Shared Wallet Sync ---
   function initWallet() {
-    if (window.HabeshaWallet) {
-      state.balance = window.HabeshaWallet.get();
-      window.HabeshaWallet.subscribe((newBal) => {
+    const wallet = window.FriendesWallet || window.HabeshaWallet;
+    if (wallet) {
+      state.balance = wallet.get();
+      wallet.subscribe((newBal) => {
         state.balance = newBal;
         updateBalanceUI();
       });
     } else {
       const stored = localStorage.getItem('habesha_balance');
-      if (stored) state.balance = parseFloat(stored) || 50000.0;
+      if (stored) {
+        state.balance = parseFloat(stored) || 1000.0;
+      } else {
+        state.balance = 1000.0;
+      }
     }
     updateBalanceUI();
   }
@@ -158,9 +163,11 @@
   }
 
   function deductBalance(amt) {
-    if (window.HabeshaWallet) {
-      if (window.HabeshaWallet.has(amt)) {
-        state.balance = window.HabeshaWallet.modify(-amt);
+    const wallet = window.FriendesWallet || window.HabeshaWallet;
+    if (wallet) {
+      if (wallet.has(amt)) {
+        state.balance = wallet.modify(-amt);
+        updateBalanceUI();
         return true;
       }
       return false;
@@ -175,13 +182,14 @@
   }
 
   function creditBalance(amt) {
-    if (window.HabeshaWallet) {
-      state.balance = window.HabeshaWallet.modify(amt);
+    const wallet = window.FriendesWallet || window.HabeshaWallet;
+    if (wallet) {
+      state.balance = wallet.modify(amt);
     } else {
       state.balance += amt;
       localStorage.setItem('habesha_balance', state.balance.toString());
-      updateBalanceUI();
     }
+    updateBalanceUI();
   }
 
   // --- Mock Live Players Database ---

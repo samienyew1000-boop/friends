@@ -124,7 +124,7 @@ def send_welcome(chat_id, first_name="Player"):
         f"<b>Welcome, {first_name}!</b>\n\n"
         f"🎮 <b>Featured Games:</b>\n"
         f"• ✈️ <b>Aviator</b> · 🎱 <b>Fast Keno</b> · 🐔 <b>Chicken Road</b>\n"
-        f"• 🐠 <b>Fish Road</b> · 🔢 <b>Dallol Bingo</b> · ⭐ <b>Bingo Star</b>\n"
+        f"• 🐠 <b>Fish Road</b> · 🔢 <b>Friendes Bingo</b> · ⭐ <b>Bingo Star</b>\n"
         f"• 📈 <b>Infinity</b> (1s Candlestick Trading)\n\n"
         f"💰 <b>Payment Methods:</b>\n"
         f"• <b>Telebirr</b> (Instant)\n"

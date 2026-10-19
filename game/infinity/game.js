@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE = "infinity_demo_v1";
-  const START_BALANCE = 10000;
+  const START_BALANCE = 1000;
 
   const MIN_BET = 1;
   const MAX_BET = 1000;
@@ -102,14 +102,16 @@
     } catch {
       balance = START_BALANCE;
     }
-    if (window.HabeshaWallet) {
-      balance = window.HabeshaWallet.get();
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      balance = w.get();
     }
   }
 
   function save() {
-    if (window.HabeshaWallet) {
-      window.HabeshaWallet.set(balance);
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      w.set(balance);
     }
     localStorage.setItem(
       STORAGE,
@@ -122,8 +124,9 @@
   }
 
   function updateBalanceDisplay() {
-    if (window.HabeshaWallet) {
-      balance = window.HabeshaWallet.get();
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w) {
+      balance = w.get();
     }
     if (balanceTextEl) balanceTextEl.textContent = moneyInt(balance);
   }
@@ -901,8 +904,9 @@
   seedPoints();
   bind();
 
-  if (window.HabeshaWallet) {
-    window.HabeshaWallet.subscribe((newBal) => {
+  const infWallet = window.FriendesWallet || window.HabeshaWallet;
+  if (infWallet) {
+    infWallet.subscribe((newBal) => {
       balance = newBal;
       updateBalanceDisplay();
     });
