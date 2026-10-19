@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Multi Hot 5 - Clean Room Reconstruction</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,900;1,900&family=Poppins:wght@400;600;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      body, html {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #000000;
+        font-family: 'Poppins', sans-serif;
+        color: #ffffff;
+      }
+
+      #app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at center, #073822 0%, #03170e 70%, #010a06 100%);
+      }
+
+      /* Top Header Shell */
+      #top-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 24px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+      }
+
+      .brand-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 14px;
+        letter-spacing: 1px;
+        color: #ffffff;
+      }
+
+      .brand-title span.red-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #ff3344;
+        display: inline-block;
+      }
+
+      .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .digital-clock {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 16px;
+        font-weight: 700;
+        color: #e0e0e0;
+      }
+
+      .menu-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .menu-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+      }
+
+      .menu-btn span {
+        display: block;
+        width: 18px;
+        height: 2px;
+        background-color: #ffffff;
+        border-radius: 2px;
+      }
+
+      /* Game Container Viewport */
+      #game-viewport {
+        position: relative;
+        width: 100%;
+        height: calc(100% - 48px);
+        margin-top: 48px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #game-canvas {
+        display: block;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
+      }
+
+      /* Preloader Overlay */
+      #preloader {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, #083822 0%, #03170e 80%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 500;
+        transition: opacity 0.5s ease;
+      }
+
+      #preloader.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loader-logo {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 42px;
+        letter-spacing: 4px;
+        color: #ffd23f;
+        text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 25px rgba(255, 210, 63, 0.4);
+        margin-bottom: 24px;
+      }
+
+      .loader-logo span {
+        color: #ff2a7a;
+      }
+
+      .progress-container {
+        width: 320px;
+        height: 12px;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 6px;
+        border: 1px solid rgba(255, 215, 0, 0.3);
+        overflow: hidden;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #ff2a7a, #ffd23f);
+        border-radius: 6px;
+        transition: width 0.15s ease-out;
+      }
+
+      .progress-text {
+        margin-top: 12px;
+        font-size: 14px;
+        color: #a0c4ab;
+        letter-spacing: 1px;
+      }
+
+      /* Modal Drawer Overlay */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+        display: flex;
+        justify-content: flex-end;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+
+      .modal-overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .drawer-container {
+        width: 640px;
+        max-width: 92vw;
+        height: 100%;
+        background: radial-gradient(circle at top right, #093c23 0%, #03180f 80%, #010c07 100%);
+        border-left: 2px solid rgba(255, 210, 63, 0.4);
+        box-shadow: -10px 0 40px rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        transform: translateX(0);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .modal-overlay.hidden .drawer-container {
+        transform: translateX(100%);
+      }
+
+      .drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255, 210, 63, 0.2);
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .drawer-tabs {
+        display: flex;
+        gap: 8px;
+      }
+
+      .tab-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #8da698;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        padding: 8px 14px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .tab-btn:hover {
+        color: #ffffff;
+      }
+
+      .tab-btn.active {
+        background: rgba(255, 210, 63, 0.15);
+        border-color: rgba(255, 210, 63, 0.4);
+        color: #ffd23f;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 32px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 4px;
+        transition: color 0.2s;
+      }
+
+      .close-btn:hover {
+        color: #ff3344;
+      }
+
+      .drawer-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+      }
+
+      .tab-pane {
+        display: none;
+      }
+
+      .tab-pane.active {
+        display: block;
+      }
+
+      .section-title {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        color: #58c38a;
+        border-bottom: 1px solid rgba(88, 195, 138, 0.2);
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+      }
+
+      .paytable-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 12px;
+      }
+
+      .paytable-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 210, 63, 0.2);
+        border-radius: 8px;
+        padding: 10px 14px;
+      }
+
+      .sym-badge {
+        font-size: 24px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+      }
+
+      .sym-details {
+        flex: 1;
+      }
+
+      .sym-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+
+      .sym-payout {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 14px;
+        color: #e0e0e0;
+        margin-top: 2px;
+      }
+
+      .gold {
+        color: #ffd23f;
+        font-weight: 700;
+      }
+
+      .paylines-visual {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .payline-card {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+        flex: 1;
+        min-width: 90px;
+      }
+
+      .line-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #ffd23f;
+        margin-bottom: 6px;
+      }
+
+      .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 16px);
+        gap: 4px;
+        justify-content: center;
+      }
+
+      .mini-grid .cell {
+        width: 16px;
+        height: 12px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 2px;
+      }
+
+      .mini-grid .cell.active {
+        background: #ff2a7a;
+        box-shadow: 0 0 6px #ff2a7a;
+      }
+
+      .rules-desc {
+        font-size: 13px;
+        line-height: 1.6;
+        color: #b2d6c1;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      /* Settings Styles */
+      .settings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+      }
+
+      .setting-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .setting-subtitle {
+        font-size: 12px;
+        color: #7b9e8b;
+        margin-top: 2px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background-color: #274334;
+        transition: 0.3s;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #00e676;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(22px);
+      }
+
+      .action-btn {
+        background: linear-gradient(135deg, #ffd23f, #ff9f1c);
+        color: #03170e;
+        border: none;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 12px;
+        letter-spacing: 1px;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 210, 63, 0.4);
+      }
+
+      /* History Table Styles */
+      .history-table-container {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      .history-table th {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #58c38a;
+        border-bottom: 1px solid rgba(88, 195, 138, 0.3);
+        padding: 10px 12px;
+        text-align: left;
+      }
+
+      .history-table td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: #d0e5d8;
+        font-family: 'Roboto Mono', monospace;
+      }
+
+      .history-table td.win-pos {
+        color: #ffd23f;
+        font-weight: 700;
+      }
+
+      .history-table td.win-zero {
+        color: #688a77;
+      }
+    </style>
+    <script src="../shared-balance.js?v=2.5"></script>
+    <script type="module" crossorigin src="./assets/index-BFj7JEMN.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Top Global Header -->
+      <header id="top-header">
+        <div class="brand-title">
+          <span class="red-dot"></span>
+          <span>SMARTSOFT GAMING</span>
+        </div>
+        <div class="header-controls">
+          <div id="clock" class="digital-clock">00:00:00</div>
+          <button id="menu-toggle-btn" class="menu-btn" title="Game Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Game Stage Container -->
+      <main id="game-viewport">
+        <canvas id="game-canvas"></canvas>
+      </main>
+
+      <!-- Preloader -->
+      <div id="preloader">
+        <div class="loader-logo">MULTI HOT <span>5</span></div>
+        <div class="progress-container">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="progress-text" class="progress-text">Loading game assets... 0%</div>
+      </div>
+    </div>
+
+  </body>
+</html>

@@ -242,6 +242,12 @@
 
       // 6. Lucky Bingo (lucky-bingo-balance)
       localStorage.setItem('lucky-bingo-balance', String(val));
+
+      // 7. Multi Hot 5 (multi_hot_balance)
+      localStorage.setItem('multi_hot_balance', String(val));
+
+      // 8. Tower Dash (tower_balance)
+      localStorage.setItem('tower_balance', String(val));
     } catch (e) {
       console.warn('Error syncing legacy keys:', e);
     }

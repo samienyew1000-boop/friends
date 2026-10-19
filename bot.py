@@ -326,13 +326,25 @@ def send_registration_success(chat_id, user):
     })
 
     # 2. Card with photo and account balances
+    bal = float(user.get("balance", 0.0))
     caption = (
         f"ሰላም {display_user}!\n"
-        f"የጨዋታ ሂሳብ: 0 ETB\n"
-        f"የአሸናፊነት ሂሳብ: 0 ETB"
+        f"የጨዋታ ሂሳብ: <b>{bal:.2f} ETB</b>\n"
+        f"የአሸናፊነት ሂሳብ: 0.00 ETB"
     )
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
     main_kb = get_main_reply_keyboard(chat_id, user)
+    app_url = get_user_webapp_url(chat_id, user)
+
+    # Sync user's custom webapp URL (with exact balance) to their menu button
+    api_call("setChatMenuButton", {
+        "chat_id": chat_id,
+        "menu_button": {
+            "type": "web_app",
+            "text": "🎮 Play Games",
+            "web_app": {"url": app_url}
+        }
+    })
 
     res = api_call("sendPhoto", {
         "chat_id": chat_id,
@@ -358,11 +370,23 @@ def send_welcome(chat_id, user=None):
     username = user.get("username")
     display_user = f"@{username}" if username else first_name
     main_kb = get_main_reply_keyboard(chat_id, user)
+    bal = float(user.get("balance", 0.0))
+    app_url = get_user_webapp_url(chat_id, user)
+
+    # Sync user's custom webapp URL (with exact balance) to their menu button
+    api_call("setChatMenuButton", {
+        "chat_id": chat_id,
+        "menu_button": {
+            "type": "web_app",
+            "text": "🎮 Play Games",
+            "web_app": {"url": app_url}
+        }
+    })
 
     caption = (
         f"ሰላም {display_user}!\n"
-        f"የጨዋታ ሂሳብ: 0 ETB\n"
-        f"የአሸናፊነት ሂሳብ: 0 ETB"
+        f"የጨዋታ ሂሳብ: <b>{bal:.2f} ETB</b>\n"
+        f"የአሸናፊነት ሂሳብ: 0.00 ETB"
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
@@ -681,6 +705,14 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
         save_all_users(users)
 
         play_url = get_user_webapp_url(chat_id, users[uid_str])
+        api_call("setChatMenuButton", {
+            "chat_id": chat_id,
+            "menu_button": {
+                "type": "web_app",
+                "text": "🎮 Play Games",
+                "web_app": {"url": play_url}
+            }
+        })
         api_call("sendMessage", {
             "chat_id": chat_id,
             "text": (

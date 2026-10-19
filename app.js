@@ -883,6 +883,16 @@
       url: 'game/tower trash/index.html',
       likes: '8.8k',
       desc: 'Official Galaxsys high-altitude crane building game! Time your drops, stack skyscraper floors, and cash out before collapse!'
+    },
+    'multi_hot_5': {
+      title: 'Multi Hot 5',
+      provider: 'SmartSoft Gaming',
+      multiplier: '5-Line Classic',
+      category: 'Slots',
+      image: 'game/MultiHot5/assets/background.jpg',
+      url: 'game/MultiHot5/index.html',
+      likes: '12.4k',
+      desc: 'Authentic SmartSoft 5-line retro fruit slot! Stack burning sevens, hot fruits, and multiply your payouts!'
     }
   };
 
@@ -898,6 +908,11 @@
   gameData['tower-trash'] = gameData['tower_trash'];
   gameData['tower_dash'] = gameData['tower_trash'];
   gameData['tower dash'] = gameData['tower_trash'];
+  gameData['multihot5'] = gameData['multi_hot_5'];
+  gameData['multihot'] = gameData['multi_hot_5'];
+  gameData['multihot_5'] = gameData['multi_hot_5'];
+  gameData['MultiHot5'] = gameData['multi_hot_5'];
+  gameData['multi hot 5'] = gameData['multi_hot_5'];
 
   let activeGameUrl = 'game/aviator/index.html';
   let activeGameId = 'aviator';
@@ -1030,8 +1045,12 @@
 
       setTimeout(() => {
         if (activeGameUrl) {
+          const curBal = window.HabeshaWallet ? window.HabeshaWallet.get() : (parseFloat(localStorage.getItem('habesha_balance')) || 0.0);
+          const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
+          const uid = user?.id || '';
+          const phone = user?.phone || '';
           const sep = activeGameUrl.includes('?') ? '&' : '?';
-          window.location.href = activeGameUrl + sep + 'mode=real';
+          window.location.href = `${activeGameUrl}${sep}mode=real&balance=${curBal.toFixed(2)}&uid=${encodeURIComponent(uid)}&phone=${encodeURIComponent(phone)}`;
         }
       }, 350);
     });
