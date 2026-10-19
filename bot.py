@@ -13,6 +13,7 @@ import logging
 import urllib.request
 import urllib.parse
 from pathlib import Path
+import re
 
 # Load environment variables from .env file if available
 def load_env():
@@ -146,9 +147,10 @@ def get_user_webapp_url(chat_id, user=None):
         user = users.get(str(chat_id), {})
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
+    bal = float(user.get("balance", 0.0))
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -592,7 +594,7 @@ def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebi
         "reply_markup": get_main_reply_keyboard(chat_id, user)
     })
 
-def approve_deposit(dep_id, admin_id):
+def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
     deposits = load_deposits()
     target = None
     for d in deposits:
@@ -605,13 +607,52 @@ def approve_deposit(dep_id, admin_id):
             "id": dep_id,
             "tx_id": dep_id,
             "status": "pending",
-            "amount": 100.0,
-            "chat_id": None
+            "amount": float(explicit_amount) if explicit_amount else 100.0,
+            "chat_id": int(explicit_chat_id) if explicit_chat_id else None
         }
         deposits.append(target)
 
     if target.get("status") == "completed":
         return False, "ቀድሞ ጸድቋል (Already approved)"
+
+    # Resolve chat_id if missing
+    if not target.get("chat_id"):
+        if explicit_chat_id:
+            target["chat_id"] = int(explicit_chat_id)
+        elif message_text:
+            m_uid = re.search(r"User\s*ID:\s*(\d+)", message_text, re.IGNORECASE)
+            if m_uid:
+                target["chat_id"] = int(m_uid.group(1))
+            else:
+                m_cid = re.search(r"Chat\s*ID:\s*(\d+)", message_text, re.IGNORECASE)
+                if m_cid:
+                    target["chat_id"] = int(m_cid.group(1))
+                else:
+                    m_user = re.search(r"@([A-Za-z0-9_]+)", message_text)
+                    if m_user:
+                        uname = m_user.group(1).lower()
+                        all_users = load_known_users()
+                        for uid_k, udata in all_users.items():
+                            if udata.get("username", "").lower() == uname:
+                                target["chat_id"] = int(uid_k)
+                                break
+                    if not target.get("chat_id"):
+                        m_ph = re.search(r"(\+?251\d{9}|09\d{8}|07\d{8})", message_text)
+                        if m_ph:
+                            ph = m_ph.group(1)
+                            all_users = load_known_users()
+                            for uid_k, udata in all_users.items():
+                                if udata.get("phone", "").replace(" ", "") == ph or udata.get("phone", "").endswith(ph[-9:]):
+                                    target["chat_id"] = int(uid_k)
+                                    break
+
+    # Resolve amount if explicit or from text
+    if explicit_amount and float(explicit_amount) > 0:
+        target["amount"] = float(explicit_amount)
+    elif message_text and (not target.get("amount") or target.get("amount") <= 0):
+        m_amt = re.search(r"(\d+(?:\.\d+)?)\s*ETB", message_text, re.IGNORECASE)
+        if m_amt:
+            target["amount"] = float(m_amt.group(1))
 
     target["status"] = "completed"
     target["approved_by"] = admin_id
@@ -620,25 +661,45 @@ def approve_deposit(dep_id, admin_id):
 
     chat_id = target.get("chat_id")
     amt = float(target.get("amount", 100.0))
+    new_balance = amt
     if chat_id:
         users = load_known_users()
-        if str(chat_id) in users:
-            users[str(chat_id)]["balance"] = round(users[str(chat_id)].get("balance", 0.0) + amt, 2)
-            save_all_users(users)
+        uid_str = str(chat_id)
+        if uid_str not in users:
+            users[uid_str] = {
+                "id": int(chat_id),
+                "first_name": target.get("name", "Player"),
+                "username": target.get("username", ""),
+                "phone": target.get("phone", ""),
+                "registered": True,
+                "balance": 0.0,
+                "updated": time.time()
+            }
+        new_balance = round(users[uid_str].get("balance", 0.0) + amt, 2)
+        users[uid_str]["balance"] = new_balance
+        users[uid_str]["updated"] = time.time()
+        save_all_users(users)
 
+        play_url = get_user_webapp_url(chat_id, users[uid_str])
         api_call("sendMessage", {
             "chat_id": chat_id,
             "text": (
                 f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
                 f"የ <b>{amt:.2f} ETB</b> የገቢ ክፍያዎ በአድሚን ተረጋግጦ ጸድቋል (Approved)!\n"
-                f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n\n"
-                f"ገንዘቡ ወደ ሂሳብዎ ገብቷል። አሁን ጨዋታውን ከፍተው መጫወት ይችላሉ። መልካም እድል! 🍀"
+                f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n"
+                f"💰 <b>የአሁኑ የጨዋታ ሂሳብዎ:</b> <b>{new_balance:.2f} ETB</b>\n\n"
+                f"ገንዘቡ ወደ ሂሳብዎ ገብቷል። አሁን ከታች ያለውን ቁልፍ ተጭነው መጫወት ይችላሉ። መልካም እድል! 🍀"
             ),
-            "parse_mode": "HTML"
+            "parse_mode": "HTML",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": "🎮 አሁን ይጫወቱ (Play Now)", "web_app": {"url": play_url}}]
+                ]
+            }
         })
-    return True, "Approved"
+    return True, f"Approved! +{amt:.2f} ETB (Balance: {new_balance:.2f} ETB)"
 
-def reject_deposit(dep_id, admin_id):
+def reject_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
     deposits = load_deposits()
     target = None
     for d in deposits:
@@ -651,13 +712,34 @@ def reject_deposit(dep_id, admin_id):
             "id": dep_id,
             "tx_id": dep_id,
             "status": "pending",
-            "amount": 0.0,
-            "chat_id": None
+            "amount": float(explicit_amount) if explicit_amount else 0.0,
+            "chat_id": int(explicit_chat_id) if explicit_chat_id else None
         }
         deposits.append(target)
 
     if target.get("status") == "rejected":
         return False, "ቀድሞ ተሰርዟል (Already rejected)"
+
+    if not target.get("chat_id"):
+        if explicit_chat_id:
+            target["chat_id"] = int(explicit_chat_id)
+        elif message_text:
+            m_uid = re.search(r"User\s*ID:\s*(\d+)", message_text, re.IGNORECASE)
+            if m_uid:
+                target["chat_id"] = int(m_uid.group(1))
+            else:
+                m_cid = re.search(r"Chat\s*ID:\s*(\d+)", message_text, re.IGNORECASE)
+                if m_cid:
+                    target["chat_id"] = int(m_cid.group(1))
+                else:
+                    m_user = re.search(r"@([A-Za-z0-9_]+)", message_text)
+                    if m_user:
+                        uname = m_user.group(1).lower()
+                        all_users = load_known_users()
+                        for uid_k, udata in all_users.items():
+                            if udata.get("username", "").lower() == uname:
+                                target["chat_id"] = int(uid_k)
+                                break
 
     target["status"] = "rejected"
     target["rejected_by"] = admin_id
@@ -665,7 +747,6 @@ def reject_deposit(dep_id, admin_id):
     save_deposits(deposits)
 
     chat_id = target.get("chat_id")
-    amt = float(target.get("amount", 0.0))
     if chat_id:
         api_call("sendMessage", {
             "chat_id": chat_id,
@@ -684,6 +765,7 @@ def send_profile_info(chat_id, user):
     username = user.get("username")
     display_user = f"@{username}" if username else "Not set"
     main_kb = get_main_reply_keyboard(chat_id, user)
+    bal = float(user.get("balance", 0.0))
 
     text = (
         f"👤 <b>የተጫዋች ፕሮፋይል እና ሂሳብ (Profile & Balance)</b>\n\n"
@@ -691,7 +773,7 @@ def send_profile_info(chat_id, user):
         f"• <b>የተጠቃሚ ስም:</b> {display_user}\n"
         f"• <b>ስልክ ቁጥር:</b> <code>{phone or 'Not Registered'}</code>\n"
         f"• <b>የተጫዋች መለያ (ID):</b> <code>{chat_id}</code>\n"
-        f"• <b>የጨዋታ ሂሳብ:</b> 0.00 ETB\n"
+        f"• <b>የጨዋታ ሂሳብ:</b> <b>{bal:.2f} ETB</b>\n"
         f"• <b>የአሸናፊነት ሂሳብ:</b> 0.00 ETB\n"
         f"• <b>የአካውንት ሁኔታ:</b> የተረጋገጠ ተጫዋች ✓\n\n"
         f"ገቢ እና ወጪ ለማድረግ ከታች ያሉትን ቁልፎች ይጠቀሙ።"
@@ -868,7 +950,7 @@ def main():
                         cb_user = load_known_users().get(str(cb_chat_id), {})
 
                         if cb_data.startswith("dep_approve:") or cb_data.startswith("dep_reject:"):
-                            action, dep_id = cb_data.split(":", 1)
+                            action, rest = cb_data.split(":", 1)
                             caller_id = cb_from.get("id")
                             caller_username = cb_from.get("username", "")
 
@@ -880,19 +962,40 @@ def main():
                                 })
                                 continue
 
+                            # Support format: <uid>:<amt>:<dep_id> or <dep_id>
+                            dep_parts = rest.split(":")
+                            explicit_uid = None
+                            explicit_amt = None
+                            if len(dep_parts) == 3:
+                                try:
+                                    if dep_parts[0] and dep_parts[0] != "0":
+                                        explicit_uid = int(dep_parts[0])
+                                    explicit_amt = float(dep_parts[1])
+                                except Exception:
+                                    pass
+                                dep_id = dep_parts[2]
+                            else:
+                                dep_id = rest
+
+                            orig_text = cb_msg.get("text", "")
                             if action == "dep_approve":
-                                ok, info = approve_deposit(dep_id, caller_id)
+                                ok, info = approve_deposit(
+                                    dep_id,
+                                    caller_id,
+                                    explicit_chat_id=explicit_uid,
+                                    explicit_amount=explicit_amt,
+                                    message_text=orig_text
+                                )
                                 if ok:
                                     api_call("answerCallbackQuery", {
                                         "callback_query_id": cb_id,
-                                        "text": f"✅ ገቢ {dep_id} ጸድቋል!"
+                                        "text": f"✅ {info}"
                                     })
                                     admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
-                                    orig_text = cb_msg.get("text", "")
                                     api_call("editMessageText", {
                                         "chat_id": cb_chat_id,
                                         "message_id": cb_msg.get("message_id"),
-                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>",
+                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>({info})</i>",
                                         "parse_mode": "HTML"
                                     })
                                 else:
@@ -902,14 +1005,19 @@ def main():
                                         "show_alert": True
                                     })
                             else:
-                                ok, info = reject_deposit(dep_id, caller_id)
+                                ok, info = reject_deposit(
+                                    dep_id,
+                                    caller_id,
+                                    explicit_chat_id=explicit_uid,
+                                    explicit_amount=explicit_amt,
+                                    message_text=orig_text
+                                )
                                 if ok:
                                     api_call("answerCallbackQuery", {
                                         "callback_query_id": cb_id,
                                         "text": f"❌ ገቢ {dep_id} ተሰርዟል!"
                                     })
                                     admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
-                                    orig_text = cb_msg.get("text", "")
                                     api_call("editMessageText", {
                                         "chat_id": cb_chat_id,
                                         "message_id": cb_msg.get("message_id"),

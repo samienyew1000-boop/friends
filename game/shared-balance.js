@@ -24,6 +24,12 @@
         // Enforce REAL balance standard
         localStorage.setItem(MODE_KEY, 'real');
       }
+      const urlBal = params.get('balance');
+      if (urlBal !== null && !isNaN(parseFloat(urlBal))) {
+        const parsed = Math.max(0, round2(parseFloat(urlBal)));
+        localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
+        syncLegacyStorages(parsed);
+      }
     } catch (e) {}
   })();
 
@@ -320,6 +326,12 @@
           if (p && (!u.phone || u.phone !== p)) {
             u.phone = p;
             localStorage.setItem(USER_KEY, JSON.stringify(u));
+          }
+          const b = params.get('balance');
+          if (b !== null && !isNaN(parseFloat(b))) {
+            const parsed = Math.max(0, round2(parseFloat(b)));
+            localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
+            syncLegacyStorages(parsed);
           }
         } catch (err) {}
         return u;

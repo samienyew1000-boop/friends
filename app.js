@@ -438,17 +438,23 @@
       `🆔 <b>Ref:</b> <code>${tx.id}</code>\n` +
       `🧾 <b>Tx ID:</b> <code>${tx.txId}</code>\n` +
       `👤 <b>ተጫዋች:</b> ${tx.player} (${tx.username || ''})\n` +
+      (tx.userId ? `🆔 <b>User ID:</b> <code>${tx.userId}</code>\n` : '') +
       `📱 <b>የተላከበት ስልክ:</b> <code>${tx.phone}</code>\n` +
       `🏦 <b>የክፍያ ዘዴ:</b> ${tx.method}\n` +
       `💰 <b>መጠን:</b> <b>${Number(tx.amount).toFixed(2)} ETB</b>\n` +
       `⏰ <b>ሰዓት:</b> ${tx.time}\n\n` +
       `ማረጋገጫ ለማድረግ በአድሚን ዳሽቦርድ ወይም ከስር ባሉት ቁልፎች ይጠቀሙ:`;
 
+    const uid = tx.userId || '';
+    const amt = Math.round(Number(tx.amount) || 100);
+    const cbApprove = uid ? `dep_approve:${uid}:${amt}:${tx.id}` : `dep_approve:${tx.id}`;
+    const cbReject = uid ? `dep_reject:${uid}:${amt}:${tx.id}` : `dep_reject:${tx.id}`;
+
     const inlineKeyboard = {
       inline_keyboard: [
         [
-          { text: '✅ አጽድቅ (Approve)', callback_data: `dep_approve:${tx.id}` },
-          { text: '❌ ሰርዝ (Reject)', callback_data: `dep_reject:${tx.id}` }
+          { text: '✅ አጽድቅ (Approve)', callback_data: cbApprove },
+          { text: '❌ ሰርዝ (Reject)', callback_data: cbReject }
         ]
       ]
     };
@@ -508,10 +514,14 @@
       const methodLabel = state.currentPayment === 'telebirr' ? 'Telebirr' : (state.currentPayment === 'cbe' ? 'CBE Birr' : state.currentPayment.toUpperCase());
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
 
+      const rawUid = user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '';
+      const uid = /^\d+$/.test(rawUid) ? rawUid : (window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : '');
+
       const txRecord = {
         id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
         txId: txId,
         playerId: pid,
+        userId: uid,
         player: playerName,
         username: playerUsername,
         phone: phone,
