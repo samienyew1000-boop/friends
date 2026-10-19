@@ -429,7 +429,7 @@
   }
 
   // Telegram Admin Notification Helper
-  const TG_BOT_TOKEN = '8623497673:AAEkpGYZJq3jxTrD4RFathomGgYKcGQJElU';
+  const TG_BOT_TOKEN = '8623497673:AAGUQP1SoPLDPbUqBydhe8SYBF2ybXHufYM';
   const TG_ADMIN_CHAT_IDS = ['8474256363', '5663531258'];
 
   async function sendTelegramAdminDepositAlert(tx) {
