@@ -305,18 +305,45 @@
   function getUser() {
     try {
       const raw = localStorage.getItem(USER_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const u = JSON.parse(raw);
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const p = params.get('phone');
+          if (p && (!u.phone || u.phone !== p)) {
+            u.phone = p;
+            localStorage.setItem(USER_KEY, JSON.stringify(u));
+          }
+        } catch (err) {}
+        return u;
+      }
     } catch (e) {}
-    // If inside Telegram WebApp, auto-read telegram user
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.user) {
-      const tg = window.Telegram.WebApp.initDataUnsafe.user;
-      return {
-        id: tg.id,
+
+    let qPhone = '';
+    let qUid = '';
+    let qName = '';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      qPhone = params.get('phone') || '';
+      qUid = params.get('uid') || '';
+      qName = params.get('name') || '';
+    } catch (err) {}
+
+    // If inside Telegram WebApp or URL has phone/uid
+    if (typeof window !== 'undefined' && (window.Telegram?.WebApp?.initDataUnsafe?.user || qPhone || qUid)) {
+      const tg = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+      const u = {
+        id: tg.id || qUid || ('tg_' + Math.floor(100000000 + Math.random() * 900000000)),
         username: tg.username || '',
-        name: tg.first_name + (tg.last_name ? ' ' + tg.last_name : ''),
+        name: qName || (tg.first_name ? tg.first_name + (tg.last_name ? ' ' + tg.last_name : '') : 'Friendes Game Player'),
+        phone: qPhone,
         isTelegram: true,
         isRegistered: true
       };
+      try {
+        localStorage.setItem(USER_KEY, JSON.stringify(u));
+      } catch (e) {}
+      return u;
     }
     return null;
   }
@@ -330,6 +357,7 @@
       id: data.id || ('tg_' + Math.floor(100000000 + Math.random() * 900000000)),
       username: data.username ? data.username.replace('@', '') : '',
       name: data.name || data.username || 'Friendes Game Player',
+      phone: data.phone || '',
       registeredAt: new Date().toISOString(),
       isRegistered: true
     };

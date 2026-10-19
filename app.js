@@ -437,6 +437,138 @@
     }, 1200);
   });
 
+  // --- Auto Prefill Registered User Phone in Deposit Modal ---
+  try {
+    const regUser = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
+    const depPhoneInput = document.getElementById('depositPhoneInput');
+    if (regUser && regUser.phone && depPhoneInput) {
+      // Strip leading +251 9 or 09 to match prefix
+      let cleanP = regUser.phone.trim();
+      cleanP = cleanP.replace(/^\+251\s*9?/, '').replace(/^251\s*9?/, '').replace(/^09/, '');
+      depPhoneInput.value = cleanP;
+    }
+  } catch (e) {}
+
+  // --- Withdraw Flow ---
+  const withdrawModal = document.getElementById('withdrawModal');
+  const withdrawAvailableBal = document.getElementById('withdrawAvailableBal');
+  const withdrawCustomAmount = document.getElementById('withdrawCustomAmount');
+  const withdrawPhoneInput = document.getElementById('withdrawPhoneInput');
+  const confirmWithdrawBtn = document.getElementById('confirmWithdrawBtn');
+  let selectedWithdrawAmount = 500;
+  let currentWithdrawPayment = 'telebirr';
+
+  function updateWithdrawModalUI() {
+    const curBal = typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : state.balance;
+    if (withdrawAvailableBal) {
+      withdrawAvailableBal.textContent = `${curBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;
+    }
+    const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
+    if (user && user.phone && withdrawPhoneInput) {
+      withdrawPhoneInput.value = user.phone;
+    }
+  }
+
+  document.querySelectorAll('.open-withdraw-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sound.playClick();
+      updateWithdrawModalUI();
+      openModal(withdrawModal);
+    });
+  });
+
+  const withdrawMethods = document.querySelectorAll('.withdraw-method-item');
+  withdrawMethods.forEach((item) => {
+    item.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+      withdrawMethods.forEach((p) => {
+        p.classList.remove('border-teal-500', 'bg-teal-500/10');
+        p.classList.add('border-slate-800', 'bg-slate-900/60');
+      });
+      item.classList.add('border-teal-500', 'bg-teal-500/10');
+      item.classList.remove('border-slate-800', 'bg-slate-900/60');
+      currentWithdrawPayment = item.dataset.method;
+    });
+  });
+
+  const withdrawAmountPills = document.querySelectorAll('.withdraw-amount-pill');
+  withdrawAmountPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+      withdrawAmountPills.forEach((p) => {
+        p.classList.remove('bg-teal-500', 'text-white', 'font-bold');
+        p.classList.add('bg-slate-800', 'text-slate-300');
+      });
+      pill.classList.remove('bg-slate-800', 'text-slate-300');
+      pill.classList.add('bg-teal-500', 'text-white', 'font-bold');
+      if (pill.id === 'withdrawAllBtn') {
+        const curBal = typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : state.balance;
+        selectedWithdrawAmount = curBal;
+        if (withdrawCustomAmount) withdrawCustomAmount.value = Math.floor(curBal);
+      } else {
+        const val = parseInt(pill.dataset.amount, 10);
+        selectedWithdrawAmount = val;
+        if (withdrawCustomAmount) withdrawCustomAmount.value = val;
+      }
+    });
+  });
+
+  if (withdrawCustomAmount) {
+    withdrawCustomAmount.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      selectedWithdrawAmount = val;
+    });
+  }
+
+  if (confirmWithdrawBtn) {
+    confirmWithdrawBtn.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+      const curBal = typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : state.balance;
+      const amount = selectedWithdrawAmount || parseFloat(withdrawCustomAmount.value) || 0;
+      const phone = withdrawPhoneInput ? withdrawPhoneInput.value.trim() : '';
+
+      if (amount < 50) {
+        showToast('Minimum withdrawal amount is 50 ETB', 'error');
+        return;
+      }
+      if (amount > curBal) {
+        showToast(`Insufficient balance! Your balance is ${curBal.toFixed(2)} ETB`, 'error');
+        return;
+      }
+      if (!phone || phone.length < 8) {
+        showToast('Please enter your payout phone number', 'error');
+        return;
+      }
+
+      confirmWithdrawBtn.disabled = true;
+      confirmWithdrawBtn.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-black inline" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        Processing Payout Request...
+      `;
+
+      setTimeout(() => {
+        const w = window.FriendesWallet || window.HabeshaWallet;
+        if (w) {
+          state.balance = w.modify(-amount);
+        } else {
+          state.balance -= amount;
+          localStorage.setItem('habesha_balance', state.balance.toFixed(2));
+        }
+        updateBalanceDisplay();
+        closeModal(withdrawModal);
+        confirmWithdrawBtn.disabled = false;
+        confirmWithdrawBtn.innerHTML = `Request Payout`;
+        showToast(`✅ Withdrawal of ${amount.toFixed(2)} ETB requested! Payout will be sent to ${phone}.`, 'success');
+      }, 1200);
+    });
+  }
+
   // --- Coupon Card Flow ---
   const couponBannerCard = document.getElementById('couponBannerCard');
   couponBannerCard.addEventListener('click', () => openModal(couponModal));

@@ -98,12 +98,19 @@
           </button>
         </div>
 
-        <!-- + Deposit Button -->
-        <button class="open-deposit-btn bg-[#00897b] hover:bg-[#00796b] active:scale-95 text-white font-bold text-xs px-3.5 py-1.5 rounded-full flex items-center space-x-1 shadow-md shadow-teal-950/50 border border-teal-400/30 transition-all">
+        <!-- Deposit & Withdraw Buttons -->
+        <button class="open-deposit-btn bg-[#00897b] hover:bg-[#00796b] active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-full flex items-center space-x-1 shadow-md shadow-teal-950/50 border border-teal-400/30 transition-all">
           <svg class="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           <span>Deposit</span>
+        </button>
+
+        <button class="open-withdraw-btn bg-slate-800 hover:bg-slate-700 active:scale-95 text-teal-300 font-bold text-xs px-3 py-1.5 rounded-full flex items-center space-x-1 shadow-md border border-slate-700 transition-all">
+          <svg class="w-3.5 h-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+          </svg>
+          <span>Withdraw</span>
         </button>
       </div>
     </header>
@@ -481,6 +488,89 @@
       <!-- Confirm Button -->
       <button id="confirmDepositBtn" class="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-teal-500/25 active:scale-95 transition-all">
         Deposit Now
+      </button>
+    </div>
+  </div>
+
+  <!-- 1.5 WITHDRAW MODAL -->
+  <div id="withdrawModal" class="modal-backdrop fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="modal-content w-full max-w-[420px] bg-[#121824] border-t sm:border border-slate-700/60 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[90vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-base">
+            💸
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-white">Withdraw ETB</h3>
+            <p class="text-xs text-slate-400">Direct payout to your registered mobile wallet</p>
+          </div>
+        </div>
+        <button class="close-modal-btn w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">✕</button>
+      </div>
+
+      <!-- Real Balance Display in Modal -->
+      <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+        <div>
+          <p class="text-[10px] text-slate-400 uppercase font-semibold">Available Real Balance</p>
+          <p id="withdrawAvailableBal" class="text-base font-extrabold text-teal-400">0.00 ETB</p>
+        </div>
+        <span class="text-xs font-bold text-slate-500">Min: 50 ETB</span>
+      </div>
+
+      <!-- Payment Method Selection -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-2">Payout Method</label>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="withdraw-method-item cursor-pointer p-3 rounded-xl border border-teal-500 bg-teal-500/10 flex items-center space-x-3 transition-all" data-method="telebirr">
+            <img src="assets/telebirr.png" alt="Telebirr" class="w-8 h-8 object-contain rounded-md bg-white p-0.5" />
+            <div>
+              <p class="text-xs font-bold text-white">Telebirr</p>
+              <p class="text-[10px] text-teal-300">Instant Payout</p>
+            </div>
+          </div>
+          <div class="withdraw-method-item cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center space-x-3 transition-all" data-method="cbe">
+            <div class="w-8 h-8 rounded-md bg-purple-900/80 border border-purple-700 text-purple-200 font-extrabold flex items-center justify-center text-xs">
+              CBE
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white">CBE Birr</p>
+              <p class="text-[10px] text-slate-400">Direct Account</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Amount Presets -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-2">Withdraw Amount (ETB)</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="100">100 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="200">200 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-teal-500 text-xs font-bold text-white shadow-md shadow-teal-500/20 transition-all" data-amount="500">500 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="1000">1,000 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="2500">2,500 ETB</button>
+          <button id="withdrawAllBtn" class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-amber-400 transition-all">All In</button>
+        </div>
+        <div class="mt-2.5">
+          <input type="number" id="withdrawCustomAmount" value="500" min="50" placeholder="Custom Amount" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500" />
+        </div>
+      </div>
+
+      <!-- Payout Registered Mobile Phone Input -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Registered Payout Phone</label>
+        <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-teal-500">
+          <span class="px-3 text-xs font-bold text-slate-400 border-r border-slate-800">📱</span>
+          <input type="tel" id="withdrawPhoneInput" placeholder="+251 9..." class="w-full bg-transparent px-3 py-2 text-sm text-white focus:outline-none" />
+        </div>
+        <p class="text-[10px] text-teal-400 mt-1">✓ Verified with your Telegram account</p>
+      </div>
+
+      <!-- Confirm Button -->
+      <button id="confirmWithdrawBtn" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-sm rounded-xl shadow-lg shadow-amber-500/25 active:scale-95 transition-all">
+        Request Payout
       </button>
     </div>
   </div>
