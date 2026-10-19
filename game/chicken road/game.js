@@ -1360,6 +1360,44 @@
     w.subscribe(() => syncUi());
   }
 
+  // --- Fullscreen Controller ---
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  function toggleFullscreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  }
+
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        toggleFullscreen();
+      }
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    setTimeout(resizeCanvas, 100);
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    setTimeout(resizeCanvas, 100);
+  });
+
   // --- Initialize ---
   loadImages().then(() => {
     resizeCanvas();

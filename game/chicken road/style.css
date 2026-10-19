@@ -816,37 +816,38 @@ input:checked + .cr-slider:before {
 }
 
 /* ==========================================================================
-   Desktop Responsive View for Chicken Road (Widescreen Gaming Arena)
+   Desktop Responsive View for Chicken Road (100% Fullscreen Edge-to-Edge)
    ========================================================================== */
 @media (min-width: 768px) {
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 50% 25%, #1d222b 0%, #0a0b0e 80%);
-    min-height: 100vh;
-    padding: 24px;
-    box-sizing: border-box;
-    overflow-y: auto;
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #141619;
   }
 
   .cr-shell {
-    width: 100%;
-    max-width: 1080px;
-    height: 92vh;
-    min-height: 640px;
-    max-height: 840px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85), 0 0 60px rgba(34, 197, 94, 0.06);
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     display: flex;
     flex-direction: column;
   }
 
   .cr-topbar {
-    height: 60px;
-    padding: 0 24px;
+    height: 56px;
+    padding: 0 max(24px, calc((100vw - 1380px) / 2));
+    background: #181a1e;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
   }
 
   .cr-lobby-back {
@@ -865,28 +866,38 @@ input:checked + .cr-slider:before {
   }
 
   .cr-subbar {
-    top: 60px;
-    padding: 8px 24px;
+    top: 56px;
+    padding: 8px max(24px, calc((100vw - 1380px) / 2));
     font-size: 0.85rem;
   }
 
   .cr-stage {
     flex: 1;
-    min-height: 380px;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    background: #404246;
   }
 
-  /* Desktop Betting Control Panel - 3 Column Layout */
+  /* Desktop Betting Control Panel - 100% Edge-to-Edge with centered controls */
   .cr-panel {
-    border-radius: 0 0 20px 20px;
-    padding: 18px 24px calc(18px + var(--safe-bottom));
+    border-radius: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 16px max(24px, calc((100vw - 1380px) / 2)) calc(16px + var(--safe-bottom));
+    background: #181a1e;
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
     display: grid;
     grid-template-columns: 1.35fr 1fr 1.15fr;
     grid-template-rows: auto auto;
     grid-template-areas:
       "bet   diff   action"
       "chips diff   action";
-    gap: 12px 20px;
+    gap: 12px 24px;
     align-items: center;
+    max-width: 100%;
   }
 
   .cr-bet-row {
