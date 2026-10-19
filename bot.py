@@ -30,10 +30,18 @@ load_env()
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://samienyew1000-boop.github.io/friends/")
 ADMIN_URL = os.environ.get("ADMIN_URL", "https://samienyew1000-boop.github.io/friends/admin/")
+
+# Telegram Web Apps strictly require HTTPS URLs
+if not WEBAPP_URL.startswith("https://"):
+    WEBAPP_URL = "https://samienyew1000-boop.github.io/friends/"
+if not ADMIN_URL.startswith("https://"):
+    ADMIN_URL = "https://samienyew1000-boop.github.io/friends/admin/"
+
 ADMIN_USER_IDS = {
     value.strip() for value in os.environ.get("TELEGRAM_ADMIN_USER_IDS", "").split(",") if value.strip()
 }
 ADMIN_USER_IDS.add("8474256363")
+ADMIN_USER_IDS.add("5663531258")  # samTesfa19 ID from logs
 ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19"}
 if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
     for u in os.environ.get("TELEGRAM_ADMIN_USERNAMES", "").split(","):
@@ -64,6 +72,10 @@ def api_call(method, payload=None):
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8", errors="ignore")
+        logging.error(f"API Error ({method}): HTTP {e.code} - {err_msg}")
+        return None
     except Exception as e:
         logging.error(f"API Error ({method}): {e}")
         return None
@@ -754,7 +766,7 @@ def main():
                         else:
                             send_welcome(chat_id, user)
 
-                    elif text.startswith("/admin"):
+                    elif text.lower().startswith("/admin"):
                         if is_admin(chat_id, username):
                             send_admin_menu(chat_id)
                         else:
