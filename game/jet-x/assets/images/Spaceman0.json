@@ -1,0 +1,479 @@
+{"frames": {
+
+"Spaceman0/1":
+{
+	"frame": {"x":219,"y":96,"w":42,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":12,"w":42,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/2":
+{
+	"frame": {"x":263,"y":96,"w":42,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":12,"w":42,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/3":
+{
+	"frame": {"x":307,"y":96,"w":42,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":12,"w":42,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/4":
+{
+	"frame": {"x":88,"y":96,"w":42,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":12,"w":42,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/5":
+{
+	"frame": {"x":132,"y":96,"w":42,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":11,"y":12,"w":42,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/6":
+{
+	"frame": {"x":45,"y":96,"w":41,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":41,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/7":
+{
+	"frame": {"x":176,"y":96,"w":41,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":41,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/8":
+{
+	"frame": {"x":2,"y":96,"w":41,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":41,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/9":
+{
+	"frame": {"x":351,"y":96,"w":41,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":41,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/10":
+{
+	"frame": {"x":2,"y":144,"w":42,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/11":
+{
+	"frame": {"x":432,"y":144,"w":42,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/12":
+{
+	"frame": {"x":388,"y":144,"w":42,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/13":
+{
+	"frame": {"x":302,"y":144,"w":42,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/14":
+{
+	"frame": {"x":258,"y":144,"w":42,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/15":
+{
+	"frame": {"x":172,"y":144,"w":42,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/16":
+{
+	"frame": {"x":428,"y":192,"w":42,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":12,"y":12,"w":42,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/17":
+{
+	"frame": {"x":129,"y":144,"w":41,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/18":
+{
+	"frame": {"x":2,"y":192,"w":41,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/19":
+{
+	"frame": {"x":129,"y":192,"w":41,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/20":
+{
+	"frame": {"x":256,"y":192,"w":41,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/21":
+{
+	"frame": {"x":299,"y":192,"w":41,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/22":
+{
+	"frame": {"x":385,"y":192,"w":41,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":13,"y":12,"w":41,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/23":
+{
+	"frame": {"x":172,"y":192,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":12,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/24":
+{
+	"frame": {"x":87,"y":192,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":12,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/25":
+{
+	"frame": {"x":342,"y":192,"w":41,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":12,"w":41,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/26":
+{
+	"frame": {"x":46,"y":144,"w":40,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":14,"y":13,"w":40,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/27":
+{
+	"frame": {"x":216,"y":144,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":13,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/28":
+{
+	"frame": {"x":45,"y":192,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":13,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/29":
+{
+	"frame": {"x":346,"y":144,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":13,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/30":
+{
+	"frame": {"x":214,"y":192,"w":40,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":15,"y":13,"w":40,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/31":
+{
+	"frame": {"x":434,"y":96,"w":38,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":16,"y":13,"w":38,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/32":
+{
+	"frame": {"x":88,"y":144,"w":39,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":16,"y":13,"w":39,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/33":
+{
+	"frame": {"x":394,"y":96,"w":38,"h":46},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":16,"y":13,"w":38,"h":46},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/34":
+{
+	"frame": {"x":402,"y":49,"w":38,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":17,"y":14,"w":38,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/35":
+{
+	"frame": {"x":278,"y":49,"w":37,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":17,"y":14,"w":37,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/36":
+{
+	"frame": {"x":79,"y":49,"w":36,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":18,"y":14,"w":36,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/37":
+{
+	"frame": {"x":200,"y":49,"w":36,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":18,"y":14,"w":36,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/38":
+{
+	"frame": {"x":367,"y":2,"w":35,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":19,"y":14,"w":35,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/39":
+{
+	"frame": {"x":2,"y":49,"w":35,"h":45},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":19,"y":14,"w":35,"h":45},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/40":
+{
+	"frame": {"x":292,"y":2,"w":35,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":19,"y":15,"w":35,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/41":
+{
+	"frame": {"x":256,"y":2,"w":34,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":15,"w":34,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/42":
+{
+	"frame": {"x":220,"y":2,"w":34,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":15,"w":34,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/43":
+{
+	"frame": {"x":73,"y":2,"w":33,"h":44},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":15,"w":33,"h":44},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/44":
+{
+	"frame": {"x":2,"y":2,"w":33,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":16,"w":33,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/45":
+{
+	"frame": {"x":37,"y":2,"w":34,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":15,"w":34,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/46":
+{
+	"frame": {"x":145,"y":2,"w":35,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":15,"w":35,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/47":
+{
+	"frame": {"x":108,"y":2,"w":35,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":14,"w":35,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/48":
+{
+	"frame": {"x":329,"y":2,"w":36,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":14,"w":36,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/49":
+{
+	"frame": {"x":182,"y":2,"w":36,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":14,"w":36,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/50":
+{
+	"frame": {"x":445,"y":2,"w":37,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":13,"w":37,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/51":
+{
+	"frame": {"x":39,"y":49,"w":38,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":13,"w":38,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/52":
+{
+	"frame": {"x":238,"y":49,"w":38,"h":43},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":12,"w":38,"h":43},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/53":
+{
+	"frame": {"x":159,"y":49,"w":39,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":12,"w":39,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/54":
+{
+	"frame": {"x":404,"y":2,"w":39,"h":41},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":12,"w":39,"h":41},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/55":
+{
+	"frame": {"x":360,"y":49,"w":40,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":11,"w":40,"h":42},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/56":
+{
+	"frame": {"x":117,"y":49,"w":40,"h":41},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":11,"w":40,"h":41},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/57":
+{
+	"frame": {"x":317,"y":49,"w":41,"h":41},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":11,"w":41,"h":41},
+	"sourceSize": {"w":63,"h":63}
+},
+"Spaceman0/58":
+{
+	"frame": {"x":442,"y":49,"w":41,"h":42},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":20,"y":10,"w":41,"h":42},
+	"sourceSize": {"w":63,"h":63}
+}},
+"animations": {
+	"Spaceman0": ["Spaceman0/1","Spaceman0/2","Spaceman0/3","Spaceman0/4","Spaceman0/5","Spaceman0/6","Spaceman0/7","Spaceman0/8","Spaceman0/9","Spaceman0/10","Spaceman0/11","Spaceman0/12","Spaceman0/13","Spaceman0/14","Spaceman0/15","Spaceman0/16","Spaceman0/17","Spaceman0/18","Spaceman0/19","Spaceman0/20","Spaceman0/21","Spaceman0/22","Spaceman0/23","Spaceman0/24","Spaceman0/25","Spaceman0/26","Spaceman0/27","Spaceman0/28","Spaceman0/29","Spaceman0/30","Spaceman0/31","Spaceman0/32","Spaceman0/33","Spaceman0/34","Spaceman0/35","Spaceman0/36","Spaceman0/37","Spaceman0/38","Spaceman0/39","Spaceman0/40","Spaceman0/41","Spaceman0/42","Spaceman0/43","Spaceman0/44","Spaceman0/45","Spaceman0/46","Spaceman0/47","Spaceman0/48","Spaceman0/49","Spaceman0/50","Spaceman0/51","Spaceman0/52","Spaceman0/53","Spaceman0/54","Spaceman0/55","Spaceman0/56","Spaceman0/57","Spaceman0/58"]
+},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "Spaceman0.png",
+	"format": "RGBA4444",
+	"size": {"w":485,"h":240},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:f9242d6efbbe8e08a0b848ef9c998246:34a3907b460c9535f75c6393551c2825:6adad55075fba8f17e01ae58cc20ed0a$"
+}
+}

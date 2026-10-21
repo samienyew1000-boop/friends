@@ -930,6 +930,16 @@
       url: 'game/mines/index.html',
       likes: '14.8k',
       desc: 'Official Galaxsys 5x5 Mines grid! Uncover golden stars, dodge hidden bombs, and cash out your multiplier anytime!'
+    },
+    'jet_x': {
+      title: 'JetX',
+      provider: 'SmartSoft Gaming',
+      multiplier: '25,000x Crash',
+      category: 'Crash Game',
+      image: 'assets/game_jetx.png',
+      url: 'game/jet-x/index.html',
+      likes: '19.2k',
+      desc: 'Official SmartSoft JetX crash game! Watch the supersonic jet take flight, ride multiplying odds up to 25,000x, and cash out before it flies away!'
     }
   };
 
@@ -953,6 +963,10 @@
   gameData['mines_game'] = gameData['mines'];
   gameData['mines-game'] = gameData['mines'];
   gameData['mines game'] = gameData['mines'];
+  gameData['jet-x'] = gameData['jet_x'];
+  gameData['jetx'] = gameData['jet_x'];
+  gameData['JetX'] = gameData['jet_x'];
+  gameData['Jet-X'] = gameData['jet_x'];
 
   let activeGameUrl = 'game/aviator/index.html';
   let activeGameId = 'aviator';

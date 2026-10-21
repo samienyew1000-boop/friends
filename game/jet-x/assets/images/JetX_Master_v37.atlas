@@ -1,0 +1,711 @@
+JetX_Master_v37.png
+size:2033,1571
+filter:Linear,Linear
+scale:0.5
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00000
+bounds:1963,572,10,56
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00001
+bounds:1432,563,12,54
+offsets:1,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00002
+bounds:1580,564,13,58
+offsets:0,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00003
+bounds:1765,861,12,57
+offsets:1,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00004
+bounds:1751,858,12,60
+offsets:1,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00005
+bounds:1550,1183,12,61
+offsets:1,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00006
+bounds:1087,230,10,71
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00007
+bounds:2014,1321,10,84
+offsets:2,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00008
+bounds:1155,24,10,98
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00009
+bounds:1638,363,10,112
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00010
+bounds:2021,458,10,124
+offsets:2,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00011
+bounds:1638,375,10,122
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00012
+bounds:1598,351,10,111
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00013
+bounds:1831,467,10,93
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00014
+bounds:1598,327,10,96
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00015
+bounds:1691,125,10,92
+offsets:2,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00016
+bounds:1598,315,10,94
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00017
+bounds:1687,219,10,94
+offsets:2,0,13,124
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00018
+bounds:1598,339,10,97
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00019
+bounds:1598,7,10,92
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00020
+bounds:1605,113,10,94
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00021
+bounds:1926,369,10,88
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00022
+bounds:1155,12,10,98
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00023
+bounds:1692,7,10,92
+offsets:2,0,13,124
+rotate:90
+Jet Thruster/Thruster_FirstChangeLoop/Thruster_FirstChangeLoop_00024
+bounds:1982,929,10,100
+offsets:2,0,13,124
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00000
+bounds:1701,113,10,89
+offsets:14,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00001
+bounds:1361,461,36,96
+offsets:1,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00002
+bounds:1911,667,37,89
+offsets:0,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00003
+bounds:1253,1146,33,83
+offsets:3,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00004
+bounds:1198,593,31,110
+offsets:4,1,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00005
+bounds:1160,210,33,146
+offsets:2,1,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00006
+bounds:1267,538,37,163
+offsets:0,1,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00007
+bounds:1267,499,37,161
+offsets:0,1,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00008
+bounds:2014,1407,17,162
+offsets:11,1,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00009
+bounds:1982,1031,18,164
+offsets:11,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00010
+bounds:2002,671,19,162
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00011
+bounds:1806,669,19,164
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00012
+bounds:1827,669,19,164
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00013
+bounds:1848,669,19,164
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00014
+bounds:1869,669,19,164
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00015
+bounds:1890,669,19,164
+offsets:10,0,37,164
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00016
+bounds:1195,478,19,164
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00017
+bounds:1195,457,19,164
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00018
+bounds:1199,436,19,164
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00019
+bounds:1166,309,19,163
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00020
+bounds:1199,415,19,164
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_SecondChangeLoop/Thruster_SecondChangeLoop_00021
+bounds:1170,394,19,164
+offsets:10,0,37,164
+rotate:90
+Jet Thruster/Thruster_Start/Thruster_Start_00000
+bounds:1432,551,10,51
+offsets:1,0,11,51
+rotate:90
+Jet Thruster/Thruster_Start/Thruster_Start_00001
+bounds:1893,248,11,48
+offsets:0,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00002
+bounds:1595,571,10,51
+offsets:1,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00003
+bounds:1880,247,11,49
+offsets:0,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00004
+bounds:1762,375,10,50
+offsets:1,0,11,51
+rotate:90
+Jet Thruster/Thruster_Start/Thruster_Start_00005
+bounds:2021,408,10,48
+offsets:1,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00006
+bounds:1906,249,11,47
+offsets:0,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00007
+bounds:2021,358,10,48
+offsets:1,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00008
+bounds:1867,246,11,50
+offsets:0,0,11,51
+Jet Thruster/Thruster_Start/Thruster_Start_00009
+bounds:1786,9,9,49
+offsets:1,0,11,51
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00000
+bounds:1019,430,21,178
+offsets:14,4,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00001
+bounds:905,160,36,182
+offsets:6,1,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00002
+bounds:990,338,41,181
+offsets:5,1,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00003
+bounds:542,89,42,183
+offsets:4,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00004
+bounds:586,89,42,183
+offsets:5,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00005
+bounds:452,88,43,183
+offsets:3,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00006
+bounds:905,198,42,180
+offsets:4,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00007
+bounds:497,88,43,183
+offsets:4,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00008
+bounds:992,381,47,176
+offsets:3,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00009
+bounds:1019,453,50,174
+offsets:1,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00010
+bounds:1310,595,31,176
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00011
+bounds:452,56,30,178
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00012
+bounds:899,128,30,181
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00013
+bounds:981,306,30,183
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00014
+bounds:979,274,30,183
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00015
+bounds:897,96,30,180
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00016
+bounds:975,242,30,183
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00017
+bounds:1292,5,30,139
+offsets:9,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00018
+bounds:1155,178,30,146
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00019
+bounds:1308,208,30,130
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00020
+bounds:1155,146,30,145
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00021
+bounds:1173,330,30,150
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00022
+bounds:1331,315,30,137
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00023
+bounds:612,558,30,129
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00024
+bounds:1336,379,30,143
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00025
+bounds:1327,347,30,143
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00026
+bounds:1173,362,30,152
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00027
+bounds:1324,251,30,133
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00028
+bounds:1166,277,30,147
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00029
+bounds:1260,2,30,142
+offsets:9,0,51,183
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00030
+bounds:1331,283,30,136
+offsets:9,0,51,183
+rotate:90
+Jet Thruster/Thruster_ThirdChangeLoop/Thruster_ThirdChangeLoop_00031
+bounds:1164,245,30,147
+offsets:9,0,51,183
+rotate:90
+Jet_Trails/Jet_Trails_00000
+bounds:1365,411,132,48
+offsets:161,0,293,50
+Jet_Trails/Jet_Trails_00001
+bounds:697,340,291,39
+offsets:0,4,293,50
+Jet_Trails/Jet_Trails_00002
+bounds:1734,1257,272,33
+offsets:14,8,293,50
+Jet_Trails/Jet_Trails_00003
+bounds:1814,927,268,33
+offsets:13,8,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00004
+bounds:1849,928,267,32
+offsets:9,8,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00005
+bounds:697,243,276,32
+offsets:4,8,293,50
+Jet_Trails/Jet_Trails_00006
+bounds:1883,928,267,32
+offsets:5,8,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00007
+bounds:1616,609,257,32
+offsets:13,9,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00008
+bounds:1683,576,260,30
+offsets:10,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00009
+bounds:1580,624,260,34
+offsets:13,7,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00010
+bounds:1715,577,259,30
+offsets:15,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00011
+bounds:1917,925,270,30
+offsets:0,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00012
+bounds:2002,946,276,29
+offsets:0,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00013
+bounds:697,277,280,29
+offsets:0,10,293,50
+Jet_Trails/Jet_Trails_00014
+bounds:697,308,282,30
+offsets:0,10,293,50
+Jet_Trails/Jet_Trails_00015
+bounds:1734,1292,276,31
+offsets:0,9,293,50
+Jet_Trails/Jet_Trails_00016
+bounds:1734,1224,272,31
+offsets:0,9,293,50
+Jet_Trails/Jet_Trails_00017
+bounds:1781,924,271,31
+offsets:0,9,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00018
+bounds:1949,929,266,31
+offsets:0,8,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00019
+bounds:1650,601,265,31
+offsets:0,8,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00020
+bounds:615,2,256,26
+offsets:6,9,293,50
+Jet_Trails/Jet_Trails_00021
+bounds:1747,573,263,26
+offsets:8,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00022
+bounds:630,159,267,26
+offsets:4,10,293,50
+Jet_Trails/Jet_Trails_00023
+bounds:630,106,265,25
+offsets:3,11,293,50
+Jet_Trails/Jet_Trails_00024
+bounds:1734,1197,266,25
+offsets:2,11,293,50
+Jet_Trails/Jet_Trails_00025
+bounds:632,53,261,21
+offsets:0,11,293,50
+Jet_Trails/Jet_Trails_00026
+bounds:615,30,264,21
+offsets:2,11,293,50
+Jet_Trails/Jet_Trails_00027
+bounds:630,133,267,24
+offsets:13,10,293,50
+Jet_Trails/Jet_Trails_00028
+bounds:630,215,273,26
+offsets:7,10,293,50
+Jet_Trails/Jet_Trails_00029
+bounds:630,187,273,26
+offsets:6,10,293,50
+Jet_Trails/Jet_Trails_00030
+bounds:632,76,261,28
+offsets:4,10,293,50
+Jet_Trails/Jet_Trails_00031
+bounds:1751,920,275,28
+offsets:4,10,293,50
+rotate:90
+Jet_Trails/Jet_Trails_00032
+bounds:615,53,1,1
+SonicBoom/SonicBoom_00000
+bounds:615,53,1,1
+SonicBoom/SonicBoom_00001
+bounds:992,430,3,5
+offsets:76,50,100,107
+rotate:90
+SonicBoom/SonicBoom_00002
+bounds:1440,210,17,28
+offsets:65,38,100,107
+SonicBoom/SonicBoom_00003
+bounds:1499,402,45,57
+offsets:50,25,100,107
+SonicBoom/SonicBoom_00004
+bounds:1089,156,56,72
+offsets:44,20,100,107
+SonicBoom/SonicBoom_00005
+bounds:1851,298,70,79
+offsets:30,17,100,107
+SonicBoom/SonicBoom_00006
+bounds:1775,572,85,91
+offsets:15,6,100,107
+SonicBoom/SonicBoom_00007
+bounds:1416,8,89,100
+offsets:11,1,100,107
+SonicBoom/SonicBoom_00008
+bounds:1324,6,90,102
+offsets:10,0,100,107
+SonicBoom/SonicBoom_00009
+bounds:1507,9,89,99
+offsets:11,1,100,107
+SonicBoom/SonicBoom_00010
+bounds:1781,835,87,97
+offsets:13,4,100,107
+rotate:90
+SonicBoom/SonicBoom_00011
+bounds:895,2,86,92
+offsets:14,6,100,107
+SonicBoom/SonicBoom_00012
+bounds:1551,448,85,95
+offsets:15,3,100,107
+SonicBoom/SonicBoom_00013
+bounds:983,2,84,92
+offsets:16,6,100,107
+SonicBoom/SonicBoom_00014
+bounds:1510,209,81,88
+offsets:19,7,100,107
+rotate:90
+SonicBoom/SonicBoom_00015
+bounds:1488,545,81,90
+offsets:19,6,100,107
+rotate:90
+SonicBoom/SonicBoom_00016
+bounds:612,468,83,88
+offsets:17,8,100,107
+SonicBoom/SonicBoom_00017
+bounds:1936,202,83,88
+offsets:17,8,100,107
+SonicBoom/SonicBoom_00018
+bounds:1936,26,83,88
+offsets:17,8,100,107
+rotate:90
+SonicBoom/SonicBoom_00019
+bounds:1546,363,83,90
+offsets:17,7,100,107
+rotate:90
+SonicBoom/SonicBoom_00020
+bounds:1459,461,82,90
+offsets:18,6,100,107
+rotate:90
+SonicBoom/SonicBoom_00021
+bounds:1703,127,83,90
+offsets:17,7,100,107
+SonicBoom/SonicBoom_00022
+bounds:1788,127,84,90
+offsets:16,7,100,107
+SonicBoom/SonicBoom_00023
+bounds:1936,111,85,89
+offsets:15,8,100,107
+SonicBoom/SonicBoom_00024
+bounds:1069,2,84,92
+offsets:16,6,100,107
+SonicBoom/SonicBoom_00025
+bounds:1926,478,84,92
+offsets:16,6,100,107
+SonicBoom/SonicBoom_00026
+bounds:1174,505,86,91
+offsets:14,7,100,107
+rotate:90
+SonicBoom/SonicBoom_00027
+bounds:1830,379,86,94
+offsets:14,5,100,107
+rotate:90
+SonicBoom/SonicBoom_00028
+bounds:1733,387,85,95
+offsets:15,5,100,107
+rotate:90
+SonicBoom/SonicBoom_00029
+bounds:1516,113,87,94
+offsets:13,6,100,107
+SonicBoom/SonicBoom_00030
+bounds:1600,219,85,94
+offsets:15,6,100,107
+SonicBoom/SonicBoom_00031
+bounds:1926,381,86,95
+offsets:14,5,100,107
+SonicBoom/SonicBoom_00032
+bounds:1638,387,86,93
+offsets:14,6,100,107
+rotate:90
+SonicBoom/SonicBoom_00033
+bounds:1427,110,87,96
+offsets:13,4,100,107
+SonicBoom/SonicBoom_00034
+bounds:1605,125,84,92
+offsets:16,7,100,107
+SonicBoom/SonicBoom_00035
+bounds:1598,19,83,92
+offsets:16,6,100,107
+SonicBoom/SonicBoom_00036
+bounds:1766,20,83,91
+offsets:17,7,100,107
+SonicBoom/SonicBoom_00037
+bounds:1851,35,83,90
+offsets:16,8,100,107
+SonicBoom/SonicBoom_00038
+bounds:1949,835,82,92
+offsets:15,6,100,107
+SonicBoom/SonicBoom_00039
+bounds:1683,19,81,92
+offsets:14,6,100,107
+SonicBoom/SonicBoom_00040
+bounds:1923,292,75,91
+offsets:16,7,100,107
+rotate:90
+SonicBoom/SonicBoom_00041
+bounds:1510,292,69,86
+offsets:19,10,100,107
+rotate:90
+SonicBoom/SonicBoom_00042
+bounds:1963,584,60,81
+offsets:23,13,100,107
+SonicBoom/SonicBoom_00043
+bounds:1459,208,49,73
+offsets:32,16,100,107
+SonicBoom/SonicBoom_00044
+bounds:697,505,39,51
+offsets:43,29,100,107
+SonicBoom/SonicBoom_00045
+bounds:630,243,22,29
+offsets:59,40,100,107
+SonicBoom/SonicBoom_00046
+bounds:1195,453,2,2
+offsets:76,49,100,107
+aeroporti
+bounds:751,1335,804,208
+aeroportis anareklebi
+bounds:2,467,608,121
+aeroportis garajebi
+bounds:751,1057,587,82
+asfalti
+bounds:743,593,31,453
+rotate:90
+asfaltis qveda nawili
+bounds:1580,545,17,17
+asteroid1
+bounds:1862,572,93,99
+rotate:90
+asteroid1_Blur
+bounds:1638,475,93,99
+asteroid2
+bounds:1699,219,77,82
+rotate:90
+asteroid2_Blur
+bounds:1783,219,77,82
+rotate:90
+asteroid3_Blur
+bounds:1324,110,101,96
+barierebi
+bounds:1313,242,33,9
+rotate:90
+ca
+bounds:751,1545,24,1000
+rotate:90
+ca dasalupad
+bounds:1832,360,17,17
+ciskari
+bounds:2,590,739,465
+fanari
+bounds:1752,329,44,78
+rotate:90
+fanris anarekli
+bounds:1911,706,127,89
+rotate:90
+garajis anarekli
+bounds:1245,631,424,79
+rotate:90
+grubeli1
+bounds:743,505,429,86
+grubeli2
+bounds:743,896,500,159
+grubeli2_Blur
+bounds:743,735,500,159
+grubeli3
+bounds:751,1141,500,192
+grubeli3_Blur
+bounds:2,273,500,192
+gzis vertikaluri xazebi
+bounds:743,626,107,497
+rotate:90
+gzis xazi
+bounds:1155,36,103,108
+iupiteri
+bounds:1557,1334,209,209
+jet anarekl
+bounds:1618,868,327,79
+rotate:90
+jet borblebi
+bounds:1350,628,190,20
+jet chrdil
+bounds:1326,643,412,22
+rotate:90
+jet frta2
+bounds:1310,577,169,16
+jet frtis kide
+bounds:1267,582,41,9
+jet frtis qveda nawili
+bounds:1789,666,167,15
+rotate:90
+jet frtis shua nawili
+bounds:1324,240,132,9
+jet frtis zeda nawili
+bounds:1775,665,168,12
+rotate:90
+jet tani
+bounds:697,435,320,68
+jet ukana frta 1
+bounds:1851,7,81,26
+jet ukana frta 2
+bounds:1880,837,86,64
+rotate:90
+marsi
+bounds:1768,1325,244,244
+offsets:3,3,250,250
+milky way
+bounds:2,1057,747,512
+moon
+bounds:1831,479,93,91
+nateba fanris
+bounds:1733,474,96,96
+neptuni
+bounds:504,274,191,191
+satelit1
+bounds:1550,1197,182,135
+satelit2
+bounds:1350,886,266,293
+satelit3
+bounds:1253,1181,295,152
+saturni
+bounds:2,56,448,215
+varskvlevebi win
+bounds:1350,650,228,234
+offsets:2,2,231,238
+zgva
+bounds:697,381,293,52
+zgva livlivi
+bounds:2,2,611,52
+zgving
+bounds:1699,838,50,357

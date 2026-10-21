@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JetX - SmartSoft Gaming</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+  <script src="../shared-balance.js?v=2.5"></script>
+  <script>
+    if (!window.HabeshaWallet) {
+      const s = document.createElement('script');
+      s.src = '../../shared-balance.js?v=2.5';
+      document.head.appendChild(s);
+    }
+  </script>
+</head>
+<body>
+  <div class="app-container" id="app-container">
+    
+    <!-- Left Main Column (Stage + Betting Controls) -->
+    <main class="main-stage-wrapper">
+      
+      <!-- 1. Header Bar -->
+      <header class="game-header">
+        <div class="header-left">
+          <a href="../../index.html" class="header-icon-btn" id="lobby-back-btn" title="Back to Lobby" style="margin-right: 8px; text-decoration: none; display: flex; align-items: center; justify-content: center; color: #fff;" onclick="if(window.parent && window.parent !== window){try{window.parent.postMessage({type:'CLOSE_GAME'},'*');}catch(e){}}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </a>
+          <div class="brand-logo" id="brand-logo">
+            <span class="jet">Jet</span><span class="x">X</span>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Latency Indicator -->
+          <div id="latency-indicator" class="latency-tag">24MS</div>
+
+          <!-- Balance Pill -->
+          <div class="balance-pill">
+            <span class="amount" id="balance-amount">0.00 ETB</span>
+          </div>
+
+          <!-- Audio Mute Toggle -->
+          <button class="header-icon-btn" id="mute-btn" title="Toggle Sound">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+
+          <!-- Menu / Rules Button with Red Notification Dot -->
+          <button class="header-icon-btn menu-btn-container" id="menu-btn" title="Game Rules & Info">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <div class="badge-dot"></div>
+          </button>
+
+          <!-- Fullscreen Toggle -->
+          <button class="header-icon-btn fullscreen-btn-desktop" id="fullscreen-btn" title="Toggle Fullscreen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 2. History Sub-Bar (Directly below header) -->
+      <div class="history-sub-bar">
+        <div class="history-bar-container" id="history-bar">
+          <!-- Dynamically populated multiplier pills -->
+        </div>
+
+        <button class="history-dropdown-btn" id="history-dropdown-btn" title="View Full History">
+          <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+            <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 3. Flight Stage Area -->
+      <div class="flight-stage-container">
+        <canvas id="flight-canvas"></canvas>
+
+        <!-- HUD Layer -->
+        <div class="stage-hud">
+          <!-- Countdown Overlay (Before flight) -->
+          <div class="countdown-overlay" id="countdown-overlay">
+            <div class="countdown-circle-wrap">
+              <svg class="countdown-svg" viewBox="0 0 100 100">
+                <circle class="countdown-circle-bg" cx="50" cy="50" r="44"></circle>
+                <circle class="countdown-circle-progress" id="countdown-circle-progress" cx="50" cy="50" r="44"></circle>
+              </svg>
+              <div class="countdown-number" id="countdown-number">3</div>
+            </div>
+            <div class="countdown-label">Place a bet</div>
+          </div>
+
+          <!-- Multiplier Hero (In Flight) -->
+          <div class="multiplier-hero-display" id="multiplier-hero" style="display: none;">
+            1.00<span class="unit" id="multiplier-unit">x</span>
+          </div>
+
+          <!-- Stage Bets Pill (e.g. 90 Bets) -->
+          <div class="stage-bets-badge" id="stage-bets-badge">
+            <span class="status-dot-green"></span>
+            <span id="stage-bets-text">90 Bets</span>
+          </div>
+
+          <!-- Stage Status Badge (FLEW AWAY) -->
+          <div class="stage-status-badge" id="stage-status-badge">Place a bet</div>
+        </div>
+      </div>
+
+      <!-- 4. Betting Dock -->
+      <div class="bet-dock-container">
+        <!-- Promotion Banner centered directly above the dock -->
+        <div class="promo-banner" id="four-mode-toggle">
+          <span class="badge-new">New</span>
+          <span>Try 4 Bets Panel &gt;</span>
+        </div>
+
+        <div class="bet-panels-grid" id="bet-panels-grid">
+          
+          <!-- Panel 0 -->
+          <div class="bet-panel" id="bet-panel-0">
+            <div class="panel-header-row">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="auto-cashout-0">
+                  <span class="slider"></span>
+                </label>
+                <span class="auto-label">Auto cashout</span>
+                <input type="number" step="0.01" min="1.01" max="1000" value="1.50" class="auto-cashout-val-input" id="auto-cashout-val-0" style="display: none;">
+              </div>
+
+              <div class="autoplay-btn-wrap" title="Auto Play">
+                <input type="checkbox" id="autoplay-0" style="display:none">
+                <button type="button" class="btn-autoplay-icon" id="autoplay-btn-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-action-row">
+              <div class="stepper-col">
+                <div class="stepper-box">
+                  <button class="stepper-btn" id="btn-minus-0">−</button>
+                  <input type="number" step="0.50" min="0.10" max="100" value="5.00" class="bet-amount-input" id="bet-amount-0">
+                  <button class="stepper-btn" id="btn-plus-0">+</button>
+                </div>
+                <div class="quick-pills-row">
+                  <button class="quick-pill" data-val="20">20</button>
+                  <button class="quick-pill" data-val="50">50</button>
+                  <button class="quick-pill" data-val="100">100</button>
+                  <button class="quick-pill" data-val="max">Max</button>
+                </div>
+              </div>
+
+              <button class="btn-primary-action state-bet" id="btn-action-0">
+                <span class="action-top-text" id="action-top-text-0">$ 5.00</span>
+                <span class="action-bottom-text" id="action-bottom-text-0">Bet</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel 1 -->
+          <div class="bet-panel" id="bet-panel-1">
+            <div class="panel-header-row">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="auto-cashout-1">
+                  <span class="slider"></span>
+                </label>
+                <span class="auto-label">Auto cashout</span>
+                <input type="number" step="0.01" min="1.01" max="1000" value="2.00" class="auto-cashout-val-input" id="auto-cashout-val-1" style="display: none;">
+              </div>
+
+              <div class="autoplay-btn-wrap" title="Auto Play">
+                <input type="checkbox" id="autoplay-1" style="display:none">
+                <button type="button" class="btn-autoplay-icon" id="autoplay-btn-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-action-row">
+              <div class="stepper-col">
+                <div class="stepper-box">
+                  <button class="stepper-btn" id="btn-minus-1">−</button>
+                  <input type="number" step="0.50" min="0.10" max="100" value="5.00" class="bet-amount-input" id="bet-amount-1">
+                  <button class="stepper-btn" id="btn-plus-1">+</button>
+                </div>
+                <div class="quick-pills-row">
+                  <button class="quick-pill" data-val="20">20</button>
+                  <button class="quick-pill" data-val="50">50</button>
+                  <button class="quick-pill" data-val="100">100</button>
+                  <button class="quick-pill" data-val="max">Max</button>
+                </div>
+              </div>
+
+              <button class="btn-primary-action state-bet" id="btn-action-1">
+                <span class="action-top-text" id="action-top-text-1">$ 5.00</span>
+                <span class="action-bottom-text" id="action-bottom-text-1">Bet</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel 2 (Hidden by default, shown in 4-mode) -->
+          <div class="bet-panel" id="bet-panel-2" style="display: none;">
+            <div class="panel-header-row">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="auto-cashout-2">
+                  <span class="slider"></span>
+                </label>
+                <span class="auto-label">Auto cashout</span>
+                <input type="number" step="0.01" min="1.01" max="1000" value="3.00" class="auto-cashout-val-input" id="auto-cashout-val-2" style="display: none;">
+              </div>
+
+              <div class="autoplay-btn-wrap" title="Auto Play">
+                <input type="checkbox" id="autoplay-2" style="display:none">
+                <button type="button" class="btn-autoplay-icon" id="autoplay-btn-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-action-row">
+              <div class="stepper-col">
+                <div class="stepper-box">
+                  <button class="stepper-btn" id="btn-minus-2">−</button>
+                  <input type="number" step="0.50" min="0.10" max="100" value="5.00" class="bet-amount-input" id="bet-amount-2">
+                  <button class="stepper-btn" id="btn-plus-2">+</button>
+                </div>
+                <div class="quick-pills-row">
+                  <button class="quick-pill" data-val="20">20</button>
+                  <button class="quick-pill" data-val="50">50</button>
+                  <button class="quick-pill" data-val="100">100</button>
+                  <button class="quick-pill" data-val="max">Max</button>
+                </div>
+              </div>
+
+              <button class="btn-primary-action state-bet" id="btn-action-2">
+                <span class="action-top-text" id="action-top-text-2">$ 5.00</span>
+                <span class="action-bottom-text" id="action-bottom-text-2">Bet</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel 3 (Hidden by default, shown in 4-mode) -->
+          <div class="bet-panel" id="bet-panel-3" style="display: none;">
+            <div class="panel-header-row">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="auto-cashout-3">
+                  <span class="slider"></span>
+                </label>
+                <span class="auto-label">Auto cashout</span>
+                <input type="number" step="0.01" min="1.01" max="1000" value="5.00" class="auto-cashout-val-input" id="auto-cashout-val-3" style="display: none;">
+              </div>
+
+              <div class="autoplay-btn-wrap" title="Auto Play">
+                <input type="checkbox" id="autoplay-3" style="display:none">
+                <button type="button" class="btn-autoplay-icon" id="autoplay-btn-3">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="panel-action-row">
+              <div class="stepper-col">
+                <div class="stepper-box">
+                  <button class="stepper-btn" id="btn-minus-3">−</button>
+                  <input type="number" step="0.50" min="0.10" max="100" value="5.00" class="bet-amount-input" id="bet-amount-3">
+                  <button class="stepper-btn" id="btn-plus-3">+</button>
+                </div>
+                <div class="quick-pills-row">
+                  <button class="quick-pill" data-val="20">20</button>
+                  <button class="quick-pill" data-val="50">50</button>
+                  <button class="quick-pill" data-val="100">100</button>
+                  <button class="quick-pill" data-val="max">Max</button>
+                </div>
+              </div>
+
+              <button class="btn-primary-action state-bet" id="btn-action-3">
+                <span class="action-top-text" id="action-top-text-3">$ 5.00</span>
+                <span class="action-bottom-text" id="action-bottom-text-3">Bet</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 5. Sidebar / Multiplayer Table & Live Stats -->
+    <aside class="sidebar-container">
+      <!-- Tabs Navigation -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab-btn active" data-tab="players">CURRENT</button>
+        <button class="sidebar-tab-btn" data-tab="mybets">MY BETS</button>
+        <button class="sidebar-tab-btn" data-tab="top">TOP</button>
+      </div>
+
+      <!-- Current Round Summary Card -->
+      <div class="sidebar-summary-card">
+        <div class="summary-left">
+          <div class="badge-bets-count" id="round-bets-count">
+            <span class="status-dot-green"></span>
+            <span id="round-bets-num">90 Bets</span>
+          </div>
+        </div>
+
+        <div class="summary-right">
+          <div class="total-win-val" id="round-total-win">$ 0.00</div>
+        </div>
+      </div>
+
+      <!-- Table Header -->
+      <div class="table-header">
+        <div>User</div>
+        <div>Bet</div>
+        <div>X</div>
+        <div style="text-align: right">Win</div>
+      </div>
+
+      <!-- Scrollable Table Body -->
+      <div class="table-body" id="table-body">
+        <!-- Live rows injected here -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- History Dropdown Modal (100 Spins Grid) -->
+  <div class="modal-overlay" id="history-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Round History (Last 100 Rounds)</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;" id="history-grid-body">
+          <!-- Multiplier pills -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules & Paytable Modal -->
+  <div class="modal-overlay" id="rules-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>JetX Game Rules & Instructions</h3>
+        <button class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>How to Play JetX:</strong></p>
+        <ul style="margin-left: 1.25rem; margin-top: 0.5rem; margin-bottom: 1rem;">
+          <li>Place one or multiple bets before the jet takes off.</li>
+          <li>As the jet takes flight, the odds multiplier increases exponentially starting from <strong>1.00x</strong>.</li>
+          <li>Click <strong>Cash Out</strong> before the jet flies away ("FLEW AWAY") to collect your winnings: <code>Payout = Bet × Multiplier</code>.</li>
+          <li>If the jet flies away before you cash out, the bet is lost.</li>
+        </ul>
+        <p><strong>Game Limits & Provably Fair:</strong></p>
+        <ul style="margin-left: 1.25rem; margin-top: 0.5rem;">
+          <li>Minimum Bet: <strong>1.00 ETB</strong></li>
+          <li>Maximum Bet: <strong>1,000.00 ETB</strong></li>
+          <li>Maximum Multiplier: <strong>25,000.00x</strong></li>
+          <li>RTP (Return to Player): <strong>~97.00%</strong></li>
+          <li>Fairness: Every round crash point is predetermined using HMAC-SHA256.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

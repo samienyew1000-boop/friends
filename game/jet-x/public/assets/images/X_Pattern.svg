@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3652.31 2030.77">
+  <!-- Generator: Adobe Illustrator 30.6.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 109)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: url(#radial-gradient20);
+      }
+
+      .st1 {
+        fill: url(#radial-gradient10);
+      }
+
+      .st2 {
+        fill: url(#radial-gradient11);
+      }
+
+      .st3 {
+        fill: none;
+      }
+
+      .st4 {
+        fill: url(#radial-gradient);
+      }
+
+      .st5 {
+        fill: url(#radial-gradient21);
+      }
+
+      .st6 {
+        fill: url(#radial-gradient19);
+      }
+
+      .st7 {
+        fill: url(#radial-gradient22);
+      }
+
+      .st8 {
+        fill: url(#radial-gradient5);
+      }
+
+      .st9 {
+        fill: url(#radial-gradient1);
+      }
+
+      .st10 {
+        fill: url(#radial-gradient7);
+      }
+
+      .st11 {
+        fill: url(#radial-gradient18);
+      }
+
+      .st12 {
+        fill: url(#radial-gradient14);
+      }
+
+      .st13 {
+        fill: url(#radial-gradient13);
+      }
+
+      .st14 {
+        fill: url(#radial-gradient8);
+      }
+
+      .st15 {
+        fill: url(#radial-gradient12);
+      }
+
+      .st16 {
+        fill: url(#radial-gradient23);
+      }
+
+      .st17 {
+        fill: url(#radial-gradient17);
+      }
+
+      .st18 {
+        fill: url(#radial-gradient6);
+      }
+
+      .st19 {
+        fill: url(#radial-gradient2);
+      }
+
+      .st20 {
+        fill: url(#radial-gradient15);
+      }
+
+      .st21 {
+        fill: url(#radial-gradient4);
+      }
+
+      .st22 {
+        fill: url(#radial-gradient3);
+      }
+
+      .st23 {
+        fill: url(#radial-gradient9);
+      }
+
+      .st24 {
+        fill: url(#radial-gradient16);
+      }
+    </style>
+    <radialGradient id="radial-gradient" cx="1836.18" cy="1002.22" fx="1836.18" fy="1002.22" r="1564.87" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset=".73" stop-color="#feffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="radial-gradient1" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient2" cy="1002.22" fy="1002.22" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient3" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient4" cx="1836.18" fx="1836.18" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient5" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient6" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient7" cx="1836.18" fx="1836.18" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient8" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient9" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient10" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient11" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient12" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient13" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient14" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient15" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient16" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient17" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient18" cy="1002.22" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient19" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient20" cx="1836.18" fx="1836.18" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient21" cx="1836.18" fx="1836.18" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient22" cx="1836.18" fx="1836.18" r="1564.87" xlink:href="#radial-gradient"/>
+    <radialGradient id="radial-gradient23" cx="1836.18" cy="1002.22" fx="1836.18" fy="1002.22" r="1564.87" xlink:href="#radial-gradient"/>
+  </defs>
+  <g>
+    <polygon class="st4" points="1857.03 952.34 1855.69 949.44 1416.5 2.11 1420.13 .42 1857.97 944.86 2628.44 0 2631.54 2.53 1857.03 952.34"/>
+    <polygon class="st9" points="1880.1 821.22 1878.75 818.32 1500.35 2.11 1503.98 .42 1881.04 813.74 2544.58 0 2547.69 2.53 1880.1 821.22"/>
+    <polygon class="st4" points="1903.83 686.29 1902.49 683.38 1586.65 2.11 1590.28 .42 1904.77 678.8 2458.29 0 2461.39 2.53 1903.83 686.29"/>
+    <polygon class="st19" points="1927.32 552.79 1672.02 2.11 1675.64 .42 1928.26 545.31 2372.92 0 2376.02 2.53 1927.32 552.79"/>
+    <polygon class="st22" points="1950.59 420.47 1949.25 417.57 1756.64 2.11 1760.27 .42 1951.54 412.99 2288.3 0 2291.4 2.53 1950.59 420.47"/>
+    <polygon class="st4" points="1974.04 287.15 1841.9 2.11 1845.53 .42 1974.99 279.67 2203.04 0 2206.14 2.53 1974.04 287.15"/>
+    <polygon class="st21" points="1994.08 173.27 1914.72 2.11 1918.35 .42 1995.02 165.79 2130.21 0 2133.31 2.53 1994.08 173.27"/>
+    <polygon class="st4" points="2005.46 51.36 1982.63 2.11 1986.26 .42 2006.41 43.88 2042.18 0 2045.29 2.53 2005.46 51.36"/>
+    <polygon class="st4" points="965.14 2030.77 962.04 2028.25 1794.72 1001.63 1330.89 2.11 1334.52 .42 1799.4 1002.21 1798.62 1003.18 965.14 2030.77"/>
+    <polygon class="st4" points="1054.79 2030.77 1051.68 2028.25 1830.02 1067.62 2280.6 2028.66 2276.98 2030.36 1829.11 1075.1 1054.79 2030.77"/>
+    <polygon class="st8" points="1140.74 2030.77 1137.64 2028.25 1807.07 1202.02 2194.65 2028.66 2191.03 2030.36 1806.16 1209.5 1140.74 2030.77"/>
+    <polygon class="st18" points="1227.26 2030.77 1224.16 2028.25 1783.98 1337.3 2108.13 2028.66 2104.51 2030.36 1783.07 1344.78 1227.26 2030.77"/>
+    <polygon class="st10" points="1313.48 2030.77 1310.38 2028.25 1760.97 1472.12 2021.91 2028.66 2018.29 2030.36 1760.06 1479.6 1313.48 2030.77"/>
+    <polygon class="st4" points="1399.87 2030.77 1396.76 2028.25 1737.91 1607.19 1935.52 2028.66 1931.9 2030.36 1737 1614.67 1399.87 2030.77"/>
+    <polygon class="st4" points="1484.95 2030.77 1481.84 2028.25 1715.21 1740.22 1850.45 2028.66 1846.83 2030.36 1714.3 1747.7 1484.95 2030.77"/>
+    <polygon class="st4" points="1571.25 2030.77 1568.14 2028.25 1692.18 1875.16 1764.14 2028.66 1760.52 2030.36 1691.27 1882.64 1571.25 2030.77"/>
+    <polygon class="st14" points="2362.59 2030.36 1886.62 1013.77 1887.41 1012.8 2714 0 2717.1 2.53 1891.31 1014.36 2366.21 2028.66 2362.59 2030.36"/>
+    <polygon class="st23" points="2447.61 2030.36 1971.64 1013.77 1972.44 1012.8 2799.03 0 2802.12 2.53 1976.33 1014.36 2451.23 2028.66 2447.61 2030.36"/>
+    <polygon class="st1" points="2532.63 2030.36 2056.66 1013.77 2057.46 1012.8 2884.04 0 2887.14 2.53 2061.35 1014.36 2536.25 2028.66 2532.63 2030.36"/>
+    <polygon class="st2" points="2617.65 2030.36 2141.68 1013.77 2142.48 1012.8 2969.06 0 2972.16 2.53 2146.37 1014.36 2621.27 2028.66 2617.65 2030.36"/>
+    <polygon class="st15" points="2702.67 2030.36 2226.7 1013.77 2227.5 1012.8 3054.08 0 3057.18 2.53 2231.39 1014.36 2706.29 2028.66 2702.67 2030.36"/>
+    <polygon class="st13" points="2787.69 2030.36 2311.72 1013.77 2312.51 1012.8 3139.1 0 3142.2 2.53 2316.41 1014.36 2791.31 2028.66 2787.69 2030.36"/>
+    <polygon class="st12" points="2872.71 2030.36 2396.74 1013.77 2397.53 1012.8 3224.12 0 3227.22 2.53 2401.43 1014.36 2876.33 2028.66 2872.71 2030.36"/>
+    <polygon class="st20" points="2957.72 2030.36 2481.76 1013.77 2482.55 1012.8 3309.14 0 3312.24 2.53 2486.45 1014.36 2961.35 2028.66 2957.72 2030.36"/>
+    <polygon class="st24" points="3042.74 2030.36 2566.78 1013.77 2567.57 1012.8 3394.16 0 3397.25 2.53 2571.46 1014.36 3046.37 2028.66 3042.74 2030.36"/>
+    <polygon class="st17" points="3127.76 2030.36 2651.79 1013.77 2652.59 1012.8 3479.18 0 3482.27 2.53 2656.48 1014.36 3131.38 2028.66 3127.76 2030.36"/>
+    <polygon class="st11" points="3212.78 2030.36 2736.81 1013.77 2737.61 1012.8 3564.19 0 3567.29 2.53 2741.5 1014.36 3216.4 2028.66 3212.78 2030.36"/>
+    <polygon class="st4" points="876.27 2030.77 873.16 2028.25 1705.85 1001.63 1242.02 2.11 1245.65 .42 1710.53 1002.21 1709.74 1003.18 876.27 2030.77"/>
+    <polygon class="st4" points="787.4 2030.77 784.29 2028.25 1616.98 1001.63 1153.14 2.11 1156.77 .42 1621.66 1002.21 1620.87 1003.18 787.4 2030.77"/>
+    <polygon class="st4" points="698.52 2030.77 695.42 2028.25 1528.1 1001.63 1064.27 2.11 1067.9 .42 1532.78 1002.21 1532 1003.18 698.52 2030.77"/>
+    <polygon class="st6" points="609.65 2030.77 606.54 2028.25 1439.23 1001.63 975.4 2.11 979.03 .42 1443.91 1002.21 1443.12 1003.18 609.65 2030.77"/>
+    <polygon class="st0" points="520.78 2030.77 517.67 2028.25 1350.36 1001.63 886.52 2.11 890.15 .42 1355.04 1002.21 1354.25 1003.18 520.78 2030.77"/>
+    <polygon class="st4" points="431.9 2030.77 428.79 2028.25 1261.48 1001.63 797.65 2.11 801.28 .42 1266.16 1002.21 1265.37 1003.18 431.9 2030.77"/>
+    <polygon class="st4" points="343.03 2030.77 339.92 2028.25 1172.61 1001.63 708.78 2.11 712.4 .42 1177.29 1002.21 1176.5 1003.18 343.03 2030.77"/>
+    <polygon class="st4" points="254.15 2030.77 251.05 2028.25 1083.73 1001.63 619.9 2.11 623.53 .42 1088.41 1002.21 1087.63 1003.18 254.15 2030.77"/>
+    <polygon class="st5" points="165.28 2030.77 162.17 2028.25 994.86 1001.63 531.03 2.11 534.66 .42 999.54 1002.21 998.75 1003.18 165.28 2030.77"/>
+    <polygon class="st4" points="76.41 2030.77 73.3 2028.25 905.99 1001.63 442.16 2.11 445.78 .42 910.67 1002.21 909.88 1003.18 76.41 2030.77"/>
+    <polygon class="st7" points="3.11 2030.77 0 2028.25 832.69 1001.63 368.85 2.11 372.48 .42 837.37 1002.21 836.58 1003.18 3.11 2030.77"/>
+    <polygon class="st16" points="3297.8 2030.36 2821.83 1013.77 2822.63 1012.8 3649.21 0 3652.31 2.53 2826.52 1014.36 3301.42 2028.66 3297.8 2030.36"/>
+  </g>
+  <rect class="st3" x="847.41" y="9.39" width="2000" height="2000"/>
+</svg>
