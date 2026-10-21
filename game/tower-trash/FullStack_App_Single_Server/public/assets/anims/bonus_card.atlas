@@ -1,0 +1,88 @@
+bonus_card.png
+size:1570,269
+filter:Linear,Linear
+Group 1410133129222
+bounds:286,2,132,147
+Group 1410133130
+bounds:571,112,222,72
+Group 1410133130222
+bounds:808,134,222,72
+Group 1410133131222
+bounds:420,2,132,147
+Group 1410133132
+bounds:1097,195,222,72
+Group 14101331323333
+bounds:1321,195,222,72
+Start button text
+bounds:286,151,283,33
+offsets:1,1,284,35
+Start button text-1
+bounds:808,208,260,41
+offsets:0,0,261,41
+bar_star_big
+bounds:905,3,77,77
+offsets:4,5,84,86
+blik
+bounds:2,2,182,282
+offsets:12,10,209,308
+rotate:90
+image 1269
+bounds:406,186,400,81
+image 1270
+bounds:2,186,402,81
+image 1295
+bounds:1343,2,95,85
+image 1296
+bounds:1440,2,95,85
+kaska/kaska_01
+bounds:554,2,180,108
+kaska/kaska_02
+bounds:1032,94,110,58
+kaska/kaska_03
+bounds:1343,89,127,104
+kran/kran_10
+bounds:1196,13,59,38
+offsets:0,0,59,43
+kran/kran_11
+bounds:1200,53,140,141
+rotate:90
+kran/kran_12
+bounds:736,82,28,45
+rotate:90
+kran/kran_13
+bounds:1472,94,87,99
+kran/kran_14
+bounds:1545,249,20,18
+kran/kran_15
+bounds:736,11,69,167
+rotate:90
+kran/kran_16
+bounds:1537,35,57,31
+offsets:1,0,58,35
+rotate:90
+kran/kran_17
+bounds:1144,58,54,94
+kran/kran_18
+bounds:554,115,14,34
+kran/kran_2
+bounds:1032,154,39,166
+rotate:90
+kran/kran_3
+bounds:795,82,50,178
+rotate:90
+kran/kran_4
+bounds:808,251,287,16
+kran/kran_5
+bounds:984,27,65,91
+rotate:90
+kran/kran_6
+bounds:1077,23,69,53
+rotate:90
+kran/kran_7
+bounds:1070,228,22,21
+kran/kran_8
+bounds:1132,13,43,62
+rotate:90
+kran/kran_9
+bounds:1257,13,59,38
+offsets:0,0,60,43

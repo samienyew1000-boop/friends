@@ -1,0 +1,36 @@
+transition_tape.png
+size:1596,311
+filter:Linear,Linear
+Rectangle 1
+bounds:2,200,109,109
+tape/tape_00000
+bounds:113,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00001
+bounds:295,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00002
+bounds:477,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00003
+bounds:659,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00004
+bounds:841,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00005
+bounds:1023,130,179,180
+offsets:0,7,186,187
+rotate:90
+tape/tape_00006
+bounds:1205,130,179,180
+offsets:0,7,186,187
+rotate:90
+transition_tape/Rectangle 2 copy 5
+bounds:2,2,126,1592
+rotate:90

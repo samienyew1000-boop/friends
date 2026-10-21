@@ -1,0 +1,13 @@
+helmet.png
+size:225,428
+filter:Linear,Linear
+images/glow_back
+bounds:92,32,68,58
+offsets:2,2,72,62
+images/helmet/helmet_grey
+bounds:2,92,221,163
+offsets:0,6,221,169
+images/helmet/helmet_yellow
+bounds:2,257,221,169
+images/particle_dot
+bounds:2,2,88,88

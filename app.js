@@ -906,8 +906,8 @@
       provider: 'Galaxsys 3D',
       multiplier: 'Build & Climb',
       category: 'Instant Game',
-      image: 'game/tower trash/01_Blocks/Block_01_Temple/components_block1_1.png',
-      url: 'game/tower trash/index.html',
+      image: 'game/tower-trash/assets/images/blocks/components_block1_1.png',
+      url: 'game/tower-trash/index.html',
       likes: '8.8k',
       desc: 'Official Galaxsys high-altitude crane building game! Time your drops, stack skyscraper floors, and cash out before collapse!'
     },

@@ -1,0 +1,17 @@
+construction_complete.png
+size:421,624
+filter:Linear,Linear
+scale:0.75
+Layer 4
+bounds:2,2,47,620
+Layer 5
+bounds:51,94,95,188
+rotate:90
+bar_star_big
+bounds:51,35,57,57
+offsets:3,4,63,65
+card 1
+bounds:110,50,18,42
+offsets:1,0,20,42
+card_04 1
+bounds:51,191,368,431
