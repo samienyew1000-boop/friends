@@ -316,7 +316,170 @@ ${n.join(`
  *  goldfirestudios.com
  *
  *  MIT License
- */(function(){HowlerGlobal.prototype._pos=[0,0,0],HowlerGlobal.prototype._orientation=[0,0,-1,0,1,0],HowlerGlobal.prototype.stereo=function(e){var s=this;if(!s.ctx||!s.ctx.listener)return s;for(var n=s._howls.length-1;n>=0;n--)s._howls[n].stereo(e);return s},HowlerGlobal.prototype.pos=function(e,s,n){var r=this;if(!r.ctx||!r.ctx.listener)return r;if(s=typeof s!="number"?r._pos[1]:s,n=typeof n!="number"?r._pos[2]:n,typeof e=="number")r._pos=[e,s,n],typeof r.ctx.listener.positionX<"u"?(r.ctx.listener.positionX.setTargetAtTime(r._pos[0],Howler.ctx.currentTime,.1),r.ctx.listener.positionY.setTargetAtTime(r._pos[1],Howler.ctx.currentTime,.1),r.ctx.listener.positionZ.setTargetAtTime(r._pos[2],Howler.ctx.currentTime,.1)):r.ctx.listener.setPosition(r._pos[0],r._pos[1],r._pos[2]);else return r._pos;return r},HowlerGlobal.prototype.orientation=function(e,s,n,r,o,l){var h=this;if(!h.ctx||!h.ctx.listener)return h;var u=h._orientation;if(s=typeof s!="number"?u[1]:s,n=typeof n!="number"?u[2]:n,r=typeof r!="number"?u[3]:r,o=typeof o!="number"?u[4]:o,l=typeof l!="number"?u[5]:l,typeof e=="number")h._orientation=[e,s,n,r,o,l],typeof h.ctx.listener.forwardX<"u"?(h.ctx.listener.forwardX.setTargetAtTime(e,Howler.ctx.currentTime,.1),h.ctx.listener.forwardY.setTargetAtTime(s,Howler.ctx.currentTime,.1),h.ctx.listener.forwardZ.setTargetAtTime(n,Howler.ctx.currentTime,.1),h.ctx.listener.upX.setTargetAtTime(r,Howler.ctx.currentTime,.1),h.ctx.listener.upY.setTargetAtTime(o,Howler.ctx.currentTime,.1),h.ctx.listener.upZ.setTargetAtTime(l,Howler.ctx.currentTime,.1)):h.ctx.listener.setOrientation(e,s,n,r,o,l);else return u;return h},Howl.prototype.init=(function(e){return function(s){var n=this;return n._orientation=s.orientation||[1,0,0],n._stereo=s.stereo||null,n._pos=s.pos||null,n._pannerAttr={coneInnerAngle:typeof s.coneInnerAngle<"u"?s.coneInnerAngle:360,coneOuterAngle:typeof s.coneOuterAngle<"u"?s.coneOuterAngle:360,coneOuterGain:typeof s.coneOuterGain<"u"?s.coneOuterGain:0,distanceModel:typeof s.distanceModel<"u"?s.distanceModel:"inverse",maxDistance:typeof s.maxDistance<"u"?s.maxDistance:1e4,panningModel:typeof s.panningModel<"u"?s.panningModel:"HRTF",refDistance:typeof s.refDistance<"u"?s.refDistance:1,rolloffFactor:typeof s.rolloffFactor<"u"?s.rolloffFactor:1},n._onstereo=s.onstereo?[{fn:s.onstereo}]:[],n._onpos=s.onpos?[{fn:s.onpos}]:[],n._onorientation=s.onorientation?[{fn:s.onorientation}]:[],e.call(this,s)}})(Howl.prototype.init),Howl.prototype.stereo=function(e,s){var n=this;if(!n._webAudio)return n;if(n._state!=="loaded")return n._queue.push({event:"stereo",action:function(){n.stereo(e,s)}}),n;var r=typeof Howler.ctx.createStereoPanner>"u"?"spatial":"stereo";if(typeof s>"u")if(typeof e=="number")n._stereo=e,n._pos=[e,0,0];else return n._stereo;for(var o=n._getSoundIds(s),l=0;l<o.length;l++){var h=n._soundById(o[l]);if(h)if(typeof e=="number")h._stereo=e,h._pos=[e,0,0],h._node&&(h._pannerAttr.panningModel="equalpower",(!h._panner||!h._panner.pan)&&t(h,r),r==="spatial"?typeof h._panner.positionX<"u"?(h._panner.positionX.setValueAtTime(e,Howler.ctx.currentTime),h._panner.positionY.setValueAtTime(0,Howler.ctx.currentTime),h._panner.positionZ.setValueAtTime(0,Howler.ctx.currentTime)):h._panner.setPosition(e,0,0):h._panner.pan.setValueAtTime(e,Howler.ctx.currentTime)),n._emit("stereo",h._id);else return h._stereo}return n},Howl.prototype.pos=function(e,s,n,r){var o=this;if(!o._webAudio)return o;if(o._state!=="loaded")return o._queue.push({event:"pos",action:function(){o.pos(e,s,n,r)}}),o;if(s=typeof s!="number"?0:s,n=typeof n!="number"?-.5:n,typeof r>"u")if(typeof e=="number")o._pos=[e,s,n];else return o._pos;for(var l=o._getSoundIds(r),h=0;h<l.length;h++){var u=o._soundById(l[h]);if(u)if(typeof e=="number")u._pos=[e,s,n],u._node&&((!u._panner||u._panner.pan)&&t(u,"spatial"),typeof u._panner.positionX<"u"?(u._panner.positionX.setValueAtTime(e,Howler.ctx.currentTime),u._panner.positionY.setValueAtTime(s,Howler.ctx.currentTime),u._panner.positionZ.setValueAtTime(n,Howler.ctx.currentTime)):u._panner.setPosition(e,s,n)),o._emit("pos",u._id);else return u._pos}return o},Howl.prototype.orientation=function(e,s,n,r){var o=this;if(!o._webAudio)return o;if(o._state!=="loaded")return o._queue.push({event:"orientation",action:function(){o.orientation(e,s,n,r)}}),o;if(s=typeof s!="number"?o._orientation[1]:s,n=typeof n!="number"?o._orientation[2]:n,typeof r>"u")if(typeof e=="number")o._orientation=[e,s,n];else return o._orientation;for(var l=o._getSoundIds(r),h=0;h<l.length;h++){var u=o._soundById(l[h]);if(u)if(typeof e=="number")u._orientation=[e,s,n],u._node&&(u._panner||(u._pos||(u._pos=o._pos||[0,0,-.5]),t(u,"spatial")),typeof u._panner.orientationX<"u"?(u._panner.orientationX.setValueAtTime(e,Howler.ctx.currentTime),u._panner.orientationY.setValueAtTime(s,Howler.ctx.currentTime),u._panner.orientationZ.setValueAtTime(n,Howler.ctx.currentTime)):u._panner.setOrientation(e,s,n)),o._emit("orientation",u._id);else return u._orientation}return o},Howl.prototype.pannerAttr=function(){var e=this,s=arguments,n,r,o;if(!e._webAudio)return e;if(s.length===0)return e._pannerAttr;if(s.length===1)if(typeof s[0]=="object")n=s[0],typeof r>"u"&&(n.pannerAttr||(n.pannerAttr={coneInnerAngle:n.coneInnerAngle,coneOuterAngle:n.coneOuterAngle,coneOuterGain:n.coneOuterGain,distanceModel:n.distanceModel,maxDistance:n.maxDistance,refDistance:n.refDistance,rolloffFactor:n.rolloffFactor,panningModel:n.panningModel}),e._pannerAttr={coneInnerAngle:typeof n.pannerAttr.coneInnerAngle<"u"?n.pannerAttr.coneInnerAngle:e._coneInnerAngle,coneOuterAngle:typeof n.pannerAttr.coneOuterAngle<"u"?n.pannerAttr.coneOuterAngle:e._coneOuterAngle,coneOuterGain:typeof n.pannerAttr.coneOuterGain<"u"?n.pannerAttr.coneOuterGain:e._coneOuterGain,distanceModel:typeof n.pannerAttr.distanceModel<"u"?n.pannerAttr.distanceModel:e._distanceModel,maxDistance:typeof n.pannerAttr.maxDistance<"u"?n.pannerAttr.maxDistance:e._maxDistance,refDistance:typeof n.pannerAttr.refDistance<"u"?n.pannerAttr.refDistance:e._refDistance,rolloffFactor:typeof n.pannerAttr.rolloffFactor<"u"?n.pannerAttr.rolloffFactor:e._rolloffFactor,panningModel:typeof n.pannerAttr.panningModel<"u"?n.pannerAttr.panningModel:e._panningModel});else return o=e._soundById(parseInt(s[0],10)),o?o._pannerAttr:e._pannerAttr;else s.length===2&&(n=s[0],r=parseInt(s[1],10));for(var l=e._getSoundIds(r),h=0;h<l.length;h++)if(o=e._soundById(l[h]),o){var u=o._pannerAttr;u={coneInnerAngle:typeof n.coneInnerAngle<"u"?n.coneInnerAngle:u.coneInnerAngle,coneOuterAngle:typeof n.coneOuterAngle<"u"?n.coneOuterAngle:u.coneOuterAngle,coneOuterGain:typeof n.coneOuterGain<"u"?n.coneOuterGain:u.coneOuterGain,distanceModel:typeof n.distanceModel<"u"?n.distanceModel:u.distanceModel,maxDistance:typeof n.maxDistance<"u"?n.maxDistance:u.maxDistance,refDistance:typeof n.refDistance<"u"?n.refDistance:u.refDistance,rolloffFactor:typeof n.rolloffFactor<"u"?n.rolloffFactor:u.rolloffFactor,panningModel:typeof n.panningModel<"u"?n.panningModel:u.panningModel};var f=o._panner;f||(o._pos||(o._pos=e._pos||[0,0,-.5]),t(o,"spatial"),f=o._panner),f.coneInnerAngle=u.coneInnerAngle,f.coneOuterAngle=u.coneOuterAngle,f.coneOuterGain=u.coneOuterGain,f.distanceModel=u.distanceModel,f.maxDistance=u.maxDistance,f.refDistance=u.refDistance,f.rolloffFactor=u.rolloffFactor,f.panningModel=u.panningModel}return e},Sound.prototype.init=(function(e){return function(){var s=this,n=s._parent;s._orientation=n._orientation,s._stereo=n._stereo,s._pos=n._pos,s._pannerAttr=n._pannerAttr,e.call(this),s._stereo?n.stereo(s._stereo):s._pos&&n.pos(s._pos[0],s._pos[1],s._pos[2],s._id)}})(Sound.prototype.init),Sound.prototype.reset=(function(e){return function(){var s=this,n=s._parent;return s._orientation=n._orientation,s._stereo=n._stereo,s._pos=n._pos,s._pannerAttr=n._pannerAttr,s._stereo?n.stereo(s._stereo):s._pos?n.pos(s._pos[0],s._pos[1],s._pos[2],s._id):s._panner&&(s._panner.disconnect(0),s._panner=void 0,n._refreshBuffer(s)),e.call(this)}})(Sound.prototype.reset);var t=function(e,s){s=s||"spatial",s==="spatial"?(e._panner=Howler.ctx.createPanner(),e._panner.coneInnerAngle=e._pannerAttr.coneInnerAngle,e._panner.coneOuterAngle=e._pannerAttr.coneOuterAngle,e._panner.coneOuterGain=e._pannerAttr.coneOuterGain,e._panner.distanceModel=e._pannerAttr.distanceModel,e._panner.maxDistance=e._pannerAttr.maxDistance,e._panner.refDistance=e._pannerAttr.refDistance,e._panner.rolloffFactor=e._pannerAttr.rolloffFactor,e._panner.panningModel=e._pannerAttr.panningModel,typeof e._panner.positionX<"u"?(e._panner.positionX.setValueAtTime(e._pos[0],Howler.ctx.currentTime),e._panner.positionY.setValueAtTime(e._pos[1],Howler.ctx.currentTime),e._panner.positionZ.setValueAtTime(e._pos[2],Howler.ctx.currentTime)):e._panner.setPosition(e._pos[0],e._pos[1],e._pos[2]),typeof e._panner.orientationX<"u"?(e._panner.orientationX.setValueAtTime(e._orientation[0],Howler.ctx.currentTime),e._panner.orientationY.setValueAtTime(e._orientation[1],Howler.ctx.currentTime),e._panner.orientationZ.setValueAtTime(e._orientation[2],Howler.ctx.currentTime)):e._panner.setOrientation(e._orientation[0],e._orientation[1],e._orientation[2])):(e._panner=Howler.ctx.createStereoPanner(),e._panner.pan.setValueAtTime(e._stereo,Howler.ctx.currentTime)),e._panner.connect(e._node),e._paused||e._parent.pause(e._id,!0).play(e._id,!0)}})()})(xi)),xi}var pf=ff();class bt{static instance;sounds=new Map;soundEnabled=!0;musicEnabled=!0;backgroundSpinId=null;constructor(){this.initSounds()}static getInstance(){return bt.instance||(bt.instance=new bt),bt.instance}initSounds(){const t="./".endsWith("/")?"./":".//",e={spin:`${t}assets/sounds/Spin.mp3`,reelStop:`${t}assets/sounds/ObjectMoveStop.mp3`,win1:`${t}assets/sounds/Win1.mp3`,win2:`${t}assets/sounds/Win2.mp3`,win3:`${t}assets/sounds/Win3.mp3`,winToBalance:`${t}assets/sounds/WinToBalance.mp3`,plus:`${t}assets/sounds/Plus.mp3`,minus:`${t}assets/sounds/Minus.mp3`,bet:`${t}assets/sounds/Bet.mp3`,menu:`${t}assets/sounds/Menu.mp3`,doubleBlack:`${t}assets/sounds/Black.mp3`,doubleRed:`${t}assets/sounds/Red.mp3`,doubleWin:`${t}assets/sounds/Win.mp3`,doubleLose:`${t}assets/sounds/Lose.mp3`,doubleTake:`${t}assets/sounds/Take.mp3`,doubleDraw:`${t}assets/sounds/Draw.mp3`,autoPlayStart:`${t}assets/sounds/Start.mp3`,autoPlayStop:`${t}assets/sounds/Stop.mp3`,backgroundSpin:`${t}assets/sounds/Background.mp3`};for(const[s,n]of Object.entries(e)){const r=s==="backgroundSpin";this.sounds.set(s,new pf.Howl({src:[n],loop:r,volume:r?.35:.75,preload:!0}))}}play(t){if(!this.soundEnabled&&t!=="backgroundSpin"||!this.musicEnabled&&t==="backgroundSpin")return;const e=this.sounds.get(t);e&&(t==="backgroundSpin"?this.backgroundSpinId||(this.backgroundSpinId=e.play()):e.play())}stop(t){const e=this.sounds.get(t);e&&(e.stop(),t==="backgroundSpin"&&(this.backgroundSpinId=null))}setSoundEnabled(t){this.soundEnabled=t}isSoundEnabled(){return this.soundEnabled}setMusicEnabled(t){this.musicEnabled=t,!t&&this.backgroundSpinId&&this.stop("backgroundSpin")}isMusicEnabled(){return this.musicEnabled}}class mf extends rt{static CELL_WIDTH=336;static CELL_HEIGHT=210;staticSprite;blurSprite;currentSymbolId=0;isBlurred=!1;constructor(t=0){super(),this.staticSprite=new X,this.blurSprite=new X,this.staticSprite.anchor.set(.5),this.blurSprite.anchor.set(.5),this.blurSprite.visible=!1,this.addChild(this.blurSprite),this.addChild(this.staticSprite),this.setSymbol(t)}setSymbol(t){this.currentSymbolId=t;const e=ct.getInstance();this.staticSprite.texture=e.getTexture(`Box/${t}`),this.blurSprite.texture=e.getTexture(`BlurBox/${t}`),this.staticSprite.scale.set(.92),this.blurSprite.scale.set(.92)}getSymbolId(){return this.currentSymbolId}setBlur(t){this.isBlurred!==t&&(this.isBlurred=t,this.blurSprite.visible=t,this.staticSprite.visible=!t)}setWinAnimation(t){t?this.staticSprite.scale.set(1.05):this.staticSprite.scale.set(.92)}}class ut extends rt{constructor(t,e=[0,1,2]){super(),this.columnIndex=t;for(let s=0;s<ut.TOTAL_ROWS;s++){const n=s<e.length?e[s]:s%9,r=new mf(n);r.x=ut.CELL_WIDTH/2,r.y=(s-1)*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2,this.symbols.push(r),this.addChild(r)}}static CELL_WIDTH=336;static CELL_HEIGHT=210;static VISIBLE_ROWS=3;static BUFFER_ROWS=2;static TOTAL_ROWS=ut.VISIBLE_ROWS+ut.BUFFER_ROWS;symbols=[];speed=0;maxSpeed=2400;state="IDLE";targetSymbols=null;onStopCallback=null;bounceTimer=0;bounceDuration=.18;bounceOvershoot=14;spin(){this.state="SPINNING",this.speed=400,this.targetSymbols=null;for(const t of this.symbols)t.setWinAnimation(!1)}stop(t,e){this.targetSymbols=t,this.onStopCallback=e||null,this.state="STOPPING"}quickStop(t,e){this.targetSymbols=t,this.onStopCallback=e||null,this.speed=Math.max(this.speed,1200),this.state="STOPPING"}update(t){if(this.state!=="IDLE"){if(this.state==="SPINNING")this.speed<this.maxSpeed&&(this.speed+=3600*t),this.advanceReel(this.speed*t),this.setReelBlur(this.speed>1e3);else if(this.state==="STOPPING")this.speed=Math.max(600,this.speed-2400*t),this.advanceReel(this.speed*t),this.targetSymbols&&this.speed<=800&&(this.setFinalSymbols(this.targetSymbols),this.setReelBlur(!1),this.state="BOUNCING",this.bounceTimer=0,bt.getInstance().play("reelStop"));else if(this.state==="BOUNCING"){this.bounceTimer+=t;const e=Math.min(1,this.bounceTimer/this.bounceDuration),s=Math.sin(e*Math.PI)*this.bounceOvershoot;this.applyRestPositions(s),e>=1&&(this.applyRestPositions(0),this.state="IDLE",this.speed=0,this.onStopCallback&&(this.onStopCallback(),this.onStopCallback=null))}}}advanceReel(t){for(const e of this.symbols)e.y+=t,e.y>ut.VISIBLE_ROWS*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2&&(e.y-=ut.TOTAL_ROWS*ut.CELL_HEIGHT,e.setSymbol(Math.floor(Math.random()*9)))}setFinalSymbols(t){const e=[...this.symbols].sort((s,n)=>s.y-n.y);e[0]&&e[0].setSymbol(Math.floor(Math.random()*9)),e[1]&&e[1].setSymbol(t[0]),e[2]&&e[2].setSymbol(t[1]),e[3]&&e[3].setSymbol(t[2]),e[4]&&e[4].setSymbol(Math.floor(Math.random()*9))}applyRestPositions(t){const e=[...this.symbols].sort((s,n)=>s.y-n.y);for(let s=0;s<e.length;s++)e[s].y=(s-1)*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2+t}setReelBlur(t){for(const e of this.symbols)e.setBlur(t)}getVisibleSymbol(t){return[...this.symbols].sort((s,n)=>s.y-n.y)[t+1]||null}isSpinning(){return this.state!=="IDLE"}}class mt extends rt{static WIDTH=212;static HEIGHT=638;static ROW_HEIGHT=215;itemsContainer;numberSprites=[];state="IDLE";speed=0;maxSpeed=2200;targetMultiplier=1;onStopCallback=null;bounceTimer=0;bounceDuration=.16;multiplierOrder=[1,5,3,4,1,2,4,1,5,3];constructor(t=1){super();const e=ct.getInstance(),s=new X(e.getTexture("Multiplier/Background"));this.addChild(s),this.itemsContainer=new rt,this.addChild(this.itemsContainer);const n=new Ft;n.rect(18,40,mt.WIDTH,mt.HEIGHT),n.fill({color:16777215,alpha:1}),this.addChild(n),this.itemsContainer.mask=n;for(let r=0;r<3;r++)if(r===1){const o=new X(e.getTexture("Multiplier/BottomActive"));o.position.set(-17,229),this.addChild(o);const l=new X(e.getTexture("Multiplier/TopActive"));l.position.set(-17,229),l.zIndex=20,this.addChild(l)}else{const o=new X(e.getTexture("Multiplier/Bottom"));o.position.set(23,43+r*mt.ROW_HEIGHT),this.addChild(o);const l=new X(e.getTexture("Multiplier/Top"));l.position.set(23,43+r*mt.ROW_HEIGHT),l.zIndex=20,this.addChild(l)}this.initNumberSprites(t)}initNumberSprites(t){const e=ct.getInstance();for(let s=0;s<5;s++){const n=s===2?t:this.multiplierOrder[s%this.multiplierOrder.length],r=new X(e.getTexture(`Multiplier/${n}`));r.anchor.set(.5),r.x=23+mt.WIDTH/2-8,r.y=(s-1)*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40,this.numberSprites.push(r),this.itemsContainer.addChild(r)}}spin(){this.state="SPINNING",this.speed=500}stop(t,e){this.targetMultiplier=t,this.onStopCallback=e||null,this.state="STOPPING"}update(t){if(this.state!=="IDLE"){if(this.state==="SPINNING")this.speed<this.maxSpeed&&(this.speed+=3200*t),this.advanceNumbers(this.speed*t);else if(this.state==="STOPPING")this.speed=Math.max(500,this.speed-2800*t),this.advanceNumbers(this.speed*t),this.speed<=650&&(this.setFinalMultiplier(this.targetMultiplier),this.state="BOUNCING",this.bounceTimer=0,bt.getInstance().play("reelStop"));else if(this.state==="BOUNCING"){this.bounceTimer+=t;const e=Math.min(1,this.bounceTimer/this.bounceDuration),s=Math.sin(e*Math.PI)*10;this.applyRestPositions(s),e>=1&&(this.applyRestPositions(0),this.state="IDLE",this.speed=0,this.onStopCallback&&(this.onStopCallback(),this.onStopCallback=null))}}}advanceNumbers(t){const e=ct.getInstance();for(const s of this.numberSprites)if(s.y+=t,s.y>3*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40){s.y-=5*mt.ROW_HEIGHT;const n=this.multiplierOrder[Math.floor(Math.random()*this.multiplierOrder.length)];s.texture=e.getTexture(`Multiplier/${n}`)}}setFinalMultiplier(t){const e=ct.getInstance(),s=[...this.numberSprites].sort((n,r)=>n.y-r.y);s[2].texture=e.getTexture(`Multiplier/${t}`)}applyRestPositions(t){const e=[...this.numberSprites].sort((s,n)=>s.y-n.y);for(let s=0;s<e.length;s++)e[s].y=(s-1)*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40+t}getActiveMultiplier(){return this.targetMultiplier}}class z extends rt{static GRID_X=690;static GRID_Y=240;static GRID_WIDTH=1008;static GRID_HEIGHT=630;reels=[];multiplierReel;reelsContainer;isSpinning=!1;stopTimers=[];constructor(){super();const t=ct.getInstance(),e=new Ft;e.rect(z.GRID_X-10,z.GRID_Y-10,z.GRID_WIDTH+20,z.GRID_HEIGHT+20),e.stroke({color:339485,width:8,alpha:.9}),e.rect(z.GRID_X-6,z.GRID_Y-6,z.GRID_WIDTH+12,z.GRID_HEIGHT+12),e.stroke({color:16766720,width:4,alpha:1}),e.rect(z.GRID_X-2,z.GRID_Y-2,z.GRID_WIDTH+4,z.GRID_HEIGHT+4),e.stroke({color:12092939,width:2,alpha:.8}),e.rect(z.GRID_X,z.GRID_Y,z.GRID_WIDTH,z.GRID_HEIGHT),e.fill({color:203794,alpha:.4}),this.addChild(e),this.multiplierReel=new mt(5),this.multiplierReel.position.set(423,z.GRID_Y-40),this.addChild(this.multiplierReel);const s=new X(t.getTexture("Start/Multiplier"));s.anchor.set(.5,1),s.position.set(423+mt.WIDTH/2+15,z.GRID_Y-20),this.addChild(s),this.createHeaderTitles(),this.reelsContainer=new rt,this.reelsContainer.position.set(z.GRID_X,z.GRID_Y),this.addChild(this.reelsContainer);const n=new Ft;n.rect(0,0,z.GRID_WIDTH,z.GRID_HEIGHT),n.fill({color:16777215,alpha:1}),this.reelsContainer.addChild(n),this.reelsContainer.mask=n;const r=[[0,1,5],[2,7,6],[8,4,3]];for(let o=0;o<3;o++){const l=new ut(o,r[o]);if(l.position.set(o*ut.CELL_WIDTH,0),this.reels.push(l),this.reelsContainer.addChild(l),o>0){const h=new X(t.getTexture("Start/Column"));h.position.set(o*ut.CELL_WIDTH-2,0),h.height=z.GRID_HEIGHT,h.zIndex=5,this.reelsContainer.addChild(h)}}}createHeaderTitles(){const t=new rt;t.position.set(z.GRID_X+z.GRID_WIDTH/2,z.GRID_Y-80);const e=new _t({fontFamily:"Montserrat, sans-serif",fontSize:52,fontWeight:"900",letterSpacing:4,fill:16765503,dropShadow:{alpha:.8,angle:Math.PI/4,blur:8,color:0,distance:6}}),s=new at({text:"MULTI HOT ",style:e});s.anchor.set(1,.5);const n=new _t({fontFamily:"Montserrat, sans-serif",fontSize:56,fontWeight:"900",fill:16722554,dropShadow:{alpha:.9,angle:Math.PI/4,blur:12,color:16722554,distance:0}}),r=new at({text:"5",style:n});r.anchor.set(0,.5),t.addChild(s),t.addChild(r),this.addChild(t);const o=new _t({fontFamily:"Montserrat, sans-serif",fontSize:16,fontWeight:"900",letterSpacing:2,fill:16753920,dropShadow:{alpha:.8,color:0,distance:2}}),l=new at({text:"5 LINES FIXED",style:o});l.anchor.set(1,1),l.position.set(z.GRID_X+z.GRID_WIDTH,z.GRID_Y-12),this.addChild(l)}spin(){this.isSpinning=!0,this.clearStopTimers();for(const t of this.reels)t.spin();this.multiplierReel.spin()}stop(t,e){this.clearStopTimers();const s=window.setTimeout(()=>{this.multiplierReel.stop(t.multiplier)},450),n=window.setTimeout(()=>{this.reels[0].stop(t.matrix[0])},750),r=window.setTimeout(()=>{this.reels[1].stop(t.matrix[1])},1e3),o=window.setTimeout(()=>{this.reels[2].stop(t.matrix[2],()=>{this.isSpinning=!1,e&&e()})},1250);this.stopTimers.push(s,n,r,o)}quickStop(t,e){this.clearStopTimers(),this.multiplierReel.stop(t.multiplier),this.reels[0].quickStop(t.matrix[0]),this.reels[1].quickStop(t.matrix[1]),this.reels[2].quickStop(t.matrix[2],()=>{this.isSpinning=!1,e&&e()})}update(t){for(const e of this.reels)e.update(t);this.multiplierReel.update(t)}highlightWinningLine(t){for(const e of t){const s=this.reels[e.col];if(s){const n=s.getVisibleSymbol(e.row);n&&n.setWinAnimation(!0)}}}clearWinHighlights(){for(const t of this.reels)for(let e=0;e<3;e++){const s=t.getVisibleSymbol(e);s&&s.setWinAnimation(!1)}}clearStopTimers(){for(const t of this.stopTimers)clearTimeout(t);this.stopTimers=[]}getIsSpinning(){return this.isSpinning}}class Y extends rt{static BAR_WIDTH=1070;static BAR_HEIGHT=80;balanceText;winText;betText;currentBalance=2e4;currentWin=0;currentBet=.05;currency="DMO";constructor(){super();const t=new Ft;t.roundRect(0,0,Y.BAR_WIDTH,Y.BAR_HEIGHT,14),t.stroke({color:70154,width:4,alpha:.8}),t.roundRect(0,0,Y.BAR_WIDTH,Y.BAR_HEIGHT,14),t.stroke({color:16765503,width:3,alpha:.9}),t.roundRect(2,2,Y.BAR_WIDTH-4,Y.BAR_HEIGHT-4,12),t.fill({color:136717,alpha:.88}),t.moveTo(Y.BAR_WIDTH/3,12),t.lineTo(Y.BAR_WIDTH/3,Y.BAR_HEIGHT-12),t.stroke({color:608044,width:2,alpha:.8}),t.moveTo(Y.BAR_WIDTH/3*2,12),t.lineTo(Y.BAR_WIDTH/3*2,Y.BAR_HEIGHT-12),t.stroke({color:608044,width:2,alpha:.8}),this.addChild(t);const e=new _t({fontFamily:"Montserrat, sans-serif",fontSize:14,fontWeight:"700",letterSpacing:1,fill:5817226}),s=new _t({fontFamily:"Roboto Mono, monospace",fontSize:22,fontWeight:"700",letterSpacing:1,fill:16777215}),n=Y.BAR_WIDTH/6,r=new at({text:"👛",style:{fontSize:26}});r.anchor.set(.5),r.position.set(n-85,Y.BAR_HEIGHT/2),this.addChild(r);const o=new at({text:"BALANCE",style:e});o.anchor.set(0,1),o.position.set(n-55,Y.BAR_HEIGHT/2-2),this.addChild(o),this.balanceText=new at({text:`${this.currentBalance.toFixed(2)} ${this.currency}`,style:s}),this.balanceText.anchor.set(0,0),this.balanceText.position.set(n-55,Y.BAR_HEIGHT/2+2),this.addChild(this.balanceText);const l=Y.BAR_WIDTH/2,h=new at({text:"🏆",style:{fontSize:26}});h.anchor.set(.5),h.position.set(l-75,Y.BAR_HEIGHT/2),this.addChild(h);const u=new at({text:"WIN",style:e});u.anchor.set(0,1),u.position.set(l-45,Y.BAR_HEIGHT/2-2),this.addChild(u),this.winText=new at({text:`${this.currentWin.toFixed(2)} ${this.currency}`,style:new _t({...s,fill:16765503})}),this.winText.anchor.set(0,0),this.winText.position.set(l-45,Y.BAR_HEIGHT/2+2),this.addChild(this.winText);const f=Y.BAR_WIDTH/6*5,a=new at({text:"🎖️",style:{fontSize:26}});a.anchor.set(.5),a.position.set(f-75,Y.BAR_HEIGHT/2),this.addChild(a);const c=new at({text:"TOTAL BET",style:e});c.anchor.set(0,1),c.position.set(f-45,Y.BAR_HEIGHT/2-2),this.addChild(c),this.betText=new at({text:`${this.currentBet.toFixed(2)} ${this.currency}`,style:s}),this.betText.anchor.set(0,0),this.betText.position.set(f-45,Y.BAR_HEIGHT/2+2),this.addChild(this.betText)}setBalance(t){this.currentBalance=t,this.balanceText.text=`${t.toFixed(2)} ${this.currency}`}getBalance(){return this.currentBalance}setWin(t){this.currentWin=t,this.winText.text=`${t.toFixed(2)} ${this.currency}`}setBet(t){this.currentBet=t,this.betText.text=`${t.toFixed(2)} ${this.currency}`}getBet(){return this.currentBet}}class gf extends rt{spinBtnContainer;spinSprite;spinBetLabel;plusBtn;minusBtn;autoPlayBtn;doubleBtn;takeWinBtn;isSpinningState=!1;isGambleActive=!1;constructor(t){super();const e=ct.getInstance(),s=bt.getInstance(),n=1860,r=240,o=new Ft;o.roundRect(n-35,r,70,580,35),o.stroke({color:340768,width:4}),o.roundRect(n-33,r+2,66,576,33),o.fill({color:203794,alpha:.95}),o.stroke({color:58998,width:2,alpha:.5}),this.addChild(o),this.plusBtn=new X(e.getTexture("Buttons/Plus")),this.plusBtn.anchor.set(.5),this.plusBtn.position.set(n,r+45),this.plusBtn.eventMode="static",this.plusBtn.cursor="pointer",this.plusBtn.on("pointerdown",()=>{s.play("plus"),t.onPlusBet()}),this.addChild(this.plusBtn),this.minusBtn=new X(e.getTexture("Buttons/Minus")),this.minusBtn.anchor.set(.5),this.minusBtn.position.set(n,r+535),this.minusBtn.eventMode="static",this.minusBtn.cursor="pointer",this.minusBtn.on("pointerdown",()=>{s.play("minus"),t.onMinusBet()}),this.addChild(this.minusBtn),this.spinBtnContainer=new rt,this.spinBtnContainer.position.set(n,r+290),this.spinBtnContainer.eventMode="static",this.spinBtnContainer.cursor="pointer",this.spinSprite=new X(e.getTexture("Buttons/Spin")),this.spinSprite.anchor.set(.5),this.spinBtnContainer.addChild(this.spinSprite),this.spinBetLabel=new at({text:`0.05
+ */(function(){HowlerGlobal.prototype._pos=[0,0,0],HowlerGlobal.prototype._orientation=[0,0,-1,0,1,0],HowlerGlobal.prototype.stereo=function(e){var s=this;if(!s.ctx||!s.ctx.listener)return s;for(var n=s._howls.length-1;n>=0;n--)s._howls[n].stereo(e);return s},HowlerGlobal.prototype.pos=function(e,s,n){var r=this;if(!r.ctx||!r.ctx.listener)return r;if(s=typeof s!="number"?r._pos[1]:s,n=typeof n!="number"?r._pos[2]:n,typeof e=="number")r._pos=[e,s,n],typeof r.ctx.listener.positionX<"u"?(r.ctx.listener.positionX.setTargetAtTime(r._pos[0],Howler.ctx.currentTime,.1),r.ctx.listener.positionY.setTargetAtTime(r._pos[1],Howler.ctx.currentTime,.1),r.ctx.listener.positionZ.setTargetAtTime(r._pos[2],Howler.ctx.currentTime,.1)):r.ctx.listener.setPosition(r._pos[0],r._pos[1],r._pos[2]);else return r._pos;return r},HowlerGlobal.prototype.orientation=function(e,s,n,r,o,l){var h=this;if(!h.ctx||!h.ctx.listener)return h;var u=h._orientation;if(s=typeof s!="number"?u[1]:s,n=typeof n!="number"?u[2]:n,r=typeof r!="number"?u[3]:r,o=typeof o!="number"?u[4]:o,l=typeof l!="number"?u[5]:l,typeof e=="number")h._orientation=[e,s,n,r,o,l],typeof h.ctx.listener.forwardX<"u"?(h.ctx.listener.forwardX.setTargetAtTime(e,Howler.ctx.currentTime,.1),h.ctx.listener.forwardY.setTargetAtTime(s,Howler.ctx.currentTime,.1),h.ctx.listener.forwardZ.setTargetAtTime(n,Howler.ctx.currentTime,.1),h.ctx.listener.upX.setTargetAtTime(r,Howler.ctx.currentTime,.1),h.ctx.listener.upY.setTargetAtTime(o,Howler.ctx.currentTime,.1),h.ctx.listener.upZ.setTargetAtTime(l,Howler.ctx.currentTime,.1)):h.ctx.listener.setOrientation(e,s,n,r,o,l);else return u;return h},Howl.prototype.init=(function(e){return function(s){var n=this;return n._orientation=s.orientation||[1,0,0],n._stereo=s.stereo||null,n._pos=s.pos||null,n._pannerAttr={coneInnerAngle:typeof s.coneInnerAngle<"u"?s.coneInnerAngle:360,coneOuterAngle:typeof s.coneOuterAngle<"u"?s.coneOuterAngle:360,coneOuterGain:typeof s.coneOuterGain<"u"?s.coneOuterGain:0,distanceModel:typeof s.distanceModel<"u"?s.distanceModel:"inverse",maxDistance:typeof s.maxDistance<"u"?s.maxDistance:1e4,panningModel:typeof s.panningModel<"u"?s.panningModel:"HRTF",refDistance:typeof s.refDistance<"u"?s.refDistance:1,rolloffFactor:typeof s.rolloffFactor<"u"?s.rolloffFactor:1},n._onstereo=s.onstereo?[{fn:s.onstereo}]:[],n._onpos=s.onpos?[{fn:s.onpos}]:[],n._onorientation=s.onorientation?[{fn:s.onorientation}]:[],e.call(this,s)}})(Howl.prototype.init),Howl.prototype.stereo=function(e,s){var n=this;if(!n._webAudio)return n;if(n._state!=="loaded")return n._queue.push({event:"stereo",action:function(){n.stereo(e,s)}}),n;var r=typeof Howler.ctx.createStereoPanner>"u"?"spatial":"stereo";if(typeof s>"u")if(typeof e=="number")n._stereo=e,n._pos=[e,0,0];else return n._stereo;for(var o=n._getSoundIds(s),l=0;l<o.length;l++){var h=n._soundById(o[l]);if(h)if(typeof e=="number")h._stereo=e,h._pos=[e,0,0],h._node&&(h._pannerAttr.panningModel="equalpower",(!h._panner||!h._panner.pan)&&t(h,r),r==="spatial"?typeof h._panner.positionX<"u"?(h._panner.positionX.setValueAtTime(e,Howler.ctx.currentTime),h._panner.positionY.setValueAtTime(0,Howler.ctx.currentTime),h._panner.positionZ.setValueAtTime(0,Howler.ctx.currentTime)):h._panner.setPosition(e,0,0):h._panner.pan.setValueAtTime(e,Howler.ctx.currentTime)),n._emit("stereo",h._id);else return h._stereo}return n},Howl.prototype.pos=function(e,s,n,r){var o=this;if(!o._webAudio)return o;if(o._state!=="loaded")return o._queue.push({event:"pos",action:function(){o.pos(e,s,n,r)}}),o;if(s=typeof s!="number"?0:s,n=typeof n!="number"?-.5:n,typeof r>"u")if(typeof e=="number")o._pos=[e,s,n];else return o._pos;for(var l=o._getSoundIds(r),h=0;h<l.length;h++){var u=o._soundById(l[h]);if(u)if(typeof e=="number")u._pos=[e,s,n],u._node&&((!u._panner||u._panner.pan)&&t(u,"spatial"),typeof u._panner.positionX<"u"?(u._panner.positionX.setValueAtTime(e,Howler.ctx.currentTime),u._panner.positionY.setValueAtTime(s,Howler.ctx.currentTime),u._panner.positionZ.setValueAtTime(n,Howler.ctx.currentTime)):u._panner.setPosition(e,s,n)),o._emit("pos",u._id);else return u._pos}return o},Howl.prototype.orientation=function(e,s,n,r){var o=this;if(!o._webAudio)return o;if(o._state!=="loaded")return o._queue.push({event:"orientation",action:function(){o.orientation(e,s,n,r)}}),o;if(s=typeof s!="number"?o._orientation[1]:s,n=typeof n!="number"?o._orientation[2]:n,typeof r>"u")if(typeof e=="number")o._orientation=[e,s,n];else return o._orientation;for(var l=o._getSoundIds(r),h=0;h<l.length;h++){var u=o._soundById(l[h]);if(u)if(typeof e=="number")u._orientation=[e,s,n],u._node&&(u._panner||(u._pos||(u._pos=o._pos||[0,0,-.5]),t(u,"spatial")),typeof u._panner.orientationX<"u"?(u._panner.orientationX.setValueAtTime(e,Howler.ctx.currentTime),u._panner.orientationY.setValueAtTime(s,Howler.ctx.currentTime),u._panner.orientationZ.setValueAtTime(n,Howler.ctx.currentTime)):u._panner.setOrientation(e,s,n)),o._emit("orientation",u._id);else return u._orientation}return o},Howl.prototype.pannerAttr=function(){var e=this,s=arguments,n,r,o;if(!e._webAudio)return e;if(s.length===0)return e._pannerAttr;if(s.length===1)if(typeof s[0]=="object")n=s[0],typeof r>"u"&&(n.pannerAttr||(n.pannerAttr={coneInnerAngle:n.coneInnerAngle,coneOuterAngle:n.coneOuterAngle,coneOuterGain:n.coneOuterGain,distanceModel:n.distanceModel,maxDistance:n.maxDistance,refDistance:n.refDistance,rolloffFactor:n.rolloffFactor,panningModel:n.panningModel}),e._pannerAttr={coneInnerAngle:typeof n.pannerAttr.coneInnerAngle<"u"?n.pannerAttr.coneInnerAngle:e._coneInnerAngle,coneOuterAngle:typeof n.pannerAttr.coneOuterAngle<"u"?n.pannerAttr.coneOuterAngle:e._coneOuterAngle,coneOuterGain:typeof n.pannerAttr.coneOuterGain<"u"?n.pannerAttr.coneOuterGain:e._coneOuterGain,distanceModel:typeof n.pannerAttr.distanceModel<"u"?n.pannerAttr.distanceModel:e._distanceModel,maxDistance:typeof n.pannerAttr.maxDistance<"u"?n.pannerAttr.maxDistance:e._maxDistance,refDistance:typeof n.pannerAttr.refDistance<"u"?n.pannerAttr.refDistance:e._refDistance,rolloffFactor:typeof n.pannerAttr.rolloffFactor<"u"?n.pannerAttr.rolloffFactor:e._rolloffFactor,panningModel:typeof n.pannerAttr.panningModel<"u"?n.pannerAttr.panningModel:e._panningModel});else return o=e._soundById(parseInt(s[0],10)),o?o._pannerAttr:e._pannerAttr;else s.length===2&&(n=s[0],r=parseInt(s[1],10));for(var l=e._getSoundIds(r),h=0;h<l.length;h++)if(o=e._soundById(l[h]),o){var u=o._pannerAttr;u={coneInnerAngle:typeof n.coneInnerAngle<"u"?n.coneInnerAngle:u.coneInnerAngle,coneOuterAngle:typeof n.coneOuterAngle<"u"?n.coneOuterAngle:u.coneOuterAngle,coneOuterGain:typeof n.coneOuterGain<"u"?n.coneOuterGain:u.coneOuterGain,distanceModel:typeof n.distanceModel<"u"?n.distanceModel:u.distanceModel,maxDistance:typeof n.maxDistance<"u"?n.maxDistance:u.maxDistance,refDistance:typeof n.refDistance<"u"?n.refDistance:u.refDistance,rolloffFactor:typeof n.rolloffFactor<"u"?n.rolloffFactor:u.rolloffFactor,panningModel:typeof n.panningModel<"u"?n.panningModel:u.panningModel};var f=o._panner;f||(o._pos||(o._pos=e._pos||[0,0,-.5]),t(o,"spatial"),f=o._panner),f.coneInnerAngle=u.coneInnerAngle,f.coneOuterAngle=u.coneOuterAngle,f.coneOuterGain=u.coneOuterGain,f.distanceModel=u.distanceModel,f.maxDistance=u.maxDistance,f.refDistance=u.refDistance,f.rolloffFactor=u.rolloffFactor,f.panningModel=u.panningModel}return e},Sound.prototype.init=(function(e){return function(){var s=this,n=s._parent;s._orientation=n._orientation,s._stereo=n._stereo,s._pos=n._pos,s._pannerAttr=n._pannerAttr,e.call(this),s._stereo?n.stereo(s._stereo):s._pos&&n.pos(s._pos[0],s._pos[1],s._pos[2],s._id)}})(Sound.prototype.init),Sound.prototype.reset=(function(e){return function(){var s=this,n=s._parent;return s._orientation=n._orientation,s._stereo=n._stereo,s._pos=n._pos,s._pannerAttr=n._pannerAttr,s._stereo?n.stereo(s._stereo):s._pos?n.pos(s._pos[0],s._pos[1],s._pos[2],s._id):s._panner&&(s._panner.disconnect(0),s._panner=void 0,n._refreshBuffer(s)),e.call(this)}})(Sound.prototype.reset);var t=function(e,s){s=s||"spatial",s==="spatial"?(e._panner=Howler.ctx.createPanner(),e._panner.coneInnerAngle=e._pannerAttr.coneInnerAngle,e._panner.coneOuterAngle=e._pannerAttr.coneOuterAngle,e._panner.coneOuterGain=e._pannerAttr.coneOuterGain,e._panner.distanceModel=e._pannerAttr.distanceModel,e._panner.maxDistance=e._pannerAttr.maxDistance,e._panner.refDistance=e._pannerAttr.refDistance,e._panner.rolloffFactor=e._pannerAttr.rolloffFactor,e._panner.panningModel=e._pannerAttr.panningModel,typeof e._panner.positionX<"u"?(e._panner.positionX.setValueAtTime(e._pos[0],Howler.ctx.currentTime),e._panner.positionY.setValueAtTime(e._pos[1],Howler.ctx.currentTime),e._panner.positionZ.setValueAtTime(e._pos[2],Howler.ctx.currentTime)):e._panner.setPosition(e._pos[0],e._pos[1],e._pos[2]),typeof e._panner.orientationX<"u"?(e._panner.orientationX.setValueAtTime(e._orientation[0],Howler.ctx.currentTime),e._panner.orientationY.setValueAtTime(e._orientation[1],Howler.ctx.currentTime),e._panner.orientationZ.setValueAtTime(e._orientation[2],Howler.ctx.currentTime)):e._panner.setOrientation(e._orientation[0],e._orientation[1],e._orientation[2])):(e._panner=Howler.ctx.createStereoPanner(),e._panner.pan.setValueAtTime(e._stereo,Howler.ctx.currentTime)),e._panner.connect(e._node),e._paused||e._parent.pause(e._id,!0).play(e._id,!0)}})()})(xi)),xi}var pf=ff();class bt{static instance;sounds=new Map;soundEnabled=!0;musicEnabled=!0;backgroundSpinId=null;constructor(){this.initSounds()}static getInstance(){return bt.instance||(bt.instance=new bt),bt.instance}initSounds(){const t="./".endsWith("/")?"./":".//",e={spin:`${t}assets/sounds/Spin.mp3`,reelStop:`${t}assets/sounds/ObjectMoveStop.mp3`,win1:`${t}assets/sounds/Win1.mp3`,win2:`${t}assets/sounds/Win2.mp3`,win3:`${t}assets/sounds/Win3.mp3`,winToBalance:`${t}assets/sounds/WinToBalance.mp3`,plus:`${t}assets/sounds/Plus.mp3`,minus:`${t}assets/sounds/Minus.mp3`,bet:`${t}assets/sounds/Bet.mp3`,menu:`${t}assets/sounds/Menu.mp3`,doubleBlack:`${t}assets/sounds/Black.mp3`,doubleRed:`${t}assets/sounds/Red.mp3`,doubleWin:`${t}assets/sounds/Win.mp3`,doubleLose:`${t}assets/sounds/Lose.mp3`,doubleTake:`${t}assets/sounds/Take.mp3`,doubleDraw:`${t}assets/sounds/Draw.mp3`,autoPlayStart:`${t}assets/sounds/Start.mp3`,autoPlayStop:`${t}assets/sounds/Stop.mp3`,backgroundSpin:`${t}assets/sounds/Background.mp3`};for(const[s,n]of Object.entries(e)){const r=s==="backgroundSpin";this.sounds.set(s,new pf.Howl({src:[n],loop:r,volume:r?.35:.75,preload:!0}))}}play(t){if(!this.soundEnabled&&t!=="backgroundSpin"||!this.musicEnabled&&t==="backgroundSpin")return;const e=this.sounds.get(t);e&&(t==="backgroundSpin"?this.backgroundSpinId||(this.backgroundSpinId=e.play()):e.play())}stop(t){const e=this.sounds.get(t);e&&(e.stop(),t==="backgroundSpin"&&(this.backgroundSpinId=null))}setSoundEnabled(t){this.soundEnabled=t}isSoundEnabled(){return this.soundEnabled}setMusicEnabled(t){this.musicEnabled=t,!t&&this.backgroundSpinId&&this.stop("backgroundSpin")}isMusicEnabled(){return this.musicEnabled}}class mf extends rt{static CELL_WIDTH=336;static CELL_HEIGHT=210;staticSprite;blurSprite;currentSymbolId=0;isBlurred=!1;constructor(t=0){super(),this.staticSprite=new X,this.blurSprite=new X,this.staticSprite.anchor.set(.5),this.blurSprite.anchor.set(.5),this.blurSprite.visible=!1,this.addChild(this.blurSprite),this.addChild(this.staticSprite),this.setSymbol(t)}setSymbol(t){this.currentSymbolId=t;const e=ct.getInstance();this.staticSprite.texture=e.getTexture(`Box/${t}`),this.blurSprite.texture=e.getTexture(`BlurBox/${t}`),this.staticSprite.scale.set(.92),this.blurSprite.scale.set(.92)}getSymbolId(){return this.currentSymbolId}setBlur(t){this.isBlurred!==t&&(this.isBlurred=t,this.blurSprite.visible=t,this.staticSprite.visible=!t)}setWinAnimation(t){t?this.staticSprite.scale.set(1.05):this.staticSprite.scale.set(.92)}}class ut extends rt{constructor(t,e=[0,1,2]){super(),this.columnIndex=t;for(let s=0;s<ut.TOTAL_ROWS;s++){const n=s<e.length?e[s]:s%9,r=new mf(n);r.x=ut.CELL_WIDTH/2,r.y=(s-1)*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2,this.symbols.push(r),this.addChild(r)}}static CELL_WIDTH=336;static CELL_HEIGHT=210;static VISIBLE_ROWS=3;static BUFFER_ROWS=2;static TOTAL_ROWS=ut.VISIBLE_ROWS+ut.BUFFER_ROWS;symbols=[];speed=0;maxSpeed=2400;state="IDLE";targetSymbols=null;onStopCallback=null;bounceTimer=0;bounceDuration=.18;bounceOvershoot=14;spin(){this.state="SPINNING",this.speed=400,this.targetSymbols=null;for(const t of this.symbols)t.setWinAnimation(!1)}stop(t,e){this.targetSymbols=t,this.onStopCallback=e||null,this.state="STOPPING"}quickStop(t,e){this.targetSymbols=t,this.onStopCallback=e||null,this.speed=Math.max(this.speed,1200),this.state="STOPPING"}update(t){if(this.state!=="IDLE"){if(this.state==="SPINNING")this.speed<this.maxSpeed&&(this.speed+=3600*t),this.advanceReel(this.speed*t),this.setReelBlur(this.speed>1e3);else if(this.state==="STOPPING")this.speed=Math.max(600,this.speed-2400*t),this.advanceReel(this.speed*t),this.targetSymbols&&this.speed<=800&&(this.setFinalSymbols(this.targetSymbols),this.setReelBlur(!1),this.state="BOUNCING",this.bounceTimer=0,bt.getInstance().play("reelStop"));else if(this.state==="BOUNCING"){this.bounceTimer+=t;const e=Math.min(1,this.bounceTimer/this.bounceDuration),s=Math.sin(e*Math.PI)*this.bounceOvershoot;this.applyRestPositions(s),e>=1&&(this.applyRestPositions(0),this.state="IDLE",this.speed=0,this.onStopCallback&&(this.onStopCallback(),this.onStopCallback=null))}}}advanceReel(t){for(const e of this.symbols)e.y+=t,e.y>ut.VISIBLE_ROWS*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2&&(e.y-=ut.TOTAL_ROWS*ut.CELL_HEIGHT,e.setSymbol(Math.floor(Math.random()*9)))}setFinalSymbols(t){const e=[...this.symbols].sort((s,n)=>s.y-n.y);e[0]&&e[0].setSymbol(Math.floor(Math.random()*9)),e[1]&&e[1].setSymbol(t[0]),e[2]&&e[2].setSymbol(t[1]),e[3]&&e[3].setSymbol(t[2]),e[4]&&e[4].setSymbol(Math.floor(Math.random()*9))}applyRestPositions(t){const e=[...this.symbols].sort((s,n)=>s.y-n.y);for(let s=0;s<e.length;s++)e[s].y=(s-1)*ut.CELL_HEIGHT+ut.CELL_HEIGHT/2+t}setReelBlur(t){for(const e of this.symbols)e.setBlur(t)}getVisibleSymbol(t){return[...this.symbols].sort((s,n)=>s.y-n.y)[t+1]||null}isSpinning(){return this.state!=="IDLE"}}class mt extends rt{static WIDTH=212;static HEIGHT=638;static ROW_HEIGHT=215;itemsContainer;numberSprites=[];state="IDLE";speed=0;maxSpeed=2200;targetMultiplier=1;onStopCallback=null;bounceTimer=0;bounceDuration=.16;multiplierOrder=[1,5,3,4,1,2,4,1,5,3];constructor(t=1){super();const e=ct.getInstance(),s=new X(e.getTexture("Multiplier/Background"));this.addChild(s),this.itemsContainer=new rt,this.addChild(this.itemsContainer);const n=new Ft;n.rect(18,40,mt.WIDTH,mt.HEIGHT),n.fill({color:16777215,alpha:1}),this.addChild(n),this.itemsContainer.mask=n;for(let r=0;r<3;r++)if(r===1){const o=new X(e.getTexture("Multiplier/BottomActive"));o.position.set(-17,229),this.addChild(o);const l=new X(e.getTexture("Multiplier/TopActive"));l.position.set(-17,229),l.zIndex=20,this.addChild(l)}else{const o=new X(e.getTexture("Multiplier/Bottom"));o.position.set(23,43+r*mt.ROW_HEIGHT),this.addChild(o);const l=new X(e.getTexture("Multiplier/Top"));l.position.set(23,43+r*mt.ROW_HEIGHT),l.zIndex=20,this.addChild(l)}this.initNumberSprites(t)}initNumberSprites(t){const e=ct.getInstance();for(let s=0;s<5;s++){const n=s===2?t:this.multiplierOrder[s%this.multiplierOrder.length],r=new X(e.getTexture(`Multiplier/${n}`));r.anchor.set(.5),r.x=23+mt.WIDTH/2-8,r.y=(s-1)*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40,this.numberSprites.push(r),this.itemsContainer.addChild(r)}}spin(){this.state="SPINNING",this.speed=500}stop(t,e){this.targetMultiplier=t,this.onStopCallback=e||null,this.state="STOPPING"}update(t){if(this.state!=="IDLE"){if(this.state==="SPINNING")this.speed<this.maxSpeed&&(this.speed+=3200*t),this.advanceNumbers(this.speed*t);else if(this.state==="STOPPING")this.speed=Math.max(500,this.speed-2800*t),this.advanceNumbers(this.speed*t),this.speed<=650&&(this.setFinalMultiplier(this.targetMultiplier),this.state="BOUNCING",this.bounceTimer=0,bt.getInstance().play("reelStop"));else if(this.state==="BOUNCING"){this.bounceTimer+=t;const e=Math.min(1,this.bounceTimer/this.bounceDuration),s=Math.sin(e*Math.PI)*10;this.applyRestPositions(s),e>=1&&(this.applyRestPositions(0),this.state="IDLE",this.speed=0,this.onStopCallback&&(this.onStopCallback(),this.onStopCallback=null))}}}advanceNumbers(t){const e=ct.getInstance();for(const s of this.numberSprites)if(s.y+=t,s.y>3*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40){s.y-=5*mt.ROW_HEIGHT;const n=this.multiplierOrder[Math.floor(Math.random()*this.multiplierOrder.length)];s.texture=e.getTexture(`Multiplier/${n}`)}}setFinalMultiplier(t){const e=ct.getInstance(),s=[...this.numberSprites].sort((n,r)=>n.y-r.y);s[2].texture=e.getTexture(`Multiplier/${t}`)}applyRestPositions(t){const e=[...this.numberSprites].sort((s,n)=>s.y-n.y);for(let s=0;s<e.length;s++)e[s].y=(s-1)*mt.ROW_HEIGHT+mt.ROW_HEIGHT/2+40+t}getActiveMultiplier(){return this.targetMultiplier}}class z extends rt{
+  static GRID_X=690;
+  static GRID_Y=240;
+  static GRID_WIDTH=1008;
+  static GRID_HEIGHT=630;
+  reels=[];
+  multiplierReel;
+  reelsContainer;
+  isSpinning=!1;
+  stopTimers=[];
+  borderGraphic=null;
+  multiplierTitle=null;
+  headerTitles=null;
+  isMobileMode=!1;
+  constructor(){
+    super();
+    const t=ct.getInstance(), e=new Ft;
+    this.borderGraphic=e;
+    this.addChild(e);
+    this.drawBorder(!1);
+    this.multiplierReel=new mt(5);
+    this.multiplierReel.position.set(423,z.GRID_Y-40);
+    this.addChild(this.multiplierReel);
+    const s=new X(t.getTexture("Start/Multiplier"));
+    s.anchor.set(.5,1);
+    s.position.set(423+mt.WIDTH/2+15,z.GRID_Y-20);
+    this.multiplierTitle=s;
+    this.addChild(s);
+    this.headerTitles=this.createHeaderTitles();
+    this.reelsContainer=new rt;
+    this.reelsContainer.position.set(z.GRID_X,z.GRID_Y);
+    this.addChild(this.reelsContainer);
+    const n=new Ft;
+    n.rect(0,0,z.GRID_WIDTH,z.GRID_HEIGHT);
+    n.fill({color:16777215,alpha:1});
+    this.reelsContainer.addChild(n);
+    this.reelsContainer.mask=n;
+    const r=[[0,1,5],[2,7,6],[8,4,3]];
+    for(let o=0;o<3;o++){
+      const l=new ut(o,r[o]);
+      if(l.position.set(o*ut.CELL_WIDTH,0),this.reels.push(l),this.reelsContainer.addChild(l),o>0){
+        const h=new X(t.getTexture("Start/Column"));
+        h.position.set(o*ut.CELL_WIDTH-2,0);
+        h.height=z.GRID_HEIGHT;
+        h.zIndex=5;
+        this.reelsContainer.addChild(h);
+      }
+    }
+  }
+  drawBorder(isMobile){
+    const e=this.borderGraphic;
+    if(!e)return;
+    e.clear();
+    if(isMobile){
+      e.rect(225,18,765,664);
+      e.stroke({color:339485,width:6,alpha:.9});
+      e.rect(227,20,761,660);
+      e.stroke({color:16766720,width:3.5,alpha:1});
+      e.rect(229,22,757,656);
+      e.stroke({color:12092939,width:1.5,alpha:.8});
+      e.rect(230,23,755,654);
+      e.fill({color:203794,alpha:.4});
+    }else{
+      e.rect(z.GRID_X-10,z.GRID_Y-10,z.GRID_WIDTH+20,z.GRID_HEIGHT+20);
+      e.stroke({color:339485,width:8,alpha:.9});
+      e.rect(z.GRID_X-6,z.GRID_Y-6,z.GRID_WIDTH+12,z.GRID_HEIGHT+12);
+      e.stroke({color:16766720,width:4,alpha:1});
+      e.rect(z.GRID_X-2,z.GRID_Y-2,z.GRID_WIDTH+4,z.GRID_HEIGHT+4);
+      e.stroke({color:12092939,width:2,alpha:.8});
+      e.rect(z.GRID_X,z.GRID_Y,z.GRID_WIDTH,z.GRID_HEIGHT);
+      e.fill({color:203794,alpha:.4});
+    }
+  }
+  adaptLayout(isMobile){
+    this.isMobileMode=isMobile;
+    this.drawBorder(isMobile);
+    if(isMobile){
+      if(this.headerTitles){
+        this.headerTitles.titleGroup.visible=!1;
+        this.headerTitles.linesBadge.visible=!1;
+      }
+      if(this.multiplierTitle) this.multiplierTitle.visible=!1;
+      this.multiplierReel.position.set(12,-15);
+      this.reelsContainer.position.set(230,25);
+      this.reelsContainer.scale.set(0.74,1.0);
+    }else{
+      if(this.headerTitles){
+        this.headerTitles.titleGroup.visible=!0;
+        this.headerTitles.linesBadge.visible=!0;
+      }
+      if(this.multiplierTitle) this.multiplierTitle.visible=!0;
+      this.multiplierReel.position.set(423,z.GRID_Y-40);
+      this.reelsContainer.position.set(z.GRID_X,z.GRID_Y);
+      this.reelsContainer.scale.set(1.0,1.0);
+    }
+  }
+  createHeaderTitles(){
+    const t=new rt;
+    t.position.set(z.GRID_X+z.GRID_WIDTH/2,z.GRID_Y-80);
+    const e=new _t({fontFamily:"Montserrat, sans-serif",fontSize:52,fontWeight:"900",letterSpacing:4,fill:16765503,dropShadow:{alpha:.8,angle:Math.PI/4,blur:8,color:0,distance:6}}),
+          s=new at({text:"MULTI HOT ",style:e});
+    s.anchor.set(1,.5);
+    const n=new _t({fontFamily:"Montserrat, sans-serif",fontSize:56,fontWeight:"900",fill:16722554,dropShadow:{alpha:.9,angle:Math.PI/4,blur:12,color:16722554,distance:0}}),
+          r=new at({text:"5",style:n});
+    r.anchor.set(0,.5);
+    t.addChild(s);
+    t.addChild(r);
+    this.addChild(t);
+    const o=new _t({fontFamily:"Montserrat, sans-serif",fontSize:16,fontWeight:"900",letterSpacing:2,fill:16753920,dropShadow:{alpha:.8,color:0,distance:2}}),
+          l=new at({text:"5 LINES FIXED",style:o});
+    l.anchor.set(1,1);
+    l.position.set(z.GRID_X+z.GRID_WIDTH,z.GRID_Y-12);
+    this.addChild(l);
+    return { titleGroup: t, linesBadge: l };
+  }
+  spin(){
+    this.isSpinning=!0;
+    this.clearStopTimers();
+    for(const t of this.reels) t.spin();
+    this.multiplierReel.spin();
+  }
+  stop(t,e){
+    this.clearStopTimers();
+    const s=window.setTimeout(()=>{this.multiplierReel.stop(t.multiplier)},450),
+          n=window.setTimeout(()=>{this.reels[0].stop(t.matrix[0])},750),
+          r=window.setTimeout(()=>{this.reels[1].stop(t.matrix[1])},1e3),
+          o=window.setTimeout(()=>{this.reels[2].stop(t.matrix[2],()=>{this.isSpinning=!1,e&&e()})},1250);
+    this.stopTimers.push(s,n,r,o);
+  }
+  quickStop(t,e){
+    this.clearStopTimers();
+    this.multiplierReel.stop(t.multiplier);
+    this.reels[0].quickStop(t.matrix[0]);
+    this.reels[1].quickStop(t.matrix[1]);
+    this.reels[2].quickStop(t.matrix[2],()=>{this.isSpinning=!1,e&&e()});
+  }
+  update(t){
+    for(const e of this.reels) e.update(t);
+    this.multiplierReel.update(t);
+  }
+  highlightWinningLine(t){
+    for(const e of t){
+      const s=this.reels[e.col];
+      if(s){
+        const n=s.getVisibleSymbol(e.row);
+        n&&n.setWinAnimation(!0);
+      }
+    }
+  }
+  clearWinHighlights(){
+    for(const t of this.reels)
+      for(let e=0;e<3;e++){
+        const s=t.getVisibleSymbol(e);
+        s&&s.setWinAnimation(!1);
+      }
+  }
+  clearStopTimers(){
+    for(const t of this.stopTimers) clearTimeout(t);
+    this.stopTimers=[];
+  }
+  getIsSpinning(){
+    return this.isSpinning;
+  }
+}class Y extends rt{static BAR_WIDTH=1070;static BAR_HEIGHT=80;balanceText;winText;betText;currentBalance=2e4;currentWin=0;currentBet=.05;currency="DMO";constructor(){super();const t=new Ft;t.roundRect(0,0,Y.BAR_WIDTH,Y.BAR_HEIGHT,14),t.stroke({color:70154,width:4,alpha:.8}),t.roundRect(0,0,Y.BAR_WIDTH,Y.BAR_HEIGHT,14),t.stroke({color:16765503,width:3,alpha:.9}),t.roundRect(2,2,Y.BAR_WIDTH-4,Y.BAR_HEIGHT-4,12),t.fill({color:136717,alpha:.88}),t.moveTo(Y.BAR_WIDTH/3,12),t.lineTo(Y.BAR_WIDTH/3,Y.BAR_HEIGHT-12),t.stroke({color:608044,width:2,alpha:.8}),t.moveTo(Y.BAR_WIDTH/3*2,12),t.lineTo(Y.BAR_WIDTH/3*2,Y.BAR_HEIGHT-12),t.stroke({color:608044,width:2,alpha:.8}),this.addChild(t);const e=new _t({fontFamily:"Montserrat, sans-serif",fontSize:14,fontWeight:"700",letterSpacing:1,fill:5817226}),s=new _t({fontFamily:"Roboto Mono, monospace",fontSize:22,fontWeight:"700",letterSpacing:1,fill:16777215}),n=Y.BAR_WIDTH/6,r=new at({text:"👛",style:{fontSize:26}});r.anchor.set(.5),r.position.set(n-85,Y.BAR_HEIGHT/2),this.addChild(r);const o=new at({text:"BALANCE",style:e});o.anchor.set(0,1),o.position.set(n-55,Y.BAR_HEIGHT/2-2),this.addChild(o),this.balanceText=new at({text:`${this.currentBalance.toFixed(2)} ${this.currency}`,style:s}),this.balanceText.anchor.set(0,0),this.balanceText.position.set(n-55,Y.BAR_HEIGHT/2+2),this.addChild(this.balanceText);const l=Y.BAR_WIDTH/2,h=new at({text:"🏆",style:{fontSize:26}});h.anchor.set(.5),h.position.set(l-75,Y.BAR_HEIGHT/2),this.addChild(h);const u=new at({text:"WIN",style:e});u.anchor.set(0,1),u.position.set(l-45,Y.BAR_HEIGHT/2-2),this.addChild(u),this.winText=new at({text:`${this.currentWin.toFixed(2)} ${this.currency}`,style:new _t({...s,fill:16765503})}),this.winText.anchor.set(0,0),this.winText.position.set(l-45,Y.BAR_HEIGHT/2+2),this.addChild(this.winText);const f=Y.BAR_WIDTH/6*5,a=new at({text:"🎖️",style:{fontSize:26}});a.anchor.set(.5),a.position.set(f-75,Y.BAR_HEIGHT/2),this.addChild(a);const c=new at({text:"TOTAL BET",style:e});c.anchor.set(0,1),c.position.set(f-45,Y.BAR_HEIGHT/2-2),this.addChild(c),this.betText=new at({text:`${this.currentBet.toFixed(2)} ${this.currency}`,style:s}),this.betText.anchor.set(0,0),this.betText.position.set(f-45,Y.BAR_HEIGHT/2+2),this.addChild(this.betText)}setBalance(t){this.currentBalance=t,this.balanceText.text=`${t.toFixed(2)} ${this.currency}`}getBalance(){return this.currentBalance}setWin(t){this.currentWin=t,this.winText.text=`${t.toFixed(2)} ${this.currency}`}setBet(t){this.currentBet=t,this.betText.text=`${t.toFixed(2)} ${this.currency}`}getBet(){return this.currentBet}}class gf extends rt{spinBtnContainer;spinSprite;spinBetLabel;plusBtn;minusBtn;autoPlayBtn;doubleBtn;takeWinBtn;isSpinningState=!1;isGambleActive=!1;constructor(t){super();const e=ct.getInstance(),s=bt.getInstance(),n=1860,r=240,o=new Ft;o.roundRect(n-35,r,70,580,35),o.stroke({color:340768,width:4}),o.roundRect(n-33,r+2,66,576,33),o.fill({color:203794,alpha:.95}),o.stroke({color:58998,width:2,alpha:.5}),this.addChild(o),this.plusBtn=new X(e.getTexture("Buttons/Plus")),this.plusBtn.anchor.set(.5),this.plusBtn.position.set(n,r+45),this.plusBtn.eventMode="static",this.plusBtn.cursor="pointer",this.plusBtn.on("pointerdown",()=>{s.play("plus"),t.onPlusBet()}),this.addChild(this.plusBtn),this.minusBtn=new X(e.getTexture("Buttons/Minus")),this.minusBtn.anchor.set(.5),this.minusBtn.position.set(n,r+535),this.minusBtn.eventMode="static",this.minusBtn.cursor="pointer",this.minusBtn.on("pointerdown",()=>{s.play("minus"),t.onMinusBet()}),this.addChild(this.minusBtn),this.spinBtnContainer=new rt,this.spinBtnContainer.position.set(n,r+290),this.spinBtnContainer.eventMode="static",this.spinBtnContainer.cursor="pointer",this.spinSprite=new X(e.getTexture("Buttons/Spin")),this.spinSprite.anchor.set(.5),this.spinBtnContainer.addChild(this.spinSprite),this.spinBetLabel=new at({text:`0.05
 DMO`,style:new _t({fontFamily:"Montserrat, sans-serif",fontSize:16,fontWeight:"900",align:"center",fill:16777215,dropShadow:{alpha:.8,distance:2}})}),this.spinBetLabel.anchor.set(.5),this.spinBetLabel.position.set(0,-20),this.spinBtnContainer.addChild(this.spinBetLabel),this.spinBtnContainer.on("pointerdown",()=>{t.onSpin()}),this.addChild(this.spinBtnContainer);const l=200;this.autoPlayBtn=new X(e.getTexture("Buttons/AutoPlay")),this.autoPlayBtn.anchor.set(.5),this.autoPlayBtn.position.set(l,290),this.autoPlayBtn.eventMode="static",this.autoPlayBtn.cursor="pointer",this.autoPlayBtn.on("pointerdown",()=>{s.play("menu"),t.onAutoPlay()}),this.addChild(this.autoPlayBtn),this.doubleBtn=new X(e.getTexture("Buttons/Double")),this.doubleBtn.anchor.set(.5),this.doubleBtn.position.set(l,480),this.doubleBtn.eventMode="static",this.doubleBtn.cursor="pointer",this.doubleBtn.alpha=.45,this.doubleBtn.on("pointerdown",()=>{this.isGambleActive&&(s.play("menu"),t.onGamble())}),this.addChild(this.doubleBtn),this.takeWinBtn=new X(e.getTexture("Buttons/DoubleTake")),this.takeWinBtn.anchor.set(.5),this.takeWinBtn.position.set(l,670),this.takeWinBtn.eventMode="static",this.takeWinBtn.cursor="pointer",this.takeWinBtn.alpha=.45,this.takeWinBtn.on("pointerdown",()=>{this.isGambleActive&&(s.play("doubleTake"),t.onTakeWin())}),this.addChild(this.takeWinBtn)}setSpinning(t){this.isSpinningState=t;const e=ct.getInstance();t?(this.spinSprite.texture=e.getTexture("Buttons/SpinStop"),this.spinBetLabel.visible=!1):(this.spinSprite.texture=e.getTexture("Buttons/Spin"),this.spinBetLabel.visible=!0)}updateBetDisplay(t,e="DMO"){this.spinBetLabel.text=`${t.toFixed(2)}
 ${e}`}setGambleAvailable(t){this.isGambleActive=t,this.doubleBtn.alpha=t?1:.45,this.takeWinBtn.alpha=t?1:.45}getIsSpinning(){return this.isSpinningState}getIsGambleActive(){return this.isGambleActive}setAutoPlayActive(t){this.autoPlayBtn.alpha=t?1:.8}}class _f extends rt{constructor(t){super(),this.callbacks=t;const e=ct.getInstance(),s=bt.getInstance(),n=new Ft;n.rect(0,0,2170,1130),n.fill({color:70667,alpha:.92}),this.addChild(n);const r=new _t({fontFamily:"Montserrat, sans-serif",fontSize:36,fontWeight:"900",fill:16765503,letterSpacing:2}),o=new at({text:"X2 GAMBLE FEATURE",style:r});o.anchor.set(.5),o.position.set(1085,160),this.addChild(o);const l=new Ft;l.roundRect(660,230,360,90,10),l.fill({color:140309,alpha:.9}),l.stroke({color:16765503,width:2}),l.roundRect(1150,230,360,90,10),l.fill({color:140309,alpha:.9}),l.stroke({color:16765503,width:2}),this.addChild(l);const h=new _t({fontFamily:"Montserrat, sans-serif",fontSize:14,fontWeight:"700",fill:5817226}),u=new _t({fontFamily:"Roboto Mono, monospace",fontSize:28,fontWeight:"700",fill:16777215}),f=new at({text:"GAMBLE AMOUNT",style:h});f.anchor.set(.5),f.position.set(840,255),this.addChild(f),this.amountValueText=new at({text:"0.00 DMO",style:u}),this.amountValueText.anchor.set(.5),this.amountValueText.position.set(840,290),this.addChild(this.amountValueText);const a=new at({text:"DOUBLE TO WIN",style:h});a.anchor.set(.5),a.position.set(1330,255),this.addChild(a),this.toWinValueText=new at({text:"0.00 DMO",style:new _t({...u,fill:16765503})}),this.toWinValueText.anchor.set(.5),this.toWinValueText.position.set(1330,290),this.addChild(this.toWinValueText),this.cardSprite=new X(e.getTexture("Double/CardBlack")),this.cardSprite.anchor.set(.5),this.cardSprite.position.set(1085,520),this.cardSprite.scale.set(1.1),this.addChild(this.cardSprite),this.redBtn=new X(e.getTexture("Double/Red")),this.redBtn.anchor.set(.5),this.redBtn.position.set(780,520),this.redBtn.eventMode="static",this.redBtn.cursor="pointer",this.redBtn.on("pointerdown",()=>{this.isResolving||(s.play("doubleRed"),this.makeGuess("Red"))}),this.addChild(this.redBtn),this.blackBtn=new X(e.getTexture("Double/Black")),this.blackBtn.anchor.set(.5),this.blackBtn.position.set(1390,520),this.blackBtn.eventMode="static",this.blackBtn.cursor="pointer",this.blackBtn.on("pointerdown",()=>{this.isResolving||(s.play("doubleBlack"),this.makeGuess("Black"))}),this.addChild(this.blackBtn),this.historyContainer=new rt,this.historyContainer.position.set(1085,740),this.addChild(this.historyContainer),this.renderHistory(),this.takeWinBtn=new X(e.getTexture("Double/Take")),this.takeWinBtn.anchor.set(.5),this.takeWinBtn.position.set(1085,870),this.takeWinBtn.eventMode="static",this.takeWinBtn.cursor="pointer",this.takeWinBtn.on("pointerdown",()=>{this.isResolving||(s.play("doubleTake"),this.callbacks.onTakeWin())}),this.addChild(this.takeWinBtn),this.visible=!1}cardSprite;redBtn;blackBtn;takeWinBtn;amountValueText;toWinValueText;historyContainer;currentWinAmount=0;isResolving=!1;history=["Red","Black","Black","Red","Red"];open(t){this.currentWinAmount=t,this.isResolving=!1,this.amountValueText.text=`${t.toFixed(2)} DMO`,this.toWinValueText.text=`${(t*2).toFixed(2)} DMO`,this.cardSprite.texture=ct.getInstance().getTexture("Double/CardBlack"),this.visible=!0}close(){this.visible=!1,this.isResolving=!1}makeGuess(t){this.isResolving=!0,bt.getInstance().play("doubleDraw");const s=Math.random()<.5?"Red":"Black",n=s==="Red"?"Double/CardRed":"Double/CardBlack";let r=1.1;const o=()=>{r-=.15,r<=0?(this.cardSprite.texture=ct.getInstance().getTexture(n),l()):(this.cardSprite.scale.x=r,requestAnimationFrame(o))},l=()=>{r+=.15,this.cardSprite.scale.x=r,r<1.1?requestAnimationFrame(l):(this.cardSprite.scale.x=1.1,this.resolveResult(t,s))};o()}resolveResult(t,e){const s=bt.getInstance();this.history.unshift(e),this.history.length>5&&this.history.pop(),this.renderHistory(),t===e?(s.play("doubleWin"),this.currentWinAmount*=2,this.amountValueText.text=`${this.currentWinAmount.toFixed(2)} DMO`,this.toWinValueText.text=`${(this.currentWinAmount*2).toFixed(2)} DMO`,this.isResolving=!1,this.callbacks.onGuess(e)):(s.play("doubleLose"),setTimeout(()=>{this.close(),this.callbacks.onTakeWin()},1200))}renderHistory(){this.historyContainer.removeChildren();const t=ct.getInstance(),s=-(this.history.length*60)/2+30;for(let n=0;n<this.history.length;n++){const r=this.history[n],o=t.getTexture(r==="Red"?"Double/CardRed":"Double/CardBlack"),l=new X(o);l.anchor.set(.5),l.scale.set(.38),l.position.set(s+n*60,0),this.historyContainer.addChild(l)}}getCurrentWin(){return this.currentWinAmount}}const yf=[{id:1,indices:[3,4,5],name:"Middle Row"},{id:2,indices:[0,1,2],name:"Top Row"},{id:3,indices:[6,7,8],name:"Bottom Row"},{id:4,indices:[0,4,8],name:"Diagonal Down"},{id:5,indices:[6,4,2],name:"Diagonal Up"}],ba={8:430,7:285,6:145,5:115,3:58,2:44,1:29,0:12,4:12};function xf(i){const t=i%3,e=Math.floor(i/3);return{col:t,row:e}}function bf(i,t,e=1){const s=[];let n=0;for(const o of yf){const l=o.indices.map(xf),h=i[l[0].col][l[0].row],u=i[l[1].col][l[1].row],f=i[l[2].col][l[2].row];if(h===u&&u===f){const c=(ba[h]||0)*t;n+=c,s.push({paylineId:o.id,symbolId:h,lineWinAmount:c,winningIndices:l})}}const r=Math.round(n*e*100)/100;return{wins:s,totalWin:r}}class xe{static instance;menuDrawer=null;currentTab="paytable";history=[];currentBet=.05;isTurbo=!1;constructor(){this.createMenuDrawer(),this.bindEvents(),this.loadSettings()}static getInstance(){return xe.instance||(xe.instance=new xe),xe.instance}createMenuDrawer(){const t=`
       <div id="game-menu-modal" class="modal-overlay hidden">
@@ -476,4 +639,410 @@ ${e}`}setGambleAvailable(t){this.isGambleActive=t,this.doubleBtn.alpha=t?1:.45,t
             <td>${e.multiplier}x</td>
             <td class="${s}">${e.win>0?`+${e.win.toFixed(2)} DMO`:"0.00 DMO"}</td>
           </tr>
-        `}).join("")}}getIsTurbo(){return this.isTurbo}getCurrentTab(){return this.currentTab}}class wf{static REEL_STRIP_0=[8,0,1,4,7,2,3,1,6,0,5,4,2,1,0,3,6,2,1,4,5,0,7,2,1,4,0,3,2,1,0,4];static REEL_STRIP_1=[0,1,8,4,2,0,7,1,3,4,6,2,0,1,5,4,2,0,1,3,4,2,0,1,5,4,2,0,1,3,6,4];static REEL_STRIP_2=[4,1,0,2,8,3,0,1,2,7,4,0,1,6,2,4,0,3,1,5,4,2,0,6,1,7,4,0,2,5,1,3];static MULTIPLIER_WEIGHTS=[{value:1,weight:70},{value:2,weight:19},{value:3,weight:7},{value:4,weight:2.7},{value:5,weight:1.3}];static generateSpin(t){const e=Math.floor(Math.random()*this.REEL_STRIP_0.length),s=Math.floor(Math.random()*this.REEL_STRIP_1.length),n=Math.floor(Math.random()*this.REEL_STRIP_2.length),r=[this.REEL_STRIP_0[e],this.REEL_STRIP_0[(e+1)%this.REEL_STRIP_0.length],this.REEL_STRIP_0[(e+2)%this.REEL_STRIP_0.length]],o=[this.REEL_STRIP_1[s],this.REEL_STRIP_1[(s+1)%this.REEL_STRIP_1.length],this.REEL_STRIP_1[(s+2)%this.REEL_STRIP_1.length]],l=[this.REEL_STRIP_2[n],this.REEL_STRIP_2[(n+1)%this.REEL_STRIP_2.length],this.REEL_STRIP_2[(n+2)%this.REEL_STRIP_2.length]],h=[r,o,l],u=this.rollMultiplier(),{wins:f,totalWin:a}=bf(h,t,u);return{matrix:h,multiplier:u,wins:f,totalWin:a,dealNumber:Math.floor(1e9+Math.random()*9e9),isGambleEligible:a>0}}static rollMultiplier(){const t=this.MULTIPLIER_WEIGHTS.reduce((s,n)=>s+n.weight,0);let e=Math.random()*t;for(const s of this.MULTIPLIER_WEIGHTS){if(e<s.weight)return s.value;e-=s.weight}return 1}}const xs=2170,bs=1130;class vf{app=null;soundManager;assetLoader;modalManager;reelGrid=null;hudBar=null;controlsLayer=null;gambleOverlay=null;currentBalance=2e4;pendingWin=0;currentSpinResult=null;bets=[.05,.1,.15,.2,.25,.5,1,2,5,10,20,50,100,200,400];currentBetIndex=0;isAutoPlay=!1;autoPlayTimer=null;constructor(){this.soundManager=bt.getInstance(),this.assetLoader=ct.getInstance(),this.modalManager=xe.getInstance(),this.loadSavedBalance(),this.initClock(),this.initAudioUnlock()}loadSavedBalance(){if(window.HabeshaWallet){this.currentBalance=window.HabeshaWallet.get();return;}const t=localStorage.getItem("multi_hot_balance");if(t){const e=parseFloat(t);!isNaN(e)&&e>0&&(this.currentBalance=e)}}saveBalance(){localStorage.setItem("multi_hot_balance",this.currentBalance.toFixed(2));if(window.HabeshaWallet){window.HabeshaWallet.set(this.currentBalance)}}async start(){const t=document.getElementById("progress-bar"),e=document.getElementById("progress-text"),s=document.getElementById("preloader"),n=await this.assetLoader.loadAll(l=>{t&&(t.style.width=`${l}%`),e&&(e.innerText=`Loading game assets... ${l}%`)}),r=document.getElementById("game-canvas");this.app=new Wo,await this.app.init({canvas:r,width:xs,height:bs,resolution:window.devicePixelRatio||1,autoDensity:!0,backgroundColor:202510,antialias:!0});const o=new X(n.background);o.width=xs,o.height=bs,this.app.stage.addChild(o),this.reelGrid=new z,this.app.stage.addChild(this.reelGrid),this.hudBar=new Y,this.hudBar.position.set(530,930),this.hudBar.setBalance(this.currentBalance),this.hudBar.setBet(this.bets[this.currentBetIndex]),this.hudBar.setWin(0),this.app.stage.addChild(this.hudBar),this.controlsLayer=new gf({onSpin:()=>this.handleSpinClick(),onPlusBet:()=>this.handlePlusBet(),onMinusBet:()=>this.handleMinusBet(),onAutoPlay:()=>this.handleAutoPlayToggle(),onGamble:()=>this.handleGambleOpen(),onTakeWin:()=>this.handleTakeWin()}),this.controlsLayer.updateBetDisplay(this.bets[this.currentBetIndex]),this.app.stage.addChild(this.controlsLayer),this.gambleOverlay=new _f({onGuess:l=>{this.gambleOverlay&&this.hudBar&&(this.pendingWin=this.gambleOverlay.getCurrentWin(),this.hudBar.setWin(this.pendingWin))},onTakeWin:()=>{this.handleTakeWin()}}),this.app.stage.addChild(this.gambleOverlay),this.modalManager.updatePaytable(this.bets[this.currentBetIndex]),this.app.ticker.add(l=>{const h=l.deltaTime/60;this.reelGrid&&this.reelGrid.update(h)}),this.resizeCanvas(),window.addEventListener("resize",()=>this.resizeCanvas()),window.addEventListener("keydown",l=>{l.code==="Space"&&!l.repeat&&(l.preventDefault(),this.handleSpinClick())}),s&&setTimeout(()=>{s.classList.add("fade-out")},300),console.log("Multi Hot 5 Clean-Room Reconstruction Engine ready.")}handleSpinClick(){if(!this.reelGrid||!this.controlsLayer||!this.hudBar)return;if(this.reelGrid.getIsSpinning()){this.currentSpinResult&&this.reelGrid.quickStop(this.currentSpinResult,()=>{this.onSpinCompleted()});return}this.pendingWin>0&&this.handleTakeWin();const t=this.bets[this.currentBetIndex];if(this.currentBalance<t){this.soundManager.play("menu"),this.isAutoPlay&&this.handleAutoPlayToggle(),alert("Insufficient balance! Please reset balance or reduce bet.");return}this.currentBalance=Math.round((this.currentBalance-t)*100)/100,this.hudBar.setBalance(this.currentBalance),this.saveBalance(),this.pendingWin=0,this.hudBar.setWin(0),this.controlsLayer.setGambleAvailable(!1),this.reelGrid.clearWinHighlights(),this.controlsLayer.setSpinning(!0),this.soundManager.play("spin"),this.soundManager.play("backgroundSpin"),this.reelGrid.spin();const e=t/5;this.currentSpinResult=wf.generateSpin(e);const n=this.modalManager.getIsTurbo()?600:1500;setTimeout(()=>{this.reelGrid&&this.reelGrid.getIsSpinning()&&this.currentSpinResult&&this.reelGrid.stop(this.currentSpinResult,()=>{this.onSpinCompleted()})},n)}onSpinCompleted(){if(!this.controlsLayer||!this.hudBar||!this.reelGrid||!this.currentSpinResult)return;this.soundManager.stop("backgroundSpin"),this.controlsLayer.setSpinning(!1);const t=this.currentSpinResult,e=this.bets[this.currentBetIndex];if(this.modalManager.recordSpin(t.dealNumber,e,t.multiplier,t.totalWin),t.totalWin>0){this.pendingWin=t.totalWin,this.hudBar.setWin(this.pendingWin),t.multiplier>=3||t.totalWin>=e*10?this.soundManager.play("win3"):t.totalWin>=e*3?this.soundManager.play("win2"):this.soundManager.play("win1");for(const s of t.wins)this.reelGrid.highlightWinningLine(s.winningIndices);this.isAutoPlay?this.autoPlayTimer=window.setTimeout(()=>{this.handleTakeWin(),this.isAutoPlay&&(this.autoPlayTimer=window.setTimeout(()=>this.handleSpinClick(),400))},1200):this.controlsLayer.setGambleAvailable(!0)}else this.isAutoPlay&&(this.autoPlayTimer=window.setTimeout(()=>this.handleSpinClick(),500))}handlePlusBet(){this.reelGrid?.getIsSpinning()||(this.pendingWin>0&&this.handleTakeWin(),this.currentBetIndex<this.bets.length-1&&(this.currentBetIndex++,this.applyBetChange()))}handleMinusBet(){this.reelGrid?.getIsSpinning()||(this.pendingWin>0&&this.handleTakeWin(),this.currentBetIndex>0&&(this.currentBetIndex--,this.applyBetChange()))}applyBetChange(){const t=this.bets[this.currentBetIndex];this.hudBar&&this.hudBar.setBet(t),this.controlsLayer&&this.controlsLayer.updateBetDisplay(t),this.modalManager.updatePaytable(t)}handleGambleOpen(){this.pendingWin<=0||!this.gambleOverlay||this.gambleOverlay.open(this.pendingWin)}handleTakeWin(){this.pendingWin<=0||!this.hudBar||!this.controlsLayer||(this.soundManager.play("winToBalance"),this.currentBalance=Math.round((this.currentBalance+this.pendingWin)*100)/100,this.hudBar.setBalance(this.currentBalance),this.saveBalance(),this.pendingWin=0,this.hudBar.setWin(0),this.controlsLayer.setGambleAvailable(!1),this.gambleOverlay&&this.gambleOverlay.close())}handleAutoPlayToggle(){this.isAutoPlay=!this.isAutoPlay,this.controlsLayer&&this.controlsLayer.setAutoPlayActive(this.isAutoPlay),this.isAutoPlay?(this.soundManager.play("autoPlayStart"),this.reelGrid?.getIsSpinning()||this.handleSpinClick()):(this.soundManager.play("autoPlayStop"),this.autoPlayTimer&&(clearTimeout(this.autoPlayTimer),this.autoPlayTimer=null))}resizeCanvas(){const t=document.getElementById("game-viewport"),e=document.getElementById("game-canvas");if(!t||!e)return;const s=t.clientWidth,n=t.clientHeight,r=Math.min(s/xs,n/bs);e.style.width=`${Math.floor(xs*r)}px`,e.style.height=`${Math.floor(bs*r)}px`}initClock(){const t=document.getElementById("clock");if(!t)return;const e=()=>{const s=new Date,n=String(s.getHours()).padStart(2,"0"),r=String(s.getMinutes()).padStart(2,"0"),o=String(s.getSeconds()).padStart(2,"0");t.innerText=`${n}:${r}:${o}`};e(),setInterval(e,1e3)}initAudioUnlock(){const t=()=>{window.removeEventListener("pointerdown",t),window.removeEventListener("keydown",t)};window.addEventListener("pointerdown",t),window.addEventListener("keydown",t)}}const Sf=new vf;Sf.start().catch(i=>console.error("Error starting game:",i));export{rt as $,qr as A,Ze as B,Vt as C,E as D,Rt as E,Ft as F,Gs as G,Ds as H,Ce as I,uu as J,Td as K,wu as L,D as M,Nt as N,Ws as O,oo as P,U as Q,st as R,Zi as S,N as T,Bo as U,Pi as V,j as W,_e as X,As as Y,ft as Z,sl as _,So as a,gc as a0,ts as a1,jn as a2,vs as a3,Ls as a4,Cs as a5,wt as a6,ko as a7,wo as a8,Yc as a9,ah as aA,Wa as aB,jc as aC,Kc as aD,iu as aE,eu as aF,nu as aG,Pd as aH,qc as aa,su as ab,Jc as ac,za as ad,ru as ae,vt as af,Yr as ag,kt as ah,Bs as ai,Pn as aj,X as ak,uf as al,Al as am,In as an,Ks as ao,Bn as ap,Cl as aq,Kr as ar,Bd as as,Ro as at,Je as au,Lh as av,kh as aw,Xt as ax,kc as ay,vc as az,_o as b,he as c,F as d,$i as e,Xi as f,ys as g,Z as h,_t as i,da as j,fa as k,Pt as l,Cf as m,Qd as n,Od as o,ht as p,W as q,Zl as r,xc as s,xt as t,hh as u,Q as v,$ as w,K as x,q as y,ws as z};
+        `}).join("")}}getIsTurbo(){return this.isTurbo}getCurrentTab(){return this.currentTab}}class wf{static REEL_STRIP_0=[8,0,1,4,7,2,3,1,6,0,5,4,2,1,0,3,6,2,1,4,5,0,7,2,1,4,0,3,2,1,0,4];static REEL_STRIP_1=[0,1,8,4,2,0,7,1,3,4,6,2,0,1,5,4,2,0,1,3,4,2,0,1,5,4,2,0,1,3,6,4];static REEL_STRIP_2=[4,1,0,2,8,3,0,1,2,7,4,0,1,6,2,4,0,3,1,5,4,2,0,6,1,7,4,0,2,5,1,3];static MULTIPLIER_WEIGHTS=[{value:1,weight:70},{value:2,weight:19},{value:3,weight:7},{value:4,weight:2.7},{value:5,weight:1.3}];static generateSpin(t){const e=Math.floor(Math.random()*this.REEL_STRIP_0.length),s=Math.floor(Math.random()*this.REEL_STRIP_1.length),n=Math.floor(Math.random()*this.REEL_STRIP_2.length),r=[this.REEL_STRIP_0[e],this.REEL_STRIP_0[(e+1)%this.REEL_STRIP_0.length],this.REEL_STRIP_0[(e+2)%this.REEL_STRIP_0.length]],o=[this.REEL_STRIP_1[s],this.REEL_STRIP_1[(s+1)%this.REEL_STRIP_1.length],this.REEL_STRIP_1[(s+2)%this.REEL_STRIP_1.length]],l=[this.REEL_STRIP_2[n],this.REEL_STRIP_2[(n+1)%this.REEL_STRIP_2.length],this.REEL_STRIP_2[(n+2)%this.REEL_STRIP_2.length]],h=[r,o,l],u=this.rollMultiplier(),{wins:f,totalWin:a}=bf(h,t,u);return{matrix:h,multiplier:u,wins:f,totalWin:a,dealNumber:Math.floor(1e9+Math.random()*9e9),isGambleEligible:a>0}}static rollMultiplier(){const t=this.MULTIPLIER_WEIGHTS.reduce((s,n)=>s+n.weight,0);let e=Math.random()*t;for(const s of this.MULTIPLIER_WEIGHTS){if(e<s.weight)return s.value;e-=s.weight}return 1}}const xs=2170,bs=1130;class vf {
+  app=null;
+  soundManager;
+  assetLoader;
+  modalManager;
+  reelGrid=null;
+  hudBar=null;
+  controlsLayer=null;
+  gambleOverlay=null;
+  backgroundSprite=null;
+  currentBalance=2e4;
+  pendingWin=0;
+  currentSpinResult=null;
+  bets=[.05,.1,.15,.2,.25,.5,1,2,5,10,20,50,100,200,400];
+  currentBetIndex=0;
+  isAutoPlay=!1;
+  autoPlayTimer=null;
+  constructor(){
+    window.multiHotGame=this;
+    this.soundManager=bt.getInstance();
+    this.assetLoader=ct.getInstance();
+    this.modalManager=xe.getInstance();
+    this.loadSavedBalance();
+    this.initClock();
+    this.initAudioUnlock();
+  }
+  loadSavedBalance(){
+    if(window.HabeshaWallet){
+      this.currentBalance=window.HabeshaWallet.get();
+      return;
+    }
+    const t=localStorage.getItem("multi_hot_balance");
+    if(t){
+      const e=parseFloat(t);
+      !isNaN(e)&&e>0&&(this.currentBalance=e);
+    }
+  }
+  saveBalance(){
+    localStorage.setItem("multi_hot_balance",this.currentBalance.toFixed(2));
+    if(window.HabeshaWallet){
+      window.HabeshaWallet.set(this.currentBalance);
+    }
+  }
+  getCurrency(){
+    if(window.HabeshaWallet&&window.HabeshaWallet.currency){
+      return window.HabeshaWallet.currency;
+    }
+    return "DMO";
+  }
+  async start(){
+    const t=document.getElementById("progress-bar"),
+          e=document.getElementById("progress-text"),
+          s=document.getElementById("preloader"),
+          n=await this.assetLoader.loadAll(l=>{
+            t&&(t.style.width=`${l}%`),
+            e&&(e.innerText=`Loading game assets... ${l}%`)
+          }),
+          r=document.getElementById("game-canvas");
+    this.app=new Wo;
+    await this.app.init({
+      canvas:r,
+      width:xs,
+      height:bs,
+      resolution:window.devicePixelRatio||1,
+      autoDensity:!0,
+      backgroundColor:202510,
+      antialias:!0
+    });
+    const o=new X(n.background);
+    o.width=xs;
+    o.height=bs;
+    this.backgroundSprite=o;
+    this.app.stage.addChild(o);
+    this.reelGrid=new z;
+    this.app.stage.addChild(this.reelGrid);
+    this.hudBar=new Y;
+    this.hudBar.position.set(530,930);
+    this.hudBar.setBalance(this.currentBalance);
+    this.hudBar.setBet(this.bets[this.currentBetIndex]);
+    this.hudBar.setWin(0);
+    this.app.stage.addChild(this.hudBar);
+    this.controlsLayer=new gf({
+      onSpin:()=>this.handleSpinClick(),
+      onPlusBet:()=>this.handlePlusBet(),
+      onMinusBet:()=>this.handleMinusBet(),
+      onAutoPlay:()=>this.handleAutoPlayToggle(),
+      onGamble:()=>this.handleGambleOpen(),
+      onTakeWin:()=>this.handleTakeWin()
+    });
+    this.controlsLayer.updateBetDisplay(this.bets[this.currentBetIndex]);
+    this.app.stage.addChild(this.controlsLayer);
+    this.gambleOverlay=new _f({
+      onGuess:l=>{
+        this.gambleOverlay&&this.hudBar&&(this.pendingWin=this.gambleOverlay.getCurrentWin(),this.hudBar.setWin(this.pendingWin),this.updateMobileUI());
+      },
+      onTakeWin:()=>{this.handleTakeWin()}
+    });
+    this.app.stage.addChild(this.gambleOverlay);
+    this.modalManager.updatePaytable(this.bets[this.currentBetIndex]);
+    this.app.ticker.add(l=>{
+      const h=l.deltaTime/60;
+      this.reelGrid&&this.reelGrid.update(h);
+    });
+    this.setupMobileControls();
+    this.resizeCanvas();
+    this.updateMobileUI();
+    window.addEventListener("resize",()=>this.resizeCanvas());
+    window.addEventListener("keydown",l=>{
+      l.code==="Space"&&!l.repeat&&(l.preventDefault(),this.handleSpinClick());
+    });
+    s&&setTimeout(()=>{s.classList.add("fade-out")},300);
+    console.log("Multi Hot 5 Authentic Portrait and Desktop Engine ready.");
+  }
+  handleSpinClick(){
+    if(!this.reelGrid||!this.controlsLayer||!this.hudBar)return;
+    if(this.reelGrid.getIsSpinning()){
+      this.currentSpinResult&&this.reelGrid.quickStop(this.currentSpinResult,()=>{this.onSpinCompleted()});
+      return;
+    }
+    this.pendingWin>0&&this.handleTakeWin();
+    const t=this.bets[this.currentBetIndex];
+    if(this.currentBalance<t){
+      this.soundManager.play("menu");
+      this.isAutoPlay&&this.handleAutoPlayToggle();
+      alert("Insufficient balance! Please reset balance or reduce bet.");
+      return;
+    }
+    this.currentBalance=Math.round((this.currentBalance-t)*100)/100;
+    this.hudBar.setBalance(this.currentBalance);
+    this.saveBalance();
+    this.pendingWin=0;
+    this.hudBar.setWin(0);
+    this.controlsLayer.setGambleAvailable(!1);
+    this.reelGrid.clearWinHighlights();
+    this.controlsLayer.setSpinning(!0);
+    this.soundManager.play("spin");
+    this.soundManager.play("backgroundSpin");
+    this.reelGrid.spin();
+    this.updateMobileUI();
+    const e=t/5;
+    this.currentSpinResult=wf.generateSpin(e);
+    const n=this.modalManager.getIsTurbo()?600:1500;
+    setTimeout(()=>{
+      this.reelGrid&&this.reelGrid.getIsSpinning()&&this.currentSpinResult&&this.reelGrid.stop(this.currentSpinResult,()=>{this.onSpinCompleted()});
+    },n);
+  }
+  onSpinCompleted(){
+    if(!this.controlsLayer||!this.hudBar||!this.reelGrid||!this.currentSpinResult)return;
+    this.soundManager.stop("backgroundSpin");
+    this.controlsLayer.setSpinning(!1);
+    const t=this.currentSpinResult, e=this.bets[this.currentBetIndex];
+    if(this.modalManager.recordSpin(t.dealNumber,e,t.multiplier,t.totalWin),t.totalWin>0){
+      this.pendingWin=t.totalWin;
+      this.hudBar.setWin(this.pendingWin);
+      t.multiplier>=3||t.totalWin>=e*10?this.soundManager.play("win3"):t.totalWin>=e*3?this.soundManager.play("win2"):this.soundManager.play("win1");
+      for(const s of t.wins) this.reelGrid.highlightWinningLine(s.winningIndices);
+      this.updateMobileUI();
+      this.isAutoPlay?this.autoPlayTimer=window.setTimeout(()=>{
+        this.handleTakeWin();
+        this.isAutoPlay&&(this.autoPlayTimer=window.setTimeout(()=>this.handleSpinClick(),400));
+      },1200):this.controlsLayer.setGambleAvailable(!0);
+    }else{
+      this.updateMobileUI();
+      this.isAutoPlay&&(this.autoPlayTimer=window.setTimeout(()=>this.handleSpinClick(),500));
+    }
+  }
+  handlePlusBet(){
+    this.reelGrid?.getIsSpinning()||(this.pendingWin>0&&this.handleTakeWin(),this.currentBetIndex<this.bets.length-1&&(this.currentBetIndex++,this.applyBetChange()));
+  }
+  handleMinusBet(){
+    this.reelGrid?.getIsSpinning()||(this.pendingWin>0&&this.handleTakeWin(),this.currentBetIndex>0&&(this.currentBetIndex--,this.applyBetChange()));
+  }
+  applyBetChange(){
+    const t=this.bets[this.currentBetIndex];
+    this.hudBar&&this.hudBar.setBet(t);
+    this.controlsLayer&&this.controlsLayer.updateBetDisplay(t);
+    this.modalManager.updatePaytable(t);
+    this.updateMobileUI();
+  }
+  handleGambleOpen(){
+    this.pendingWin<=0||!this.gambleOverlay||this.gambleOverlay.open(this.pendingWin);
+  }
+  handleTakeWin(){
+    this.pendingWin<=0||!this.hudBar||!this.controlsLayer||(
+      this.soundManager.play("winToBalance"),
+      this.currentBalance=Math.round((this.currentBalance+this.pendingWin)*100)/100,
+      this.hudBar.setBalance(this.currentBalance),
+      this.saveBalance(),
+      this.pendingWin=0,
+      this.hudBar.setWin(0),
+      this.controlsLayer.setGambleAvailable(!1),
+      this.gambleOverlay&&this.gambleOverlay.close(),
+      this.updateMobileUI()
+    );
+  }
+  handleAutoPlayToggle(){
+    this.isAutoPlay=!this.isAutoPlay;
+    this.controlsLayer&&this.controlsLayer.setAutoPlayActive(this.isAutoPlay);
+    this.updateMobileUI();
+    this.isAutoPlay?(this.soundManager.play("autoPlayStart"),this.reelGrid?.getIsSpinning()||this.handleSpinClick()):(this.soundManager.play("autoPlayStop"),this.autoPlayTimer&&(clearTimeout(this.autoPlayTimer),this.autoPlayTimer=null));
+  }
+  updateMobileUI(){
+    const curr=this.getCurrency();
+    const balEl=document.getElementById("mobile-balance-display");
+    if(balEl) balEl.innerText=`${this.currentBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} ${curr}`;
+    const betVal=this.bets[this.currentBetIndex];
+    const betEl=document.getElementById("mobile-bet-display");
+    if(betEl) betEl.innerText=`${betVal.toFixed(2)} ${curr}`;
+    const sheetBetEl=document.getElementById("mobile-sheet-bet-display");
+    if(sheetBetEl) sheetBetEl.innerText=`${betVal.toFixed(2)} ${curr}`;
+
+    const spinBtn=document.getElementById("mobile-spin-btn");
+    if(spinBtn){
+      if(this.reelGrid&&this.reelGrid.getIsSpinning()){
+        spinBtn.classList.add("spinning");
+      }else{
+        spinBtn.classList.remove("spinning");
+      }
+    }
+
+    const autoBtn=document.getElementById("mobile-autoplay-btn");
+    if(autoBtn){
+      if(this.isAutoPlay) autoBtn.classList.add("active");
+      else autoBtn.classList.remove("active");
+    }
+
+    const turboBtn=document.getElementById("mobile-turbo-btn");
+    if(turboBtn){
+      if(this.modalManager&&this.modalManager.getIsTurbo()) turboBtn.classList.add("active");
+      else turboBtn.classList.remove("active");
+    }
+
+    const soundOn=document.getElementById("sound-icon-on");
+    const soundOff=document.getElementById("sound-icon-off");
+    if(soundOn&&soundOff){
+      if(this.soundManager.isSoundEnabled()){
+        soundOn.classList.remove("hidden");
+        soundOff.classList.add("hidden");
+      }else{
+        soundOn.classList.add("hidden");
+        soundOff.classList.remove("hidden");
+      }
+    }
+
+    const winBanner=document.getElementById("mobile-win-banner");
+    const winAmtEl=document.getElementById("mobile-win-amount");
+    if(winBanner&&winAmtEl){
+      if(this.pendingWin>0){
+        winAmtEl.innerText=`${this.pendingWin.toFixed(2)} ${curr}`;
+        winBanner.classList.remove("hidden");
+      }else{
+        winBanner.classList.add("hidden");
+      }
+    }
+
+    document.querySelectorAll(".quick-bet-chip").forEach(btn=>{
+      const b=parseFloat(btn.dataset.bet);
+      if(Math.abs(b-betVal)<0.001) btn.classList.add("active");
+      else btn.classList.remove("active");
+    });
+  }
+  setupMobileControls(){
+    const spinBtn=document.getElementById("mobile-spin-btn");
+    if(spinBtn) spinBtn.addEventListener("click",()=>this.handleSpinClick());
+
+    const autoBtn=document.getElementById("mobile-autoplay-btn");
+    if(autoBtn) autoBtn.addEventListener("click",()=>this.handleAutoPlayToggle());
+
+    const turboBtn=document.getElementById("mobile-turbo-btn");
+    if(turboBtn) turboBtn.addEventListener("click",()=>{
+      if(this.modalManager){
+        this.modalManager.isTurbo=!this.modalManager.isTurbo;
+        this.updateMobileUI();
+      }
+    });
+
+    const betBtn=document.getElementById("mobile-bet-btn");
+    const betPill=document.getElementById("mobile-bet-pill-btn");
+    const betModal=document.getElementById("mobile-bet-modal");
+    const closeBetBtn=document.getElementById("close-bet-modal-btn");
+    const openBetModal=()=>{
+      if(betModal) betModal.classList.remove("hidden");
+    };
+    const closeBetModal=()=>{
+      if(betModal) betModal.classList.add("hidden");
+    };
+    if(betBtn) betBtn.addEventListener("click",openBetModal);
+    if(betPill) betPill.addEventListener("click",openBetModal);
+    if(closeBetBtn) closeBetBtn.addEventListener("click",closeBetModal);
+    if(betModal) betModal.addEventListener("click",e=>{
+      if(e.target===betModal) closeBetModal();
+    });
+
+    const minusBtn=document.getElementById("mobile-bet-minus-btn");
+    if(minusBtn) minusBtn.addEventListener("click",()=>this.handleMinusBet());
+
+    const plusBtn=document.getElementById("mobile-bet-plus-btn");
+    if(plusBtn) plusBtn.addEventListener("click",()=>this.handlePlusBet());
+
+    const menuBtn=document.getElementById("mobile-menu-btn");
+    if(menuBtn) menuBtn.addEventListener("click",()=>{
+      const m=document.getElementById("game-menu-modal");
+      if(m) m.classList.remove("hidden");
+    });
+
+    const soundBtn=document.getElementById("mobile-sound-btn");
+    if(soundBtn) soundBtn.addEventListener("click",()=>{
+      const cur=this.soundManager.isSoundEnabled();
+      this.soundManager.setSoundEnabled(!cur);
+      this.soundManager.setMusicEnabled(!cur);
+      this.updateMobileUI();
+    });
+
+    const grid=document.getElementById("quick-bets-grid");
+    if(grid){
+      grid.innerHTML=this.bets.map((b,idx)=>`
+        <button class="quick-bet-chip ${idx===this.currentBetIndex?'active':''}" data-bet="${b}">
+          ${b.toFixed(2)}
+        </button>
+      `).join("");
+      grid.querySelectorAll(".quick-bet-chip").forEach(chip=>{
+        chip.addEventListener("click",()=>{
+          const b=parseFloat(chip.dataset.bet);
+          const idx=this.bets.indexOf(b);
+          if(idx!==-1){
+            this.currentBetIndex=idx;
+            this.applyBetChange();
+            closeBetModal();
+          }
+        });
+      });
+    }
+  }
+  resizeCanvas(){
+    const isMobile=window.innerWidth<=768||window.innerHeight>window.innerWidth;
+    const mobileFrame=document.getElementById("mobile-slot-frame");
+    const desktopViewport=document.getElementById("game-viewport");
+    const canvas=document.getElementById("game-canvas");
+    if(!canvas)return;
+
+    if(isMobile&&mobileFrame){
+      document.body.classList.add("mobile-portrait-mode");
+      if(canvas.parentElement!==mobileFrame){
+        mobileFrame.appendChild(canvas);
+      }
+      if(this.hudBar) this.hudBar.visible=!1;
+      if(this.controlsLayer) this.controlsLayer.visible=!1;
+      if(this.reelGrid&&this.reelGrid.adaptLayout) this.reelGrid.adaptLayout(!0);
+      if(this.backgroundSprite) this.backgroundSprite.visible=!1;
+
+      const logicalW=1000;
+      const logicalH=680;
+      if(this.app&&this.app.renderer){
+        this.app.renderer.resize(logicalW,logicalH);
+      }
+      const frameW=mobileFrame.clientWidth||Math.min(window.innerWidth-28,400);
+      const scale=frameW/logicalW;
+      canvas.style.width=`${Math.floor(logicalW*scale)}px`;
+      canvas.style.height=`${Math.floor(logicalH*scale)}px`;
+    }else{
+      document.body.classList.remove("mobile-portrait-mode");
+      if(desktopViewport&&canvas.parentElement!==desktopViewport){
+        desktopViewport.appendChild(canvas);
+      }
+      if(this.hudBar) this.hudBar.visible=!0;
+      if(this.controlsLayer) this.controlsLayer.visible=!0;
+      if(this.reelGrid&&this.reelGrid.adaptLayout) this.reelGrid.adaptLayout(!1);
+      if(this.backgroundSprite){
+        this.backgroundSprite.visible=!0;
+        this.backgroundSprite.width=xs;
+        this.backgroundSprite.height=bs;
+      }
+      if(this.app&&this.app.renderer){
+        this.app.renderer.resize(xs,bs);
+      }
+      if(desktopViewport){
+        const s=desktopViewport.clientWidth,
+              n=desktopViewport.clientHeight,
+              r=Math.min(s/xs,n/bs);
+        canvas.style.width=`${Math.floor(xs*r)}px`;
+        canvas.style.height=`${Math.floor(bs*r)}px`;
+      }
+    }
+  }
+  initClock(){
+    const e=()=>{
+      const s=new Date,
+            n=String(s.getHours()).padStart(2,"0"),
+            r=String(s.getMinutes()).padStart(2,"0"),
+            o=String(s.getSeconds()).padStart(2,"0");
+      const t=document.getElementById("clock");
+      if(t) t.innerText=`${n}:${r}:${o}`;
+      const m=document.getElementById("mobile-clock");
+      if(m) m.innerText=`${n} : ${r} : ${o}`;
+    };
+    e();
+    setInterval(e,1e3);
+  }
+  initAudioUnlock(){
+    const t=()=>{
+      window.removeEventListener("pointerdown",t);
+      window.removeEventListener("keydown",t);
+    };
+    window.addEventListener("pointerdown",t);
+    window.addEventListener("keydown",t);
+  }
+}const Sf=new vf;Sf.start().catch(i=>console.error("Error starting game:",i));export{rt as $,qr as A,Ze as B,Vt as C,E as D,Rt as E,Ft as F,Gs as G,Ds as H,Ce as I,uu as J,Td as K,wu as L,D as M,Nt as N,Ws as O,oo as P,U as Q,st as R,Zi as S,N as T,Bo as U,Pi as V,j as W,_e as X,As as Y,ft as Z,sl as _,So as a,gc as a0,ts as a1,jn as a2,vs as a3,Ls as a4,Cs as a5,wt as a6,ko as a7,wo as a8,Yc as a9,ah as aA,Wa as aB,jc as aC,Kc as aD,iu as aE,eu as aF,nu as aG,Pd as aH,qc as aa,su as ab,Jc as ac,za as ad,ru as ae,vt as af,Yr as ag,kt as ah,Bs as ai,Pn as aj,X as ak,uf as al,Al as am,In as an,Ks as ao,Bn as ap,Cl as aq,Kr as ar,Bd as as,Ro as at,Je as au,Lh as av,kh as aw,Xt as ax,kc as ay,vc as az,_o as b,he as c,F as d,$i as e,Xi as f,ys as g,Z as h,_t as i,da as j,fa as k,Pt as l,Cf as m,Qd as n,Od as o,ht as p,W as q,Zl as r,xc as s,xt as t,hh as u,Q as v,$ as w,K as x,q as y,ws as z};

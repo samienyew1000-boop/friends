@@ -2,11 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Multi Hot 5 - Clean Room Reconstruction</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Multi Hot 5 Deluxe - SmartSoft Gaming</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,900;1,900&family=Poppins:wght@400;600;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,800;0,900;1,900&family=Poppins:wght@400;600;700&family=Roboto+Mono:wght@500;700&family=Playball&display=swap" rel="stylesheet">
     <style>
       * {
         box-sizing: border-box;
@@ -14,13 +14,14 @@
         padding: 0;
         user-select: none;
         -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       body, html {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background-color: #000000;
+        background-color: #011208;
         font-family: 'Poppins', sans-serif;
         color: #ffffff;
       }
@@ -29,14 +30,13 @@
         position: relative;
         width: 100vw;
         height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background: radial-gradient(circle at center, #073822 0%, #03170e 70%, #010a06 100%);
+        overflow: hidden;
+        background: radial-gradient(circle at center, rgba(3, 45, 25, 0.45) 0%, rgba(1, 14, 8, 0.95) 100%), url('./assets/background.jpg') center center / cover no-repeat;
       }
 
-      /* Top Header Shell */
+      /* =========================================================
+         DESKTOP LANDSCAPE VIEW
+         ========================================================= */
       #top-header {
         position: absolute;
         top: 0;
@@ -48,9 +48,9 @@
         align-items: center;
         padding: 0 24px;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.45);
         backdrop-filter: blur(8px);
-        border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+        border-bottom: 1px solid rgba(255, 215, 0, 0.2);
       }
 
       .brand-title {
@@ -80,7 +80,7 @@
 
       .digital-clock {
         font-family: 'Roboto Mono', monospace;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
         color: #e0e0e0;
       }
@@ -113,7 +113,6 @@
         border-radius: 2px;
       }
 
-      /* Game Container Viewport */
       #game-viewport {
         position: relative;
         width: 100%;
@@ -126,22 +125,578 @@
 
       #game-canvas {
         display: block;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
+      }
+
+      /* =========================================================
+         AUTHENTIC MOBILE PORTRAIT VIEW (Matches Reference Image)
+         ========================================================= */
+      #mobile-shell {
+        display: none;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: max(8px, env(safe-area-inset-top));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        padding-left: 12px;
+        padding-right: 12px;
+        z-index: 50;
+        background: radial-gradient(circle at 50% 35%, rgba(5, 52, 28, 0.4) 0%, rgba(1, 14, 8, 0.94) 85%), url('./assets/background.jpg') center center / cover no-repeat;
+      }
+
+      /* Mobile Top Bar */
+      .mobile-top-bar {
+        width: 100%;
+        max-width: 440px;
+        height: 38px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 8px;
+      }
+
+      .mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .smartsoft-logo-icon {
+        width: 20px;
+        height: 20px;
+        filter: drop-shadow(0 0 6px rgba(255, 42, 85, 0.6));
+      }
+
+      .smartsoft-text {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.5px;
+        color: #ffffff;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      }
+
+      .mobile-clock {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 1px;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      }
+
+      /* Mobile Game Title (Fiery Multi Hot 5 Deluxe) */
+      .mobile-game-title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        margin-top: -2px;
+        margin-bottom: 2px;
+      }
+
+      .title-main {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+
+      .word-multi, .word-hot {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 26px;
+        letter-spacing: 2px;
+        background: linear-gradient(180deg, #fffadb 0%, #ffd74a 35%, #ff9500 70%, #d84500 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.9)) drop-shadow(0 0 10px rgba(255,149,0,0.8));
+      }
+
+      .num-5 {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 38px;
+        line-height: 1;
+        margin-left: 2px;
+        background: linear-gradient(180deg, #ffc2d1 0%, #ff2a55 45%, #b80028 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.9)) drop-shadow(0 0 14px rgba(255,42,85,0.9));
+      }
+
+      .title-deluxe {
+        position: absolute;
+        right: -16px;
+        bottom: -10px;
+        font-family: 'Playball', 'Brush Script MT', cursive, sans-serif;
+        font-size: 24px;
+        color: #ff1361;
+        text-shadow: 0 0 8px #ff1361, 0 0 16px #ff1361, 1px 1px 2px #000;
+        transform: rotate(-7deg);
+        letter-spacing: 1px;
+      }
+
+      /* Mobile Slot Frame */
+      .mobile-slot-frame {
+        width: 100%;
+        max-width: 396px;
+        aspect-ratio: 1000 / 680;
+        border: 2px solid #e0ba4a;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(224, 186, 74, 0.4), inset 0 0 16px rgba(0, 0, 0, 0.9);
+        background: rgba(2, 24, 13, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .mobile-slot-frame canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain;
+      }
+
+      /* Mobile Circular Controls */
+      .mobile-controls-row {
+        width: 100%;
+        max-width: 396px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 22px;
+        margin: 6px 0;
+      }
+
+      /* Circular Side Buttons (AutoPlay & Bet) */
+      .ctrl-circle-btn {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #134629 0%, #031c10 85%);
+        border: 2px solid rgba(224, 186, 74, 0.65);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e5cf85;
+        cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .ctrl-circle-btn:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+      }
+
+      .ctrl-circle-btn.active {
+        border-color: #00e676;
+        box-shadow: 0 0 16px #00e676, inset 0 0 8px rgba(0, 230, 118, 0.4);
+        color: #00e676;
+      }
+
+      .bet-symbol {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 24px;
+        background: linear-gradient(180deg, #fff7c2 0%, #ffd23f 60%, #c49514 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+      }
+
+      /* Large Center HOLD & SPIN Button */
+      .spin-btn-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ctrl-spin-btn {
+        width: 108px;
+        height: 108px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, #0b341f 0%, #02170d 100%);
+        border: 3px solid #e0ba4a;
+        box-shadow: 0 0 22px rgba(224, 186, 74, 0.5), inset 0 0 14px rgba(0, 0, 0, 0.85);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        outline: none;
+        transition: transform 0.12s ease;
+      }
+
+      .ctrl-spin-btn:active {
+        transform: scale(0.94);
+        box-shadow: 0 0 28px rgba(224, 186, 74, 0.8);
+      }
+
+      .spin-arrows-svg {
+        position: absolute;
+        inset: 4px;
+        width: calc(100% - 8px);
+        height: calc(100% - 8px);
+        pointer-events: none;
+        transition: transform 0.4s ease;
+      }
+
+      .ctrl-spin-btn.spinning .spin-arrows-svg {
+        animation: rotateArrows 1s linear infinite;
+      }
+
+      @keyframes rotateArrows {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .spin-inner-plate {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.1;
+        z-index: 2;
+      }
+
+      .txt-hold, .txt-spin {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 800;
+        font-size: 13.5px;
+        letter-spacing: 1.5px;
+        color: #fcf9ee;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+      }
+
+      .txt-amp {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 10.5px;
+        color: #e0ba4a;
+        margin: 1px 0;
+      }
+
+      /* Attached Turbo Button */
+      .ctrl-turbo-btn {
+        position: absolute;
+        top: -2px;
+        right: 0px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #184c30, #031c10 85%);
+        border: 1.5px solid rgba(224, 186, 74, 0.7);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #e5cf85;
+        cursor: pointer;
+        z-index: 5;
+        transition: all 0.2s ease;
+      }
+
+      .ctrl-turbo-btn:active {
+        transform: scale(0.9);
+      }
+
+      .ctrl-turbo-btn.active {
+        border-color: #ffd23f;
+        box-shadow: 0 0 12px #ffd23f;
+        color: #ffd23f;
+        background: radial-gradient(circle at 35% 35%, #423805, #171302 85%);
+      }
+
+      /* Mobile Bottom Bar (Pills & Icons) */
+      .mobile-bottom-bar {
+        width: 100%;
+        max-width: 440px;
+        height: 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 6px;
+        box-sizing: border-box;
+      }
+
+      .mobile-bar-icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.12s ease;
+      }
+
+      .mobile-bar-icon-btn:active {
+        transform: scale(0.9);
+      }
+
+      .mobile-pill {
+        background: rgba(4, 28, 16, 0.9);
+        border: 1.5px solid rgba(224, 186, 74, 0.55);
+        border-radius: 20px;
+        padding: 3px 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.5);
+        min-width: 120px;
+      }
+
+      .mobile-pill.bet-pill {
+        cursor: pointer;
+        transition: border-color 0.2s ease;
+      }
+
+      .mobile-pill.bet-pill:active {
+        border-color: #ffd23f;
+        transform: scale(0.97);
+      }
+
+      .pill-label {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 9.5px;
+        letter-spacing: 1px;
+        color: #e0ba4a;
+        line-height: 1.1;
+      }
+
+      .pill-value {
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 700;
+        font-size: 13.5px;
+        color: #ffffff;
+        line-height: 1.2;
+      }
+
+      /* =========================================================
+         MODAL / QUICK BET BOTTOM SHEET
+         ========================================================= */
+      .mobile-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(6px);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+      }
+
+      .mobile-modal-overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .mobile-bet-sheet {
+        width: 100%;
+        max-width: 440px;
+        background: radial-gradient(circle at top, #0c3e23 0%, #031a0e 100%);
+        border-top: 2px solid #e0ba4a;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.85);
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .bet-sheet-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 1.5px;
+        color: #e0ba4a;
+        margin-bottom: 16px;
+      }
+
+      .close-sheet-btn {
+        background: none;
+        border: none;
+        color: #ffffff;
+        font-size: 28px;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .bet-stepper-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(224, 186, 74, 0.35);
+        border-radius: 12px;
+        padding: 6px 12px;
+        margin-bottom: 16px;
+      }
+
+      .stepper-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        background: rgba(224, 186, 74, 0.15);
+        border: 1px solid rgba(224, 186, 74, 0.4);
+        color: #ffd23f;
+        font-size: 24px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .stepper-btn:active {
+        background: rgba(224, 186, 74, 0.35);
+      }
+
+      .sheet-bet-value {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+
+      .quick-bets-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+
+      .quick-bet-chip {
+        background: rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #d0e5d8;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 10px 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .quick-bet-chip:active {
+        transform: scale(0.95);
+      }
+
+      .quick-bet-chip.active {
+        background: rgba(224, 186, 74, 0.25);
+        border-color: #ffd23f;
+        color: #ffd23f;
+        box-shadow: 0 0 10px rgba(255, 210, 63, 0.3);
+      }
+
+      /* Win Announcement Banner */
+      .mobile-win-banner {
+        position: absolute;
+        top: 48%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle at center, #ffe066 0%, #ff9500 60%, #b83200 100%);
+        border: 2px solid #ffffff;
+        border-radius: 14px;
+        padding: 12px 28px;
+        box-shadow: 0 0 35px rgba(255, 180, 0, 0.9), 0 8px 24px rgba(0,0,0,0.9);
+        z-index: 200;
+        pointer-events: none;
+        animation: winPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .mobile-win-banner.hidden {
+        display: none;
+      }
+
+      @keyframes winPop {
+        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      .win-banner-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .win-banner-label {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        color: #4a1500;
+      }
+
+      .win-banner-amount {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 24px;
+        font-weight: 900;
+        color: #ffffff;
+        text-shadow: 0 2px 4px #000, 0 0 8px #ff2a55;
+      }
+
+      /* =========================================================
+         RESPONSIVE ORIENTATION SWITCHING
+         ========================================================= */
+      @media (max-width: 768px), (orientation: portrait) {
+        #top-header {
+          display: none !important;
+        }
+        #game-viewport {
+          display: none !important;
+        }
+        #mobile-shell {
+          display: flex !important;
+        }
+      }
+
+      @media (min-width: 769px) and (orientation: landscape) {
+        #top-header {
+          display: flex !important;
+        }
+        #game-viewport {
+          display: flex !important;
+        }
+        #mobile-shell {
+          display: none !important;
+        }
+      }
+
+      /* Utility classes */
+      .hidden {
+        display: none !important;
       }
 
       /* Preloader Overlay */
       #preloader {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        position: fixed;
+        inset: 0;
         background: radial-gradient(circle at center, #083822 0%, #03170e 80%);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        z-index: 500;
+        z-index: 2000;
         transition: opacity 0.5s ease;
       }
 
@@ -153,8 +708,8 @@
       .loader-logo {
         font-family: 'Montserrat', sans-serif;
         font-weight: 900;
-        font-size: 42px;
-        letter-spacing: 4px;
+        font-size: 38px;
+        letter-spacing: 3px;
         color: #ffd23f;
         text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 25px rgba(255, 210, 63, 0.4);
         margin-bottom: 24px;
@@ -165,13 +720,12 @@
       }
 
       .progress-container {
-        width: 320px;
-        height: 12px;
+        width: 280px;
+        height: 10px;
         background: rgba(0, 0, 0, 0.6);
         border-radius: 6px;
         border: 1px solid rgba(255, 215, 0, 0.3);
         overflow: hidden;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
       }
 
       .progress-bar {
@@ -184,18 +738,18 @@
 
       .progress-text {
         margin-top: 12px;
-        font-size: 14px;
+        font-size: 13px;
         color: #a0c4ab;
         letter-spacing: 1px;
       }
 
-      /* Modal Drawer Overlay */
+      /* Drawer Modal Styles */
       .modal-overlay {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(8px);
-        z-index: 1000;
+        z-index: 1500;
         display: flex;
         justify-content: flex-end;
         transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -208,7 +762,7 @@
       }
 
       .drawer-container {
-        width: 640px;
+        width: 600px;
         max-width: 92vw;
         height: 100%;
         background: radial-gradient(circle at top right, #093c23 0%, #03180f 80%, #010c07 100%);
@@ -270,11 +824,6 @@
         line-height: 1;
         cursor: pointer;
         padding: 0 4px;
-        transition: color 0.2s;
-      }
-
-      .close-btn:hover {
-        color: #ff3344;
       }
 
       .drawer-content {
@@ -304,7 +853,7 @@
 
       .paytable-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 12px;
       }
 
@@ -320,8 +869,8 @@
 
       .sym-badge {
         font-size: 24px;
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -341,7 +890,7 @@
 
       .sym-payout {
         font-family: 'Roboto Mono', monospace;
-        font-size: 14px;
+        font-size: 13.5px;
         color: #e0e0e0;
         margin-top: 2px;
       }
@@ -364,7 +913,7 @@
         padding: 10px;
         text-align: center;
         flex: 1;
-        min-width: 90px;
+        min-width: 80px;
       }
 
       .line-title {
@@ -376,14 +925,14 @@
 
       .mini-grid {
         display: grid;
-        grid-template-columns: repeat(3, 16px);
+        grid-template-columns: repeat(3, 14px);
         gap: 4px;
         justify-content: center;
       }
 
       .mini-grid .cell {
-        width: 16px;
-        height: 12px;
+        width: 14px;
+        height: 10px;
         background: rgba(255, 255, 255, 0.12);
         border-radius: 2px;
       }
@@ -403,7 +952,6 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
-      /* Settings Styles */
       .settings-list {
         display: flex;
         flex-direction: column;
@@ -486,15 +1034,8 @@
         padding: 10px 16px;
         border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s;
       }
 
-      .action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(255, 210, 63, 0.4);
-      }
-
-      /* History Table Styles */
       .history-table-container {
         width: 100%;
         overflow-x: auto;
@@ -538,7 +1079,7 @@
   </head>
   <body>
     <div id="app">
-      <!-- Top Global Header -->
+      <!-- 1. DESKTOP HEADER (Hidden on mobile) -->
       <header id="top-header">
         <div class="brand-title">
           <span class="red-dot"></span>
@@ -554,10 +1095,148 @@
         </div>
       </header>
 
-      <!-- Game Stage Container -->
+      <!-- 2. DESKTOP VIEWPORT (Canvas is here on desktop) -->
       <main id="game-viewport">
         <canvas id="game-canvas"></canvas>
       </main>
+
+      <!-- 3. AUTHENTIC MOBILE PORTRAIT SHELL (Active on Mobile / Portrait) -->
+      <div id="mobile-shell">
+        <!-- Top Bar: Logo & Clock -->
+        <div class="mobile-top-bar">
+          <div class="mobile-brand">
+            <!-- SmartSoft Red Spiral Logo -->
+            <svg class="smartsoft-logo-icon" viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="50" r="44" stroke="#ff2a55" stroke-width="8" stroke-dasharray="210 50" stroke-linecap="round"/>
+              <circle cx="50" cy="50" r="26" stroke="#ff2a55" stroke-width="8" stroke-dasharray="120 40" stroke-linecap="round"/>
+              <circle cx="50" cy="50" r="10" fill="#ff2a55"/>
+            </svg>
+            <span class="smartsoft-text">SmartSoft</span>
+          </div>
+          <div id="mobile-clock" class="mobile-clock">11 : 35 : 27</div>
+        </div>
+
+        <!-- Fiery Title: MULTI HOT 5 Deluxe -->
+        <div class="mobile-game-title">
+          <div class="title-main">
+            <span class="word-multi">MULTI</span>
+            <span class="word-hot">HOT</span>
+            <span class="num-5">5</span>
+          </div>
+          <div class="title-deluxe">Deluxe</div>
+        </div>
+
+        <!-- Slot Frame: Contains Multiplier + 3x3 Reels -->
+        <div id="mobile-slot-frame" class="mobile-slot-frame">
+          <!-- Canvas automatically placed here on mobile by engine! -->
+        </div>
+
+        <!-- Circular Controls: AutoPlay, HOLD & SPIN, Bet -->
+        <div class="mobile-controls-row">
+          <!-- AutoPlay Button -->
+          <button id="mobile-autoplay-btn" class="ctrl-circle-btn autoplay-btn" aria-label="Auto Play" title="Auto Play">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.83 6.72 2.24"/>
+              <polyline points="21 3 21 8 16 8"/>
+            </svg>
+          </button>
+
+          <!-- Large Central HOLD & SPIN Button -->
+          <div class="spin-btn-wrapper">
+            <button id="mobile-spin-btn" class="ctrl-spin-btn" aria-label="Hold and Spin">
+              <!-- Spin Arrows Ring -->
+              <svg class="spin-arrows-svg" viewBox="0 0 100 100">
+                <path d="M 50 10 A 40 40 0 0 1 90 50" fill="none" stroke="#fcf7e6" stroke-width="8" stroke-linecap="round"/>
+                <polygon points="90,40 100,52 87,54" fill="#fcf7e6"/>
+                <path d="M 50 90 A 40 40 0 0 1 10 50" fill="none" stroke="#fcf7e6" stroke-width="8" stroke-linecap="round"/>
+                <polygon points="10,60 0,48 13,46" fill="#fcf7e6"/>
+              </svg>
+              <!-- Center Inner Plate -->
+              <div class="spin-inner-plate">
+                <span class="txt-hold">HOLD</span>
+                <span class="txt-amp">&</span>
+                <span class="txt-spin">SPIN</span>
+              </div>
+            </button>
+
+            <!-- Turbo Lightning Toggle at top-right of spin button -->
+            <button id="mobile-turbo-btn" class="ctrl-turbo-btn" aria-label="Turbo Mode" title="Turbo Speed">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Quick Bet Button -->
+          <button id="mobile-bet-btn" class="ctrl-circle-btn bet-btn" aria-label="Select Bet" title="Change Bet">
+            <span class="bet-symbol">$</span>
+          </button>
+        </div>
+
+        <!-- Bottom Pill Bar: Menu, Balance Pill, Bet Pill, Sound -->
+        <div class="mobile-bottom-bar">
+          <!-- Hamburger Menu -->
+          <button id="mobile-menu-btn" class="mobile-bar-icon-btn" aria-label="Menu" title="Game Menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+
+          <!-- Balance Pill -->
+          <div class="mobile-pill balance-pill">
+            <span class="pill-label">BALANCE</span>
+            <span id="mobile-balance-display" class="pill-value">20,000.00 DMO</span>
+          </div>
+
+          <!-- Bet Pill -->
+          <div id="mobile-bet-pill-btn" class="mobile-pill bet-pill" role="button" title="Tap to change bet">
+            <span class="pill-label">BET</span>
+            <span id="mobile-bet-display" class="pill-value">0.05 DMO</span>
+          </div>
+
+          <!-- Audio Sound Toggle -->
+          <button id="mobile-sound-btn" class="mobile-bar-icon-btn" aria-label="Toggle Sound" title="Sound Mute/Unmute">
+            <svg id="sound-icon-on" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            <svg id="sound-icon-off" class="hidden" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <line x1="23" y1="9" x2="17" y2="15"/>
+              <line x1="17" y1="9" x2="23" y2="15"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Floating Win Banner -->
+        <div id="mobile-win-banner" class="mobile-win-banner hidden">
+          <div class="win-banner-content">
+            <span class="win-banner-label">WIN</span>
+            <span id="mobile-win-amount" class="win-banner-amount">0.00 DMO</span>
+          </div>
+        </div>
+
+        <!-- Quick Bet Bottom Sheet Modal -->
+        <div id="mobile-bet-modal" class="mobile-modal-overlay hidden">
+          <div class="mobile-bet-sheet">
+            <div class="bet-sheet-header">
+              <span>TOTAL BET</span>
+              <button id="close-bet-modal-btn" class="close-sheet-btn">&times;</button>
+            </div>
+            <div class="bet-stepper-row">
+              <button id="mobile-bet-minus-btn" class="stepper-btn">&minus;</button>
+              <div id="mobile-sheet-bet-display" class="sheet-bet-value">0.05 DMO</div>
+              <button id="mobile-bet-plus-btn" class="stepper-btn">&plus;</button>
+            </div>
+            <div class="quick-bets-grid" id="quick-bets-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Preloader -->
       <div id="preloader">
@@ -568,6 +1247,5 @@
         <div id="progress-text" class="progress-text">Loading game assets... 0%</div>
       </div>
     </div>
-
   </body>
 </html>
