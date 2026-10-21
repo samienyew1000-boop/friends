@@ -920,6 +920,16 @@
       url: 'game/MultiHot5/index.html',
       likes: '12.4k',
       desc: 'Authentic SmartSoft 5-line retro fruit slot! Stack burning sevens, hot fruits, and multiply your payouts!'
+    },
+    'mines': {
+      title: 'Mines',
+      provider: 'Galaxsys',
+      multiplier: 'Pick & Win',
+      category: 'Instant Game',
+      image: 'assets/game_mines.png',
+      url: 'game/mines/index.html',
+      likes: '14.8k',
+      desc: 'Official Galaxsys 5x5 Mines grid! Uncover golden stars, dodge hidden bombs, and cash out your multiplier anytime!'
     }
   };
 
@@ -940,6 +950,9 @@
   gameData['multihot_5'] = gameData['multi_hot_5'];
   gameData['MultiHot5'] = gameData['multi_hot_5'];
   gameData['multi hot 5'] = gameData['multi_hot_5'];
+  gameData['mines_game'] = gameData['mines'];
+  gameData['mines-game'] = gameData['mines'];
+  gameData['mines game'] = gameData['mines'];
 
   let activeGameUrl = 'game/aviator/index.html';
   let activeGameId = 'aviator';
