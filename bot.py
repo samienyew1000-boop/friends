@@ -151,9 +151,10 @@ def get_user_webapp_url(chat_id, user=None):
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     bal = float(user.get("balance", 0.0))
     bonus_bal = float(user.get("bonus_balance", 0.0))
+    ts = int(float(user.get("updated") or time.time()) * 1000)
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}&bonus_balance={bonus_bal:.2f}"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}&bonus_balance={bonus_bal:.2f}&ts={ts}"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """

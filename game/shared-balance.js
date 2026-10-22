@@ -23,47 +23,44 @@
       if (urlMode === 'demo') {
         localStorage.setItem(MODE_KEY, 'demo');
       } else {
-        // Enforce REAL balance standard
         localStorage.setItem(MODE_KEY, 'real');
       }
+
       const urlBal = params.get('balance');
-      if (urlBal !== null && !isNaN(parseFloat(urlBal))) {
+      const urlBonus = params.get('bonus_balance');
+      const urlTs = parseInt(params.get('ts') || '0', 10);
+      const localTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
+      const hasLocalReal = localStorage.getItem(STORAGE_KEY_REAL) !== null && localStorage.getItem(STORAGE_KEY_REAL) !== '';
+
+      // Only adopt URL balance if we don't have an active local balance, OR if a fresh server update (e.g. deposit) has a newer timestamp
+      const shouldUpdateFromUrl = !hasLocalReal || (urlTs > 0 && urlTs > localTs);
+
+      if (urlBal !== null && !isNaN(parseFloat(urlBal)) && shouldUpdateFromUrl) {
         const parsed = Math.max(0, round2(parseFloat(urlBal)));
         localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
+        if (urlTs > 0) {
+          localStorage.setItem('habesha_balance_ts', String(urlTs));
+        }
         syncLegacyStorages(parsed);
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', parsed.toFixed(2), () => {});
-          }
-        } catch (e) {}
-      } else {
-        // If balance not provided in URL, try restoring from Telegram CloudStorage
+      } else if (!hasLocalReal) {
+        // Fallback to Telegram CloudStorage if no local balance
         try {
           if (window.Telegram?.WebApp?.CloudStorage) {
             window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
               if (!err && val && !isNaN(parseFloat(val))) {
                 const cloudBal = Math.max(0, round2(parseFloat(val)));
-                const cur = round2(parseFloat(localStorage.getItem(STORAGE_KEY_REAL) || 0));
-                if (cur === 0 && cloudBal > 0) {
-                  localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
-                  syncLegacyStorages(cloudBal);
-                  notifyAll(cloudBal);
-                }
+                localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
+                syncLegacyStorages(cloudBal);
+                notifyAll(cloudBal);
               }
             });
           }
         } catch (e) {}
       }
 
-      const urlBonus = params.get('bonus_balance');
-      if (urlBonus !== null && !isNaN(parseFloat(urlBonus))) {
+      if (urlBonus !== null && !isNaN(parseFloat(urlBonus)) && shouldUpdateFromUrl) {
         const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
         localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', parsedBonus.toFixed(2), () => {});
-          }
-        } catch (e) {}
       }
     } catch (e) {}
   })();
@@ -297,6 +294,7 @@
     try {
       localStorage.setItem(STORAGE_KEY_REAL, realBal.toFixed(2));
       localStorage.setItem(STORAGE_KEY_BONUS, bonusBal.toFixed(2));
+      localStorage.setItem('habesha_balance_ts', String(Date.now()));
       if (window.Telegram?.WebApp?.CloudStorage) {
         window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', realBal.toFixed(2), () => {});
         window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', bonusBal.toFixed(2), () => {});
@@ -308,52 +306,12 @@
     const newTotal = round2(realBal + bonusBal);
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
-
-    // Real-time server sync: update known_users.json on VPS immediately after every bet/win
-    triggerServerSync(realBal, bonusBal);
-
     return newTotal;
-  }
-
-  const TG_SYNC_BOT_TOKEN = '8623497673:AAGUQP1SoPLDPbUqBydhe8SYBF2ybXHufYM';
-  let syncTimer = null;
-
-  function triggerServerSync(realBal, bonusBal) {
-    if (getMode() === 'demo') return;
-    if (syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(function () {
-      dispatchSync(realBal, bonusBal);
-    }, 300);
-  }
-
-  function dispatchSync(realBal, bonusBal) {
-    if (getMode() === 'demo') return;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      const uid = (tgUser && tgUser.id) ? String(tgUser.id) : (params.get('uid') || '');
-      if (!uid || isNaN(parseInt(uid))) return;
-
-      const r = typeof realBal === 'number' ? realBal : getRealBalance();
-      const b = typeof bonusBal === 'number' ? bonusBal : getBonusBalance();
-
-      // Silent sync message to bot so known_users.json is updated on the VPS immediately
-      fetch('https://api.telegram.org/bot' + TG_SYNC_BOT_TOKEN + '/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: uid,
-          text: '/sync_wallet ' + uid + ' ' + r.toFixed(2) + ' ' + b.toFixed(2),
-          disable_notification: true
-        })
-      }).catch(function () {});
-    } catch (e) {}
   }
 
   function exitAndSave() {
     const realBal = getRealBalance();
     const bonusBal = getBonusBalance();
-    dispatchSync(realBal, bonusBal);
     try {
       if (window.Telegram?.WebApp?.sendData) {
         window.Telegram.WebApp.sendData(JSON.stringify({
@@ -361,23 +319,33 @@
           balance: realBal,
           bonus_balance: bonusBal
         }));
-      } else if (window.Telegram?.WebApp?.close) {
-        window.Telegram.WebApp.close();
+        return;
       }
-    } catch (e) {
+    } catch (e) {}
+
+    try {
       if (window.Telegram?.WebApp?.close) {
         window.Telegram.WebApp.close();
       }
-    }
+    } catch (e) {}
   }
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', function () {
-      dispatchSync(getRealBalance(), getBonusBalance());
-    });
-    window.addEventListener('beforeunload', function () {
-      dispatchSync(getRealBalance(), getBonusBalance());
-    });
+  // Hook Telegram's native BackButton across all pages
+  if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
+    try {
+      if (window.Telegram.WebApp.BackButton) {
+        window.Telegram.WebApp.BackButton.show();
+        window.Telegram.WebApp.BackButton.onClick(function () {
+          const path = (window.location.pathname || '').toLowerCase();
+          const inGame = path.includes('/game/');
+          if (inGame) {
+            window.location.href = '../../index.html';
+          } else {
+            exitAndSave();
+          }
+        });
+      }
+    } catch (e) {}
   }
 
   // Check if player has at least specified amount
@@ -646,8 +614,7 @@
     getGameMargin: getGameMargin,
     subscribeAdminConfig: subscribeAdminConfig,
     syncLegacyStorages: syncLegacyStorages,
-    exitAndSave: exitAndSave,
-    dispatchSync: dispatchSync
+    exitAndSave: exitAndSave
   };
 
   global.HabeshaWallet = HabeshaWallet;
