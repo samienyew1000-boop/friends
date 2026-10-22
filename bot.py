@@ -154,34 +154,38 @@ def get_user_webapp_url(chat_id, user=None):
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
-    Persistent Custom Ethiopian Gaming Keyboard exactly matching user requirements:
-    Row 1: [ 🎮 ቢንጎ ተጫወት ]  [ 🎁 ፕሮሞ ኮድ ]
-    Row 2: [ 💰 ገቢ ለማድረግ ]  [ 💸 ወጪ ለማድረግ ]
-    Row 3: [ 🔗 ጋብዝ & አግኝ ]  [ 👤 ፕሮፋይል & ሂሳብ ]
-    Row 4: [ 🆘 እርዳታ ]      [ 🌐 ቋንቋ / Language ]
-    Row 5: [ 📢 አጀንት ፕሮሞተር ]
+    Persistent Custom Gaming Keyboard matching Image 2:
+    Row 1: [ Play Games 🎮 ]
+    Row 2: [ Deposit 💰 ] [ Withdraw 💰 ]
+    Row 3: [ Transfer ↔️ ] [ My Profile 👤 ]
+    Row 4: [ Transactions 📜 ] [ Balance 💰 ]
+    Row 5: [ Join Group ↗️ ] [ Contact Us ]
+    Row 6: [ Refer & Earn 🎁 ]
     """
     app_url = get_user_webapp_url(chat_id, user)
     return {
         "keyboard": [
             [
-                {"text": "🎮 ቢንጎ ተጫወት", "web_app": {"url": app_url}},
-                {"text": "🎁 ፕሮሞ ኮድ"}
+                {"text": "Play Games 🎮", "web_app": {"url": app_url}}
             ],
             [
-                {"text": "💰 ገቢ ለማድረግ"},
-                {"text": "💸 ወጪ ለማድረግ"}
+                {"text": "Deposit 💰"},
+                {"text": "Withdraw 💰"}
             ],
             [
-                {"text": "🔗 ጋብዝ & አግኝ"},
-                {"text": "👤 ፕሮፋይል & ሂሳብ"}
+                {"text": "Transfer ↔️"},
+                {"text": "My Profile 👤"}
             ],
             [
-                {"text": "🆘 እርዳታ"},
-                {"text": "🌐 ቋንቋ / Language"}
+                {"text": "Transactions 📜"},
+                {"text": "Balance 💰"}
             ],
             [
-                {"text": "📢 አጀንት ፕሮሞተር"}
+                {"text": "Join Group ↗️"},
+                {"text": "Contact Us"}
+            ],
+            [
+                {"text": "Refer & Earn 🎁"}
             ]
         ],
         "resize_keyboard": True,
@@ -318,7 +322,7 @@ def send_registration_success(chat_id, user):
     display_user = f"@{username}" if username else user.get("first_name", "Player")
 
     # 1. Congratulatory text
-    msg1 = f"እንኳን ደስ አለዎት {display_user}! ምዝገባው ተጠናቋል። አሁን መጫወት ይችላሉ::"
+    msg1 = f"🎉 Welcome {display_user}! Registration complete. You can now play and win real cash!"
     api_call("sendMessage", {
         "chat_id": chat_id,
         "text": msg1,
@@ -328,9 +332,9 @@ def send_registration_success(chat_id, user):
     # 2. Card with photo and account balances
     bal = float(user.get("balance", 0.0))
     caption = (
-        f"ሰላም {display_user}!\n"
-        f"የጨዋታ ሂሳብ: <b>{bal:.2f} ETB</b>\n"
-        f"የአሸናፊነት ሂሳብ: 0.00 ETB"
+        f"👋 Welcome {display_user}!\n"
+        f"Game Balance: <b>{bal:.2f} ETB</b>\n"
+        f"Winnings Balance: <b>0.00 ETB</b>"
     )
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -340,13 +344,13 @@ def send_registration_success(chat_id, user):
         "inline_keyboard": [
             [
                 {
-                    "text": f"🎮 ጨዋታዎችን ክፈት ({bal:.2f} ETB)",
+                    "text": f"Play Games 🎮 ({bal:.2f} ETB)",
                     "web_app": {"url": app_url}
                 }
             ],
             [
-                {"text": "💰 ገቢ ለማድረግ", "callback_data": "deposit"},
-                {"text": "💸 ወጪ ለማድረግ", "callback_data": "withdraw"}
+                {"text": "Deposit 💰", "callback_data": "deposit"},
+                {"text": "Withdraw 💰", "callback_data": "withdraw"}
             ]
         ]
     }
@@ -379,7 +383,7 @@ def send_registration_success(chat_id, user):
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
         "chat_id": chat_id,
-        "text": "👇 <i>ከታች ካሉት ምርጫዎች አንዱን መምረጥ ወይም ቀጥታ '🎮 ጨዋታዎችን ክፈት' የሚለውን ተጭነው መጫወት ይችላሉ:</i>",
+        "text": "👇 <i>Tap below to play games or manage your account:</i>",
         "parse_mode": "HTML",
         "reply_markup": main_kb
     })
@@ -407,9 +411,9 @@ def send_welcome(chat_id, user=None):
     })
 
     caption = (
-        f"ሰላም {display_user}!\n"
-        f"የጨዋታ ሂሳብ: <b>{bal:.2f} ETB</b>\n"
-        f"የአሸናፊነት ሂሳብ: 0.00 ETB"
+        f"👋 Welcome {display_user}!\n"
+        f"Game Balance: <b>{bal:.2f} ETB</b>\n"
+        f"Winnings Balance: <b>0.00 ETB</b>"
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
@@ -417,13 +421,13 @@ def send_welcome(chat_id, user=None):
         "inline_keyboard": [
             [
                 {
-                    "text": f"🎮 ጨዋታዎችን ክፈት ({bal:.2f} ETB)",
+                    "text": f"Play Games 🎮 ({bal:.2f} ETB)",
                     "web_app": {"url": app_url}
                 }
             ],
             [
-                {"text": "💰 ገቢ ለማድረግ", "callback_data": "deposit"},
-                {"text": "💸 ወጪ ለማድረግ", "callback_data": "withdraw"}
+                {"text": "Deposit 💰", "callback_data": "deposit"},
+                {"text": "Withdraw 💰", "callback_data": "withdraw"}
             ]
         ]
     }
@@ -446,7 +450,7 @@ def send_welcome(chat_id, user=None):
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
         "chat_id": chat_id,
-        "text": "👇 <i>ከታች ካሉት ምርጫዎች አንዱን መምረጥ ወይም ቀጥታ '🎮 ጨዋታዎችን ክፈት' የሚለውን ተጭነው መጫወት ይችላሉ:</i>",
+        "text": "👇 <i>Tap below to play games or manage your account:</i>",
         "parse_mode": "HTML",
         "reply_markup": main_kb
     })
@@ -589,6 +593,15 @@ def load_deposits():
     if DEPOSITS_FILE.exists():
         try:
             with open(DEPOSITS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def load_withdrawals():
+    if WITHDRAWALS_FILE.exists():
+        try:
+            with open(WITHDRAWALS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return []
@@ -947,6 +960,221 @@ def send_agent_info(chat_id, user):
         "reply_markup": main_kb
     })
 
+def send_balance_info(chat_id, user):
+    bal = float(user.get("balance", 0.0))
+    app_url = get_user_webapp_url(chat_id, user)
+    text = (
+        f"💰 <b>Your Account Balance | የሂሳብ መጠን</b>\n\n"
+        f"💵 <b>Available Balance:</b> <b>{bal:.2f} ETB</b>\n"
+        f"🏆 <b>Winnings Balance:</b> <b>0.00 ETB</b>\n"
+        f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
+        f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr/CBE\n"
+        f"• Tap <b>'Withdraw 💰'</b> to cash out instantly\n"
+        f"• Tap <b>'Play Games 🎮'</b> to start playing!"
+    )
+    inline_kb = {
+        "inline_keyboard": [
+            [{"text": f"🎮 Play Games ({bal:.2f} ETB)", "web_app": {"url": app_url}}],
+            [
+                {"text": "Deposit 💰", "callback_data": "deposit"},
+                {"text": "Withdraw 💰", "callback_data": "withdraw"}
+            ]
+        ]
+    }
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": inline_kb
+    })
+
+def send_transactions_info(chat_id, user):
+    deposits = load_deposits()
+    withdrawals = load_withdrawals()
+    uid = str(chat_id)
+
+    user_deps = [d for d in deposits if str(d.get("chat_id")) == uid]
+    user_withs = [w for w in withdrawals if str(w.get("chat_id")) == uid]
+
+    lines = ["📜 <b>Recent Transactions | የቅርብ ጊዜ ግብይቶች</b>\n"]
+    if not user_deps and not user_withs:
+        lines.append("<i>No transactions recorded yet.</i>\n\nTap <b>'Deposit 💰'</b> to make your first deposit!")
+    else:
+        if user_deps:
+            lines.append("<b>📥 Deposits:</b>")
+            for d in user_deps[-4:]:
+                st = d.get("status", "pending")
+                icon = "✅" if st == "approved" else ("❌" if st == "rejected" else "⏳")
+                amt = float(d.get("amount", 0.0))
+                time_str = d.get("time", "")
+                lines.append(f"{icon} +{amt:.2f} ETB ({st.upper()}) - <i>{time_str}</i>")
+            lines.append("")
+
+        if user_withs:
+            lines.append("<b>📤 Withdrawals:</b>")
+            for w in user_withs[-4:]:
+                st = w.get("status", "pending")
+                icon = "✅" if st == "approved" else ("❌" if st == "rejected" else "⏳")
+                amt = float(w.get("amount", 0.0))
+                time_str = w.get("created_at", "")
+                lines.append(f"{icon} -{amt:.2f} ETB ({st.upper()}) - <i>{time_str}</i>")
+
+    main_kb = get_main_reply_keyboard(chat_id, user)
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": "\n".join(lines),
+        "parse_mode": "HTML",
+        "reply_markup": main_kb
+    })
+
+def send_transfer_info(chat_id, user):
+    bal = float(user.get("balance", 0.0))
+    main_kb = get_main_reply_keyboard(chat_id, user)
+    text = (
+        f"↔️ <b>Fund Transfer | የሂሳብ ማስተላለፊያ</b>\n\n"
+        f"💵 Available Balance: <b>{bal:.2f} ETB</b>\n\n"
+        f"Transfer balance directly to another player!\n\n"
+        f"👉 <b>Usage:</b>\n"
+        f"<code>/transfer &lt;User_ID or Phone&gt; &lt;Amount&gt;</code>\n\n"
+        f"<b>Example:</b>\n"
+        f"<code>/transfer 123456789 100</code>\n"
+        f"<code>/transfer 0912345678 150</code>\n\n"
+        f"<i>Minimum transfer is 10 ETB. Funds are credited instantly with 0 fee.</i>"
+    )
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": main_kb
+    })
+
+def handle_transfer(chat_id, user, target_str, amount_str):
+    main_kb = get_main_reply_keyboard(chat_id, user)
+    try:
+        amt = float(amount_str)
+        if amt < 10:
+            return api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": "⚠️ Minimum transfer amount is <b>10 ETB</b>.",
+                "parse_mode": "HTML",
+                "reply_markup": main_kb
+            })
+    except ValueError:
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Invalid amount. Example: <code>/transfer 123456789 100</code>",
+            "parse_mode": "HTML",
+            "reply_markup": main_kb
+        })
+
+    sender_bal = float(user.get("balance", 0.0))
+    if sender_bal < amt:
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": f"⚠️ Insufficient balance! Your balance is <b>{sender_bal:.2f} ETB</b>.",
+            "parse_mode": "HTML",
+            "reply_markup": main_kb
+        })
+
+    users = load_known_users()
+    target_clean = target_str.strip().lstrip("@")
+    recipient_uid = None
+    recipient_user = None
+
+    for uid, u in users.items():
+        if uid == target_clean:
+            recipient_uid = uid
+            recipient_user = u
+            break
+        if u.get("phone") and target_clean in u.get("phone"):
+            recipient_uid = uid
+            recipient_user = u
+            break
+        if u.get("username") and u.get("username").lower() == target_clean.lower():
+            recipient_uid = uid
+            recipient_user = u
+            break
+
+    if not recipient_user or recipient_uid == str(chat_id):
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": f"❌ Recipient <code>{target_str}</code> not found or cannot transfer to yourself.\nMake sure they have registered in @Friends64_BOT.",
+            "parse_mode": "HTML",
+            "reply_markup": main_kb
+        })
+
+    # Execute transfer
+    users[str(chat_id)]["balance"] = round(sender_bal - amt, 2)
+    rec_bal = float(recipient_user.get("balance", 0.0))
+    users[recipient_uid]["balance"] = round(rec_bal + amt, 2)
+    save_all_users(users)
+
+    # Notify sender
+    new_sender_bal = users[str(chat_id)]["balance"]
+    rec_name = recipient_user.get("first_name", "Player")
+    api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": f"✅ <b>Transfer Successful!</b>\n\nSent <b>{amt:.2f} ETB</b> to <b>{rec_name}</b> (<code>{recipient_uid}</code>).\nYour new balance: <b>{new_sender_bal:.2f} ETB</b>",
+        "parse_mode": "HTML",
+        "reply_markup": get_main_reply_keyboard(chat_id, users[str(chat_id)])
+    })
+
+    # Notify recipient
+    sender_name = user.get("first_name", "A player")
+    api_call("sendMessage", {
+        "chat_id": int(recipient_uid),
+        "text": f"🎁 <b>You Received Funds!</b>\n\n<b>{sender_name}</b> transferred <b>+{amt:.2f} ETB</b> to your account.\nYour new balance: <b>{users[recipient_uid]['balance']:.2f} ETB</b>",
+        "parse_mode": "HTML",
+        "reply_markup": get_main_reply_keyboard(int(recipient_uid), users[recipient_uid])
+    })
+
+def send_join_group_info(chat_id, user):
+    main_kb = get_main_reply_keyboard(chat_id, user)
+    text = (
+        f"📢 <b>Join Our Official Community!</b>\n\n"
+        f"Join our official Telegram community group <b>@{REQUIRED_GROUP_USERNAME}</b> to get:\n"
+        f"• Daily exclusive promo codes 🎁\n"
+        f"• Big winner payout proofs 🏆\n"
+        f"• Game strategies and tips 💡\n"
+        f"• 24/7 community discussion and support!\n\n"
+        f"👉 Tap the button below to join:"
+    )
+    inline_kb = {
+        "inline_keyboard": [
+            [{"text": f"🚀 Join @{REQUIRED_GROUP_USERNAME} ↗️", "url": REQUIRED_GROUP_URL}]
+        ]
+    }
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": inline_kb
+    })
+
+def send_contact_us_info(chat_id, user):
+    main_kb = get_main_reply_keyboard(chat_id, user)
+    text = (
+        f"📞 <b>Contact Us & 24/7 Support | የደንበኞች አገልግሎት</b>\n\n"
+        f"Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
+        f"👤 <b>Admin:</b> @Ninjaaj7\n"
+        f"🤖 <b>Support Bot:</b> @Friends64_BOT\n"
+        f"📱 <b>Phone:</b> <code>+251 981 247 219</code>\n"
+        f"📢 <b>Official Channel:</b> @{REQUIRED_GROUP_USERNAME}\n\n"
+        f"Tap below to message admin directly:"
+    )
+    inline_kb = {
+        "inline_keyboard": [
+            [{"text": "💬 Message Admin (@Ninjaaj7)", "url": "https://t.me/Ninjaaj7"}],
+            [{"text": f"📢 Community Group (@{REQUIRED_GROUP_USERNAME})", "url": REQUIRED_GROUP_URL}]
+        ]
+    }
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": inline_kb
+    })
+
 def send_admin_menu(chat_id):
     admin_web_url = f"{ADMIN_URL}?auth=admin"
     admin_text = (
@@ -1254,30 +1482,26 @@ def main():
                         except Exception as ex:
                             logging.error(f"Error handling web_app_data: {ex}")
 
-                    # --- Custom Keyboard Choices ---
-                    if text in ("🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት"):
+                    # --- Custom Keyboard Choices (matching Image 2 + legacy Image 1 compatibility) ---
+                    if text in ("Play Games 🎮", "🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት", "/play"):
                         if not ensure_user_registered_or_prompt(chat_id):
                             continue
                         app_url = get_user_webapp_url(chat_id, user)
                         api_call("sendMessage", {
                             "chat_id": chat_id,
-                            "text": "🎮 <b>ቢንጎ እና ሌሎች ጨዋታዎችን ለመጫወት ከታች ያለውን ቁልፍ ይጫኑ፦</b>",
+                            "text": "🎮 <b>Tap below to launch Friendes Games:</b>\n\nጨዋታዎችን ለመክፈት ከታች ያለውን ቁልፍ ይጫኑ፦",
                             "parse_mode": "HTML",
                             "reply_markup": {
                                 "inline_keyboard": [
-                                    [{"text": "🚀 ጨዋታውን ክፈት (Open Mini App)", "web_app": {"url": app_url}}]
+                                    [{"text": "🚀 Open Mini App (Play Now)", "web_app": {"url": app_url}}]
                                 ]
                             }
                         })
-                    elif text == "🎁 ፕሮሞ ኮድ":
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_promo_info(chat_id, user)
-                    elif text == "💰 ገቢ ለማድረግ" or text.startswith("/deposit"):
+                    elif text in ("Deposit 💰", "💰 ገቢ ለማድረግ") or text.startswith("/deposit"):
                         if not ensure_user_registered_or_prompt(chat_id):
                             continue
                         send_deposit_info(chat_id, user)
-                    elif text == "💸 ወጪ ለማድረግ" or text.startswith("/withdraw"):
+                    elif text in ("Withdraw 💰", "💸 ወጪ ለማድረግ") or text.startswith("/withdraw"):
                         if not ensure_user_registered_or_prompt(chat_id):
                             continue
                         parts = text.split(" ", 1)
@@ -1285,16 +1509,34 @@ def main():
                             handle_withdraw_request(chat_id, user, parts[1].strip())
                         else:
                             send_withdraw_info(chat_id, user)
-                    elif text in ("🔗 ጋብዝ & አግኝ", "/referral"):
+                    elif text in ("Transfer ↔️", "/transfer") or text.startswith("/transfer"):
                         if not ensure_user_registered_or_prompt(chat_id):
                             continue
-                        send_referral_info(chat_id, user)
-                    elif text in ("👤 ፕሮፋይል & ሂሳብ", "/profile", "/account"):
+                        parts = text.split()
+                        if len(parts) >= 3:
+                            handle_transfer(chat_id, user, parts[1], parts[2])
+                        else:
+                            send_transfer_info(chat_id, user)
+                    elif text in ("My Profile 👤", "👤 ፕሮፋይል & ሂሳብ", "/profile", "/account"):
                         if not ensure_user_registered_or_prompt(chat_id):
                             continue
                         send_profile_info(chat_id, user)
-                    elif text in ("🆘 እርዳታ", "/help"):
-                        send_help_info(chat_id, user)
+                    elif text in ("Transactions 📜", "/transactions", "/history"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
+                        send_transactions_info(chat_id, user)
+                    elif text in ("Balance 💰", "/balance"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
+                        send_balance_info(chat_id, user)
+                    elif text in ("Join Group ↗️", "Join Group", "/group"):
+                        send_join_group_info(chat_id, user)
+                    elif text in ("Contact Us", "Contact Us ↗️", "🆘 እርዳታ", "/contact", "/help"):
+                        send_contact_us_info(chat_id, user)
+                    elif text in ("Refer & Earn 🎁", "🎁 ፕሮሞ ኮድ", "🔗 ጋብዝ & አግኝ", "/referral", "/promo"):
+                        if not ensure_user_registered_or_prompt(chat_id):
+                            continue
+                        send_referral_info(chat_id, user)
                     elif text in ("🌐 ቋንቋ / Language", "/language"):
                         send_language_info(chat_id, user)
                     elif text in ("📢 አጀንት ፕሮሞተር", "/agent"):
