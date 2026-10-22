@@ -6,12 +6,14 @@
   'use strict';
 
   const STORAGE_KEY_REAL = 'habesha_balance';
+  const STORAGE_KEY_BONUS = 'habesha_bonus_balance';
   const STORAGE_KEY_DEMO = 'habesha_demo_balance';
   const MODE_KEY = 'habesha_wallet_mode';
   const USER_KEY = 'habesha_registered_user';
   const ADMIN_CONFIG_KEY = 'habesha_admin_config_v1';
   const DEFAULT_DEMO_BALANCE = 1000.0;
   const DEFAULT_REAL_BALANCE = 0.0;
+  const DEFAULT_BONUS_BALANCE = 0.0;
 
   // Auto-detect mode from URL param (?mode=demo). If not explicitly 'demo', default to 'real'
   (function initUrlMode() {
@@ -49,6 +51,17 @@
                 }
               }
             });
+          }
+        } catch (e) {}
+      }
+
+      const urlBonus = params.get('bonus_balance');
+      if (urlBonus !== null && !isNaN(parseFloat(urlBonus))) {
+        const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
+        localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', parsedBonus.toFixed(2), () => {});
           }
         } catch (e) {}
       }
@@ -123,7 +136,60 @@
     return isNaN(num) ? 0.0 : Math.round(num * 100) / 100;
   }
 
-  // Get current shared balance (Demo vs Real)
+  function getRealBalance() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_REAL);
+      if (raw === null || raw === '' || isNaN(parseFloat(raw)) || parseFloat(raw) === 50000 || parseFloat(raw) === 10000 || parseFloat(raw) === 5000) {
+        localStorage.setItem(STORAGE_KEY_REAL, DEFAULT_REAL_BALANCE.toFixed(2));
+        return DEFAULT_REAL_BALANCE;
+      }
+      return round2(parseFloat(raw));
+    } catch (e) {
+      return DEFAULT_REAL_BALANCE;
+    }
+  }
+
+  function setRealBalance(amount) {
+    const safe = Math.max(0, round2(amount));
+    try {
+      localStorage.setItem(STORAGE_KEY_REAL, safe.toFixed(2));
+      if (window.Telegram?.WebApp?.CloudStorage) {
+        window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', safe.toFixed(2), () => {});
+      }
+    } catch (e) {}
+    syncLegacyStorages(get());
+    notifyAll(get());
+    return safe;
+  }
+
+  function getBonusBalance() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_BONUS);
+      if (raw === null || raw === '' || isNaN(parseFloat(raw))) {
+        return DEFAULT_BONUS_BALANCE;
+      }
+      return round2(parseFloat(raw));
+    } catch (e) {
+      return DEFAULT_BONUS_BALANCE;
+    }
+  }
+
+  function setBonusBalance(amount) {
+    const safe = Math.max(0, round2(amount));
+    try {
+      localStorage.setItem(STORAGE_KEY_BONUS, safe.toFixed(2));
+      if (window.Telegram?.WebApp?.CloudStorage) {
+        window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', safe.toFixed(2), () => {});
+      }
+    } catch (e) {}
+    syncLegacyStorages(get());
+    notifyAll(get());
+    return safe;
+  }
+
+  // Get current shared balance:
+  // In demo mode: returns demo balance
+  // In real mode: returns total playable balance (Real Balance + Bonus Balance)
   function get() {
     const mode = getMode();
     if (mode === 'demo') {
@@ -135,24 +201,21 @@
       return demoBal;
     }
 
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_REAL);
-      if (raw === null || raw === '' || isNaN(parseFloat(raw)) || parseFloat(raw) === 50000 || parseFloat(raw) === 10000 || parseFloat(raw) === 5000) {
-        localStorage.setItem(STORAGE_KEY_REAL, DEFAULT_REAL_BALANCE.toFixed(2));
-        syncLegacyStorages(DEFAULT_REAL_BALANCE);
-        return DEFAULT_REAL_BALANCE;
-      }
-      return round2(parseFloat(raw));
-    } catch (e) {
-      return DEFAULT_REAL_BALANCE;
-    }
+    const realBal = getRealBalance();
+    const bonusBal = getBonusBalance();
+    return round2(realBal + bonusBal);
   }
 
   function notifyAll(safeAmount) {
     try {
       window.dispatchEvent(
         new CustomEvent('habesha_balance_updated', {
-          detail: { balance: safeAmount, mode: getMode() }
+          detail: {
+            balance: safeAmount,
+            realBalance: getRealBalance(),
+            bonusBalance: getBonusBalance(),
+            mode: getMode()
+          }
         })
       );
     } catch (e) {}
@@ -163,6 +226,8 @@
           {
             type: 'HABESHA_BALANCE_UPDATE',
             balance: safeAmount,
+            realBalance: getRealBalance(),
+            bonusBalance: getBonusBalance(),
             mode: getMode()
           },
           '*'
@@ -176,32 +241,74 @@
     const mode = getMode();
     const safeAmount = Math.max(0, round2(amount));
 
-    try {
-      if (mode === 'demo') {
-        setDemoBalance(safeAmount);
-      } else {
-        localStorage.setItem(STORAGE_KEY_REAL, safeAmount.toFixed(2));
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', safeAmount.toFixed(2), () => {});
-          }
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('HabeshaWallet set error:', e);
+    if (mode === 'demo') {
+      setDemoBalance(safeAmount);
+      syncLegacyStorages(safeAmount);
+      notifyAll(safeAmount);
+      return safeAmount;
     }
 
-    // Sync legacy game storage keys for 100% backward compatibility
-    syncLegacyStorages(safeAmount);
-    notifyAll(safeAmount);
-
+    const currentTotal = get();
+    const diff = round2(safeAmount - currentTotal);
+    if (diff !== 0) {
+      return modify(diff);
+    }
     return safeAmount;
   }
 
   // Modify balance by delta (+ for wins, - for bets)
+  // RULE:
+  // - When placing a bet (delta < 0): deduct from Bonus Balance first, then Real Balance!
+  // - When winning (delta > 0): ALL winnings/profits are credited to REAL BALANCE!
+  //   (Bonus balance is play-only money; winnings convert to withdrawable Real Balance).
   function modify(delta) {
-    const current = get();
-    return set(current + parseFloat(delta));
+    const numDelta = parseFloat(delta);
+    if (isNaN(numDelta) || numDelta === 0) return get();
+
+    const mode = getMode();
+    if (mode === 'demo') {
+      const curDemo = getDemoBalance();
+      const newDemo = Math.max(0, round2(curDemo + numDelta));
+      setDemoBalance(newDemo);
+      syncLegacyStorages(newDemo);
+      notifyAll(newDemo);
+      return newDemo;
+    }
+
+    let realBal = getRealBalance();
+    let bonusBal = getBonusBalance();
+
+    if (numDelta < 0) {
+      // Player is placing a bet (spending money)
+      const betAmt = Math.abs(numDelta);
+      if (bonusBal > 0) {
+        const takeBonus = Math.min(bonusBal, betAmt);
+        bonusBal = round2(bonusBal - takeBonus);
+        const remBet = round2(betAmt - takeBonus);
+        realBal = Math.max(0, round2(realBal - remBet));
+      } else {
+        realBal = Math.max(0, round2(realBal - betAmt));
+      }
+    } else {
+      // Player won! Credited directly to Real Balance
+      realBal = round2(realBal + numDelta);
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_REAL, realBal.toFixed(2));
+      localStorage.setItem(STORAGE_KEY_BONUS, bonusBal.toFixed(2));
+      if (window.Telegram?.WebApp?.CloudStorage) {
+        window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', realBal.toFixed(2), () => {});
+        window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', bonusBal.toFixed(2), () => {});
+      }
+    } catch (e) {
+      console.warn('HabeshaWallet modify storage error:', e);
+    }
+
+    const newTotal = round2(realBal + bonusBal);
+    syncLegacyStorages(newTotal);
+    notifyAll(newTotal);
+    return newTotal;
   }
 
   // Check if player has at least specified amount
@@ -446,10 +553,15 @@
   const HabeshaWallet = {
     KEY: STORAGE_KEY_REAL,
     STORAGE_KEY_REAL: STORAGE_KEY_REAL,
+    STORAGE_KEY_BONUS: STORAGE_KEY_BONUS,
     STORAGE_KEY_DEMO: STORAGE_KEY_DEMO,
     ADMIN_CONFIG_KEY: ADMIN_CONFIG_KEY,
     get: get,
     set: set,
+    getRealBalance: getRealBalance,
+    setRealBalance: setRealBalance,
+    getBonusBalance: getBonusBalance,
+    setBonusBalance: setBonusBalance,
     getMode: getMode,
     setMode: setMode,
     renewDemoBalance: renewDemoBalance,

@@ -131,6 +131,7 @@ def save_known_user(user_obj, phone=None):
         "phone": phone if phone else existing.get("phone", ""),
         "registered": bool(phone or existing.get("registered")),
         "balance": existing.get("balance", 0.0),
+        "bonus_balance": existing.get("bonus_balance", 0.0),
         "updated": time.time()
     })
     users[uid] = user_record
@@ -149,9 +150,10 @@ def get_user_webapp_url(chat_id, user=None):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}&bonus_balance={bonus_bal:.2f}"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -328,11 +330,13 @@ def send_registration_success(chat_id, user):
     })
 
     # 2. Card with photo and account balances
-    bal = float(user.get("balance", 0.0))
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    total_playable = real_bal + bonus_bal
     caption = (
         f"👋 Welcome {display_user}!\n"
-        f"Game Balance: <b>{bal:.2f} ETB</b>\n"
-        f"Winnings Balance: <b>0.00 ETB</b>\n\n"
+        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
+        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
@@ -346,7 +350,7 @@ def send_registration_success(chat_id, user):
         "inline_keyboard": [
             [
                 {
-                    "text": f"Play Games 🎮 ({bal:.2f} ETB)",
+                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
                     "web_app": {"url": app_url}
                 }
             ],
@@ -399,7 +403,9 @@ def send_welcome(chat_id, user=None):
     username = user.get("username")
     display_user = f"@{username}" if username else first_name
     main_kb = get_main_reply_keyboard(chat_id, user)
-    bal = float(user.get("balance", 0.0))
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
 
     # Sync user's custom webapp URL (with exact balance) to their menu button
@@ -414,8 +420,8 @@ def send_welcome(chat_id, user=None):
 
     caption = (
         f"👋 Welcome {display_user}!\n"
-        f"Game Balance: <b>{bal:.2f} ETB</b>\n"
-        f"Winnings Balance: <b>0.00 ETB</b>\n\n"
+        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
+        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
@@ -427,7 +433,7 @@ def send_welcome(chat_id, user=None):
         "inline_keyboard": [
             [
                 {
-                    "text": f"Play Games 🎮 ({bal:.2f} ETB)",
+                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
                     "web_app": {"url": app_url}
                 }
             ],
@@ -538,6 +544,17 @@ def handle_withdraw_request(chat_id, user, amount_str):
 
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
+    real_bal = float(user.get("balance", 0.0))
+    if real_bal < amt:
+        bonus_bal = float(user.get("bonus_balance", 0.0))
+        bonus_note = f"\n\n<i>📌 የቦነስ ሂሳብዎ <b>{bonus_bal:.2f} ETB</b> መጫወቻ ብቻ ስለሆነ በቀጥታ ወጪ አይደረግም። በቦነስ ተጫውተው ሲያሸንፉ አሸናፊው ወደ Real Balance ይቀየራል!</i>" if bonus_bal > 0 else ""
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": f"⚠️ ወጪ ማድረግ የሚችሉት እውነተኛ ሂሳብ (Real Balance) ብቻ ነው።\n💵 የእርስዎ Real Balance: <b>{real_bal:.2f} ETB</b>{bonus_note}",
+            "parse_mode": "HTML",
+            "reply_markup": get_main_reply_keyboard(chat_id, user)
+        })
+
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
 
     w_list = []
@@ -862,7 +879,9 @@ def send_profile_info(chat_id, user):
     username = user.get("username")
     display_user = f"@{username}" if username else "Not set"
     main_kb = get_main_reply_keyboard(chat_id, user)
-    bal = float(user.get("balance", 0.0))
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    total_playable = real_bal + bonus_bal
 
     text = (
         f"👤 <b>የተጫዋች ፕሮፋይል እና ሂሳብ (Profile & Balance)</b>\n\n"
@@ -870,9 +889,11 @@ def send_profile_info(chat_id, user):
         f"• <b>የተጠቃሚ ስም:</b> {display_user}\n"
         f"• <b>ስልክ ቁጥር:</b> <code>{phone or 'Not Registered'}</code>\n"
         f"• <b>የተጫዋች መለያ (ID):</b> <code>{chat_id}</code>\n"
-        f"• <b>የጨዋታ ሂሳብ:</b> <b>{bal:.2f} ETB</b>\n"
-        f"• <b>የአሸናፊነት ሂሳብ:</b> 0.00 ETB\n"
+        f"• 💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
+        f"• 🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
+        f"• 🎮 <b>አጠቃላይ መጫወቻ:</b> <b>{total_playable:.2f} ETB</b>\n"
         f"• <b>የአካውንት ሁኔታ:</b> የተረጋገጠ ተጫዋች ✓\n\n"
+        f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
         f"ገቢ እና ወጪ ለማድረግ ከታች ያሉትን ቁልፎች ይጠቀሙ።"
     )
     return api_call("sendMessage", {
@@ -968,20 +989,24 @@ def send_agent_info(chat_id, user):
     })
 
 def send_balance_info(chat_id, user):
-    bal = float(user.get("balance", 0.0))
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
     text = (
         f"💰 <b>Your Account Balance | የሂሳብ መጠን</b>\n\n"
-        f"💵 <b>Available Balance:</b> <b>{bal:.2f} ETB</b>\n"
-        f"🏆 <b>Winnings Balance:</b> <b>0.00 ETB</b>\n"
+        f"💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
+        f"🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
+        f"🎮 <b>Total Playable (አጠቃላይ መጫወቻ):</b> <b>{total_playable:.2f} ETB</b>\n"
         f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
+        f"📌 <i>ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
         f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr/CBE\n"
-        f"• Tap <b>'Withdraw 💰'</b> to cash out instantly\n"
+        f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance\n"
         f"• Tap <b>'Play Games 🎮'</b> to start playing!"
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": f"🎮 Play Games ({bal:.2f} ETB)", "web_app": {"url": app_url}}],
+            [{"text": f"🎮 Play Games ({total_playable:.2f} ETB)", "web_app": {"url": app_url}}],
             [
                 {"text": "Deposit 💰", "callback_data": "deposit"},
                 {"text": "Withdraw 💰", "callback_data": "withdraw"}
@@ -1451,8 +1476,8 @@ def main():
                                 all_users = load_known_users()
                                 if ref_str in all_users:
                                     ref_user = all_users[ref_str]
-                                    cur_bal = float(ref_user.get("balance", 0.0))
-                                    ref_user["balance"] = round(cur_bal + 10.0, 2)
+                                    cur_bonus = float(ref_user.get("bonus_balance", 0.0))
+                                    ref_user["bonus_balance"] = round(cur_bonus + 10.0, 2)
                                     all_users[str(chat_id)]["referral_rewarded"] = True
                                     save_all_users(all_users)
                                     user["referral_rewarded"] = True
@@ -1460,8 +1485,10 @@ def main():
                                         "chat_id": int(ref_str),
                                         "text": (
                                             f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
-                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+10.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
-                                            f"💰 የአሁን ሂሳብዎ: <b>{ref_user['balance']:.2f} ETB</b>"
+                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+10.00 ETB</b> ጉርሻ ወደ Bonus Balance ገቢ ተደርጓል!\n\n"
+                                            f"🎁 <b>የቦነስ ሂሳብዎ (Bonus Balance):</b> <b>{ref_user['bonus_balance']:.2f} ETB</b>\n"
+                                            f"💵 <b>እውነተኛ ሂሳብዎ (Real Balance):</b> <b>{float(ref_user.get('balance', 0.0)):.2f} ETB</b>\n\n"
+                                            f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>"
                                         ),
                                         "parse_mode": "HTML"
                                     })
