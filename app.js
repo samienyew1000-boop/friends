@@ -207,6 +207,19 @@
     updateBalanceDisplay();
   });
 
+  const exitToBotBtn = document.getElementById('exitToBotBtn');
+  if (exitToBotBtn) {
+    exitToBotBtn.addEventListener('click', () => {
+      sound.playClick();
+      triggerHaptic('impact');
+      if (window.HabeshaWallet && typeof window.HabeshaWallet.exitAndSave === 'function') {
+        window.HabeshaWallet.exitAndSave();
+      } else if (window.Telegram?.WebApp?.close) {
+        window.Telegram.WebApp.close();
+      }
+    });
+  }
+
   refreshBalanceBtn.addEventListener('click', () => {
     sound.playClick();
     triggerHaptic('impact');

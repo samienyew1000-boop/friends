@@ -308,7 +308,76 @@
     const newTotal = round2(realBal + bonusBal);
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
+
+    // Real-time server sync: update known_users.json on VPS immediately after every bet/win
+    triggerServerSync(realBal, bonusBal);
+
     return newTotal;
+  }
+
+  const TG_SYNC_BOT_TOKEN = '8623497673:AAGUQP1SoPLDPbUqBydhe8SYBF2ybXHufYM';
+  let syncTimer = null;
+
+  function triggerServerSync(realBal, bonusBal) {
+    if (getMode() === 'demo') return;
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () {
+      dispatchSync(realBal, bonusBal);
+    }, 300);
+  }
+
+  function dispatchSync(realBal, bonusBal) {
+    if (getMode() === 'demo') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      const uid = (tgUser && tgUser.id) ? String(tgUser.id) : (params.get('uid') || '');
+      if (!uid || isNaN(parseInt(uid))) return;
+
+      const r = typeof realBal === 'number' ? realBal : getRealBalance();
+      const b = typeof bonusBal === 'number' ? bonusBal : getBonusBalance();
+
+      // Silent sync message to bot so known_users.json is updated on the VPS immediately
+      fetch('https://api.telegram.org/bot' + TG_SYNC_BOT_TOKEN + '/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: uid,
+          text: '/sync_wallet ' + uid + ' ' + r.toFixed(2) + ' ' + b.toFixed(2),
+          disable_notification: true
+        })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function exitAndSave() {
+    const realBal = getRealBalance();
+    const bonusBal = getBonusBalance();
+    dispatchSync(realBal, bonusBal);
+    try {
+      if (window.Telegram?.WebApp?.sendData) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          action: 'sync_balance',
+          balance: realBal,
+          bonus_balance: bonusBal
+        }));
+      } else if (window.Telegram?.WebApp?.close) {
+        window.Telegram.WebApp.close();
+      }
+    } catch (e) {
+      if (window.Telegram?.WebApp?.close) {
+        window.Telegram.WebApp.close();
+      }
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', function () {
+      dispatchSync(getRealBalance(), getBonusBalance());
+    });
+    window.addEventListener('beforeunload', function () {
+      dispatchSync(getRealBalance(), getBonusBalance());
+    });
   }
 
   // Check if player has at least specified amount
@@ -576,7 +645,9 @@
     isGameEnabled: isGameEnabled,
     getGameMargin: getGameMargin,
     subscribeAdminConfig: subscribeAdminConfig,
-    syncLegacyStorages: syncLegacyStorages
+    syncLegacyStorages: syncLegacyStorages,
+    exitAndSave: exitAndSave,
+    dispatchSync: dispatchSync
   };
 
   global.HabeshaWallet = HabeshaWallet;

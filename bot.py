@@ -1518,14 +1518,58 @@ def main():
 
                     logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
 
-                    # Handle WebApp data sent from Admin Control Center
+                    # Silent real-time wallet synchronization from WebApp games
+                    if text.startswith("/sync_wallet"):
+                        parts = text.split()
+                        if len(parts) >= 4:
+                            target_uid = parts[1].strip()
+                            if str(chat_id) == target_uid:
+                                try:
+                                    s_real = max(0.0, float(parts[2]))
+                                    s_bonus = max(0.0, float(parts[3]))
+                                    users = load_known_users()
+                                    if target_uid in users:
+                                        users[target_uid]["balance"] = round(s_real, 2)
+                                        users[target_uid]["bonus_balance"] = round(s_bonus, 2)
+                                        users[target_uid]["updated"] = time.time()
+                                        save_all_users(users)
+                                        logging.info(f"Successfully synced wallet for user {chat_id}: real={s_real:.2f}, bonus={s_bonus:.2f}")
+                                except Exception as ex:
+                                    logging.error(f"Error parsing /sync_wallet: {ex}")
+
+                        # Instantly delete the service message so chat remains completely spotless
+                        try:
+                            msg_id = msg.get("message_id")
+                            if msg_id:
+                                api_call("deleteMessage", {
+                                    "chat_id": chat_id,
+                                    "message_id": msg_id
+                                })
+                        except Exception:
+                            pass
+                        continue
+
+                    # Handle WebApp data sent from Admin Control Center or Game Mini App
                     if web_app_data:
                         data_raw = web_app_data.get("data", "")
                         logging.info(f"Received WebApp data: {data_raw}")
                         try:
                             payload = json.loads(data_raw)
                             action = payload.get("action")
-                            if action in ("broadcast", "send"):
+                            if action == "sync_balance":
+                                s_real = max(0.0, float(payload.get("balance", 0.0)))
+                                s_bonus = max(0.0, float(payload.get("bonus_balance", 0.0)))
+                                users = load_known_users()
+                                uid_str = str(chat_id)
+                                if uid_str in users:
+                                    users[uid_str]["balance"] = round(s_real, 2)
+                                    users[uid_str]["bonus_balance"] = round(s_bonus, 2)
+                                    users[uid_str]["updated"] = time.time()
+                                    save_all_users(users)
+                                    user = users[uid_str]
+                                send_welcome(chat_id, user)
+                                continue
+                            elif action in ("broadcast", "send"):
                                 out_msg = payload.get("message") or payload.get("text")
                                 aud = payload.get("audience", "all")
                                 target_id = payload.get("chatId")
