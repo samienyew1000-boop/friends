@@ -894,7 +894,7 @@ def send_referral_info(chat_id, user):
     ref_link = f"https://t.me/Friends64_BOT?start=ref_{chat_id}"
     text = (
         f"🔗 <b>ጋብዝ እና አግኝ (Invite & Earn)</b>\n\n"
-        f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+3 ETB</b> ጉርሻ ያግኙ!\n\n"
+        f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+10 ETB</b> ጉርሻ ያግኙ!\n\n"
         f"📌 <b>የእርስዎ የመጋበዣ ሊንክ (Referral Link)፦</b>\n"
         f"<code>{ref_link}</code>\n\n"
         f"ይህን ሊንክ ኮፒ በማድረግ ለጓደኞችዎ እና በግሩፖች ላይ ያጋሩ!"
@@ -1425,7 +1425,7 @@ def main():
                                 if ref_str in all_users:
                                     ref_user = all_users[ref_str]
                                     cur_bal = float(ref_user.get("balance", 0.0))
-                                    ref_user["balance"] = round(cur_bal + 3.0, 2)
+                                    ref_user["balance"] = round(cur_bal + 10.0, 2)
                                     all_users[str(chat_id)]["referral_rewarded"] = True
                                     save_all_users(all_users)
                                     user["referral_rewarded"] = True
@@ -1433,7 +1433,7 @@ def main():
                                         "chat_id": int(ref_str),
                                         "text": (
                                             f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
-                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+3.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
+                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+10.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
                                             f"💰 የአሁን ሂሳብዎ: <b>{ref_user['balance']:.2f} ETB</b>"
                                         ),
                                         "parse_mode": "HTML"
