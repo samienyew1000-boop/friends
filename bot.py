@@ -156,7 +156,7 @@ def get_user_webapp_url(chat_id, user=None):
 def get_main_reply_keyboard(chat_id, user=None):
     """
     Persistent Custom Gaming Keyboard matching Image 2:
-    Row 1: [ Play Games 🎮 ]
+    Row 1: [ Play Games 🎮 ] [ /start ]
     Row 2: [ Deposit 💰 ] [ Withdraw 💰 ]
     Row 3: [ Transfer ↔️ ] [ My Profile 👤 ]
     Row 4: [ Transactions 📜 ] [ Balance 💰 ]
@@ -167,7 +167,8 @@ def get_main_reply_keyboard(chat_id, user=None):
     return {
         "keyboard": [
             [
-                {"text": "Play Games 🎮", "web_app": {"url": app_url}}
+                {"text": "Play Games 🎮", "web_app": {"url": app_url}},
+                {"text": "/start"}
             ],
             [
                 {"text": "Deposit 💰"},
@@ -331,7 +332,11 @@ def send_registration_success(chat_id, user):
     caption = (
         f"👋 Welcome {display_user}!\n"
         f"Game Balance: <b>{bal:.2f} ETB</b>\n"
-        f"Winnings Balance: <b>0.00 ETB</b>"
+        f"Winnings Balance: <b>0.00 ETB</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
+        f"📞 Contact 1: <code>+251939292694</code>\n"
+        f"📞 Contact 2: <code>+251972450776</code>"
     )
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -410,7 +415,11 @@ def send_welcome(chat_id, user=None):
     caption = (
         f"👋 Welcome {display_user}!\n"
         f"Game Balance: <b>{bal:.2f} ETB</b>\n"
-        f"Winnings Balance: <b>0.00 ETB</b>"
+        f"Winnings Balance: <b>0.00 ETB</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
+        f"📞 Contact 1: <code>+251939292694</code>\n"
+        f"📞 Contact 2: <code>+251972450776</code>"
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
@@ -1527,7 +1536,7 @@ def main():
                         continue
 
                     # If user is registered and sends /start (or opens bot with any start link):
-                    if text.startswith("/start"):
+                    if text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄", "Restart", "restart"):
                         send_welcome(chat_id, user)
                         continue
 
@@ -1592,7 +1601,7 @@ def main():
                         send_agent_info(chat_id, user)
 
                     # --- Standard Bot Commands ---
-                    elif text.startswith("/start"):
+                    elif text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄"):
                         if not is_user_registered(chat_id):
                             ensure_user_registered_or_prompt(chat_id)
                         else:
