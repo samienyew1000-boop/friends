@@ -127,10 +127,10 @@ const DEFAULT_SETTINGS = {
   transactionAlerts: true,
   largeWithdrawal: true,
   timeout: "60",
-  depositTelebirrPhone: "0981247219",
-  depositTelebirrName: "Friendes Bingo",
-  depositCbeBirrPhone: "0981247219",
-  depositCbeBirrName: "Friendes Bingo CBE Birr",
+  depositTelebirrPhone: "0928233032",
+  depositTelebirrName: "Abirham",
+  depositCbeBirrPhone: "0928233032",
+  depositCbeBirrName: "Abirham",
   depositMpesaPhone: "0700 000 000",
   depositMpesaName: "Friendes Bingo M-Pesa",
 };
@@ -279,12 +279,12 @@ function saveSettings() {
   localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(settings));
   window.LUCKY_BINGO_PAYMENT_METHODS = {
     Telebirr: {
-      accountName: settings.depositTelebirrName || "Friendes Bingo",
-      accountNumber: settings.depositTelebirrPhone || "0981247219",
+      accountName: settings.depositTelebirrName || "Abirham",
+      accountNumber: settings.depositTelebirrPhone || "0928233032",
     },
     "CBE Birr": {
-      accountName: settings.depositCbeBirrName || "Friendes Bingo CBE Birr",
-      accountNumber: settings.depositCbeBirrPhone || "0981247219",
+      accountName: settings.depositCbeBirrName || "Abirham",
+      accountNumber: settings.depositCbeBirrPhone || "0928233032",
     },
     "M-Pesa": {
       accountName: settings.depositMpesaName || "Friendes Bingo M-Pesa",

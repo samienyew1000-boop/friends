@@ -24,8 +24,8 @@ const MIN_WALLET_AMOUNT = 50;
 const PLAYER_ID = "LB-PLAYER";
 const PLAYER_NAME = "Friendes Bingo Player";
 const PAYMENT_METHODS = Object.freeze({
-  Telebirr: { accountName: "Friendes Bingo", accountNumber: "0981247219" },
-  "CBE Birr": { accountName: "Friendes Bingo CBE Birr", accountNumber: "0981247219" },
+  Telebirr: { accountName: "Abirham", accountNumber: "0928233032" },
+  "CBE Birr": { accountName: "Abirham", accountNumber: "0928233032" },
   "M-Pesa": { accountName: "Friendes Bingo M-Pesa", accountNumber: "0700 000 000" },
 });
 
@@ -3137,14 +3137,14 @@ function getDepositPaymentAccount(method) {
     const adminSettings = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || "{}");
     if (method === "Telebirr") {
       return {
-        accountName: adminSettings.depositTelebirrName || "Friendes Bingo",
-        accountNumber: adminSettings.depositTelebirrPhone || "0981247219",
+        accountName: adminSettings.depositTelebirrName || "Abirham",
+        accountNumber: adminSettings.depositTelebirrPhone || "0928233032",
       };
     }
     if (method === "CBE Birr") {
       return {
-        accountName: adminSettings.depositCbeBirrName || "Friendes Bingo CBE Birr",
-        accountNumber: adminSettings.depositCbeBirrPhone || "0981247219",
+        accountName: adminSettings.depositCbeBirrName || "Abirham",
+        accountNumber: adminSettings.depositCbeBirrPhone || "0928233032",
       };
     }
     if (method === "M-Pesa" && adminSettings.depositMpesaPhone) {

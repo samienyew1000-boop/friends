@@ -453,17 +453,17 @@
     copyDepositAccountBtn.addEventListener('click', () => {
       sound.playClick();
       try {
-        navigator.clipboard.writeText('0981247219').then(() => {
+        navigator.clipboard.writeText('0928233032').then(() => {
           if (copyAccountBtnText) copyAccountBtnText.textContent = 'ተቀድቷል!';
-          showToast('የመላኪያ ቁጥር 0981247219 ኮፒ ተደርጓል!', 'success');
+          showToast('የመላኪያ ቁጥር 0928233032 ኮፒ ተደርጓል!', 'success');
           setTimeout(() => {
             if (copyAccountBtnText) copyAccountBtnText.textContent = 'ኮፒ (Copy)';
           }, 2500);
         }).catch(() => {
-          showToast('የመላኪያ ቁጥር: 0981247219', 'info');
+          showToast('የመላኪያ ቁጥር: 0928233032', 'info');
         });
       } catch (e) {
-        showToast('የመላኪያ ቁጥር: 0981247219', 'info');
+        showToast('የመላኪያ ቁጥር: 0928233032', 'info');
       }
     });
   }
