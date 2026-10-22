@@ -894,7 +894,7 @@ def send_referral_info(chat_id, user):
     ref_link = f"https://t.me/Friends64_BOT?start=ref_{chat_id}"
     text = (
         f"🔗 <b>ጋብዝ እና አግኝ (Invite & Earn)</b>\n\n"
-        f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+25 ETB</b> ጉርሻ ያግኙ!\n\n"
+        f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+3 ETB</b> ጉርሻ ያግኙ!\n\n"
         f"📌 <b>የእርስዎ የመጋበዣ ሊንክ (Referral Link)፦</b>\n"
         f"<code>{ref_link}</code>\n\n"
         f"ይህን ሊንክ ኮፒ በማድረግ ለጓደኞችዎ እና በግሩፖች ላይ ያጋሩ!"
@@ -1425,7 +1425,7 @@ def main():
                                 if ref_str in all_users:
                                     ref_user = all_users[ref_str]
                                     cur_bal = float(ref_user.get("balance", 0.0))
-                                    ref_user["balance"] = round(cur_bal + 25.0, 2)
+                                    ref_user["balance"] = round(cur_bal + 3.0, 2)
                                     all_users[str(chat_id)]["referral_rewarded"] = True
                                     save_all_users(all_users)
                                     user["referral_rewarded"] = True
@@ -1433,7 +1433,7 @@ def main():
                                         "chat_id": int(ref_str),
                                         "text": (
                                             f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
-                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+25.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
+                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+3.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
                                             f"💰 የአሁን ሂሳብዎ: <b>{ref_user['balance']:.2f} ETB</b>"
                                         ),
                                         "parse_mode": "HTML"
@@ -1506,6 +1506,11 @@ def main():
                     # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
                     if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):
                         request_phone_registration(chat_id)
+                        continue
+
+                    # If user is registered and sends /start (or opens bot with any start link):
+                    if text.startswith("/start"):
+                        send_welcome(chat_id, user)
                         continue
 
                     # --- Custom Keyboard Choices (matching Image 2 + legacy Image 1 compatibility) ---
@@ -1615,10 +1620,15 @@ def main():
 
                     else:
                         if not is_user_registered(chat_id):
-                            ensure_user_registered_or_prompt(chat_id)
+                            request_phone_registration(chat_id)
                         else:
                             lower = text.lower()
-                            if any(k in lower for k in ["telebirr", "cbe", "trans", "tx", "ብር", "etb", "deposit", "ክፍያ", "09"]) or len(text.strip()) >= 6:
+                            # Only treat as deposit submission if text looks like a real transaction ID or payment confirmation
+                            is_tx = bool(
+                                re.search(r"\b(TX|FT|MP|TRX|REF)[\w\d]{6,}\b", text, re.IGNORECASE) or
+                                (any(k in lower for k in ["telebirr", "cbe", "ክፍያ", "ደረሰኝ"]) and any(k in lower for k in ["ብር", "etb", "transferred", "credited", "tx"]))
+                            )
+                            if is_tx:
                                 clean_tx = text.strip().replace("\n", " ")
                                 handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / CBE")
                             else:
