@@ -122,7 +122,8 @@ def save_known_user(user_obj, phone=None):
     uid = str(user_obj.get("id"))
     users = load_known_users()
     existing = users.get(uid, {})
-    user_record = {
+    user_record = dict(existing)
+    user_record.update({
         "id": user_obj.get("id"),
         "first_name": user_obj.get("first_name", existing.get("first_name", "Player")),
         "last_name": user_obj.get("last_name", existing.get("last_name", "")),
@@ -131,7 +132,7 @@ def save_known_user(user_obj, phone=None):
         "registered": bool(phone or existing.get("registered")),
         "balance": existing.get("balance", 0.0),
         "updated": time.time()
-    }
+    })
     users[uid] = user_record
     save_all_users(users)
     return user_record
@@ -249,25 +250,21 @@ def send_channel_join_prompt(chat_id):
 def ensure_user_registered_or_prompt(chat_id):
     """
     Check if the user is registered.
-    If not, enforce group membership first, then contact registration.
+    If not, enforce contact registration immediately.
     Returns True if user is fully registered with phone.
     """
     if is_user_registered(chat_id):
         return True
 
-    is_member, reason = check_user_membership(chat_id)
-    if not is_member:
-        send_channel_join_prompt(chat_id)
-        return False
-
     request_phone_registration(chat_id)
     return False
 
 def request_phone_registration(chat_id):
-    """Prompt user to share their contact phone number for account creation (matching the UI screenshot)."""
+    """Prompt user to share their contact phone number for account creation."""
     text = (
-        "👋 Welcome! Please share your phone number to register:\n\n"
-        "ለመመዝገብ እና የጨዋታ አካውንት ለመክፈት ከስር ያለውን <b>'📱 Share Phone Number'</b> የሚለውን ይጫኑ:"
+        "👋 <b>Welcome to Friendes Game!</b>\n\n"
+        "ለመመዝገብ እና የጨዋታ አካውንት ለመክፈት ከስር ያለውን <b>'📱 Share Phone Number'</b> የሚለውን ይጫኑ፦\n\n"
+        "Please share your phone number to register and start playing:"
     )
     keyboard = {
         "keyboard": [
@@ -279,7 +276,7 @@ def request_phone_registration(chat_id):
             ]
         ],
         "resize_keyboard": True,
-        "one_time_keyboard": True
+        "is_persistent": True
     }
     return api_call("sendMessage", {
         "chat_id": chat_id,
@@ -1398,20 +1395,6 @@ def main():
 
                     # Handle Contact Sharing (Registration)
                     if contact:
-                        # First verify mandatory group membership
-                        is_member, reason = check_user_membership(chat_id)
-                        if not is_member:
-                            api_call("sendMessage", {
-                                "chat_id": chat_id,
-                                "text": (
-                                    "⚠️ <b>ምዝገባውን ለማጠናቀቅ መጀመሪያ ይፋዊ ግሩፓችንን መቀላቀል አለብዎት!</b>\n\n"
-                                    f"እባክዎ መጀመሪያ ከስር ያለውን ሊንክ ተጭነው {REQUIRED_GROUP_URL} ይቀላቀሉ፤ ከተቀላቀሉ በኋላ ስልክዎን በድጋሚ ያጋሩ::"
-                                ),
-                                "parse_mode": "HTML"
-                            })
-                            send_channel_join_prompt(chat_id)
-                            continue
-
                         raw_phone = contact.get("phone_number", "").strip()
                         phone = raw_phone
                         if not phone.startswith("+"):
@@ -1432,6 +1415,29 @@ def main():
                         }
                         user = save_known_user(user_obj, phone=phone)
                         full_name = f"{c_first} {c_last}".strip()
+
+                        # Award referral bonus if this user was referred by someone
+                        referred_by = user.get("referred_by")
+                        if referred_by and not user.get("referral_rewarded"):
+                            ref_str = str(referred_by)
+                            if ref_str != str(chat_id):
+                                all_users = load_known_users()
+                                if ref_str in all_users:
+                                    ref_user = all_users[ref_str]
+                                    cur_bal = float(ref_user.get("balance", 0.0))
+                                    ref_user["balance"] = round(cur_bal + 25.0, 2)
+                                    all_users[str(chat_id)]["referral_rewarded"] = True
+                                    save_all_users(all_users)
+                                    user["referral_rewarded"] = True
+                                    api_call("sendMessage", {
+                                        "chat_id": int(ref_str),
+                                        "text": (
+                                            f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
+                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+25.00 ETB</b> ጉርሻ ወደ ሂሳብዎ ገብቷል!\n"
+                                            f"💰 የአሁን ሂሳብዎ: <b>{ref_user['balance']:.2f} ETB</b>"
+                                        ),
+                                        "parse_mode": "HTML"
+                                    })
 
                         # Notify admins
                         for admin_id in ADMIN_USER_IDS:
@@ -1481,6 +1487,26 @@ def main():
                                 continue
                         except Exception as ex:
                             logging.error(f"Error handling web_app_data: {ex}")
+
+                    # Capture referral parameter if present in /start
+                    if text.startswith("/start"):
+                        parts = text.split()
+                        if len(parts) > 1:
+                            raw_param = parts[1].strip()
+                            ref_id = raw_param.replace("ref_", "").strip()
+                            if ref_id and ref_id.isdigit() and ref_id != str(chat_id):
+                                users_all = load_known_users()
+                                cur_u = users_all.get(str(chat_id), {})
+                                if not cur_u.get("registered") and not cur_u.get("referred_by"):
+                                    cur_u["referred_by"] = ref_id
+                                    users_all[str(chat_id)] = cur_u
+                                    save_all_users(users_all)
+                                    logging.info(f"User {chat_id} set referred_by={ref_id}")
+
+                    # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
+                    if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):
+                        request_phone_registration(chat_id)
+                        continue
 
                     # --- Custom Keyboard Choices (matching Image 2 + legacy Image 1 compatibility) ---
                     if text in ("Play Games 🎮", "🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት", "/play"):
