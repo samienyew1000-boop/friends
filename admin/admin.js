@@ -8,14 +8,17 @@
   const DEFAULT_ADMIN_CHAT_ID = '8474256363';
   const GAMES = [
     { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.jpg', defaultMargin: 3.5 },
-    { id: 'fast_keno', name: 'Fast Keno', provider: 'Friendes Game', category: 'Keno & lottery', image: '../assets/game_fast_keno.jpg', defaultMargin: 4 },
-    { id: 'chicken_road', name: 'Chicken Road', provider: 'InOut Games', category: 'Instant game', image: '../assets/game_chicken_road.jpg', defaultMargin: 3 },
-    { id: 'fish', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish_road.png', defaultMargin: 4 },
-    { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.jpg', defaultMargin: 5 },
+    { id: 'jet_x', name: 'JetX', provider: 'SmartSoft Gaming', category: 'Crash game', image: '../assets/game_jetx.png', defaultMargin: 3.0 },
+    { id: 'mines', name: 'Mines', provider: 'Turbo Games', category: 'Instant game', image: '../assets/game_mines.png', defaultMargin: 4.0 },
+    { id: 'multi_hot_5', name: 'Multi Hot 5', provider: 'SmartSoft Gaming', category: 'Classic Fruit Slot', image: '../game/MultiHot5/assets/background.jpg', defaultMargin: 4.5 },
+    { id: 'fast_keno', name: 'Fast Keno', provider: 'Friendes Game', category: 'Keno & lottery', image: '../assets/game_fast_keno.jpg', defaultMargin: 4.0 },
+    { id: 'chicken_road', name: 'Chicken Road', provider: 'InOut Games', category: 'Instant game', image: '../assets/game_chicken_road.jpg', defaultMargin: 3.0 },
+    { id: 'chicken_crash', name: 'Chicken Crash', provider: 'Galaxsys 3D', category: 'Instant game', image: '../game/chicken-crash-game/public/img/gameLogo.webp', defaultMargin: 3.5 },
+    { id: 'tower_trash', name: 'Tower Dash', provider: 'Galaxsys 3D', category: 'Instant game', image: '../game/tower-trash/assets/images/blocks/components_block1_1.png', defaultMargin: 3.5 },
+    { id: 'fish', name: 'Fish Road', provider: 'SeaGames', category: 'Casual arcade', image: '../assets/game_fish_road.png', defaultMargin: 4.0 },
+    { id: 'bingo', name: 'Dallol Bingo', provider: 'Ethiopia Bingo', category: 'Bingo 90', image: '../assets/game_bingo.jpg', defaultMargin: 5.0 },
     { id: 'bingo_star', name: 'Bingo Star', provider: 'Star Gaming', category: 'Instant bingo', image: '../assets/game_bingo_star.png', defaultMargin: 4.5 },
     { id: 'infinity', name: 'Infinity', provider: 'CandleTrade', category: 'Trading & crash', image: '../assets/game_infinity.png', defaultMargin: 3.5 },
-    { id: 'chicken_crash', name: 'Chicken Crash', provider: 'Galaxsys 3D', category: 'Instant game', image: '../game/chicken-crash-game/public/img/gameLogo.webp', defaultMargin: 3.5 },
-    { id: 'tower_trash', name: 'Tower Dash', provider: 'Galaxsys 3D', category: 'Instant game', image: '../game/tower trash/01_Blocks/Block_01_Temple/components_block1_1.png', defaultMargin: 3.5 },
   ];
   const DEMO_TRANSACTIONS = [
     { id: 'TX-80291', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Aviator', amount: 250, status: 'completed', time: 'Today, 10:42' },
@@ -139,7 +142,15 @@
   function getMetrics() {
     const stakes = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const deposits = transactions.filter((item) => item.type === 'deposit').reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const profit = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => { const game = GAMES.find((entry) => entry.name.toLowerCase() === String(item.method || '').toLowerCase()); return sum + Number(item.amount || 0) * (getGameSettings(game || GAMES[0]).margin / 100); }, 0);
+    const profit = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => {
+      const methodClean = String(item.method || '').toLowerCase().replace(/[\s-_]/g, '');
+      const game = GAMES.find((entry) => 
+        entry.name.toLowerCase().replace(/[\s-_]/g, '') === methodClean || 
+        entry.id.toLowerCase().replace(/[\s-_]/g, '') === methodClean
+      );
+      const margin = getGameSettings(game || GAMES[0]).margin;
+      return sum + Number(item.amount || 0) * (margin / 100);
+    }, 0);
     const players = new Set(transactions.map((item) => item.playerId || item.player || item.username).filter(Boolean)).size;
     const enabled = GAMES.filter((game) => getGameSettings(game).enabled).length;
     return { stakes, deposits, profit, players, enabled };

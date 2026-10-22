@@ -167,8 +167,12 @@
               const prevCoeff = activeGame.currentStep === 0 ? 1.0 : parseFloat(coeffs[activeGame.currentStep - 1]);
               const nextCoeff = parseFloat(coeffs[activeGame.currentStep]);
 
-              // 90% RTP dynamic balancing
-              const stepRtp = Math.pow(0.90, 1 / activeGame.maxSteps);
+              // Dynamic RTP house profit balancing
+              const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
+                ? (window.HabeshaWallet.getGameMargin('tower_trash', 3.5) / 100)
+                : 0.035;
+              const gameRtp = Math.max(0.60, Math.min(0.99, 1 - margin));
+              const stepRtp = Math.pow(gameRtp, 1 / activeGame.maxSteps);
               const winProb = (prevCoeff / nextCoeff) * stepRtp;
               const success = Math.random() < winProb;
 

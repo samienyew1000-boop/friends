@@ -404,12 +404,15 @@
 
   // --- Game Loop Engine ---
   function generateCrashPoint() {
+    const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
+      ? (window.HabeshaWallet.getGameMargin('aviator', 3.5) / 100)
+      : 0.035;
     const rand = Math.random();
-    if (rand < 0.05) return 1.00; // Immediate bust
-    if (rand < 0.45) return 1.10 + Math.random() * 1.5; // Low 1.10 - 2.60x
-    if (rand < 0.80) return 2.60 + Math.random() * 3.5; // Mid 2.60 - 6.10x
-    if (rand < 0.95) return 6.00 + Math.random() * 14.0; // High 6.00 - 20.0x
-    return 20.0 + Math.random() * 80.0; // Mega 20x - 100x
+    if (rand < margin) return 1.00; // Immediate bust scaled dynamically by house margin
+    const r = Math.random();
+    const raw = (1 - margin) / (1 - r);
+    const crash = Math.max(1.00, Math.min(25000.00, Math.floor(raw * 100) / 100));
+    return Number(crash.toFixed(2));
   }
 
   function startWaiting() {

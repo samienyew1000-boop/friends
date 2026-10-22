@@ -519,8 +519,9 @@
     // Calculate win vs loss (system profit generation)
     const diff = DIFFICULTIES[state.difficulty];
     const w = getWallet();
-    const adminCfg = w ? w.getAdminConfig() : null;
-    const marginRatio = adminCfg && adminCfg.globalMarginEnabled ? (adminCfg.globalMargin || 3.5) / 100 : 0.035;
+    const marginRatio = (w && typeof w.getGameMargin === 'function')
+      ? (w.getGameMargin('chicken_road', 3.0) / 100)
+      : 0.035;
     const effectiveSurvival = Math.max(0.2, diff.survival - marginRatio);
 
     const willBust = Math.random() > effectiveSurvival;

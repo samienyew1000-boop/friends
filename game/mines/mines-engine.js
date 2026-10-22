@@ -14,13 +14,22 @@
     return c;
   }
 
-  function calculateMultiplier(minesCount, hits, rtp = 0.95) {
+  function getMinesRTP() {
+    if (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function') {
+      const margin = window.HabeshaWallet.getGameMargin('mines', 4.0);
+      return Math.max(0.60, Math.min(0.99, 1 - (margin / 100)));
+    }
+    return 0.95;
+  }
+
+  function calculateMultiplier(minesCount, hits, rtp = null) {
     if (hits <= 0) return 1;
+    const currentRtp = rtp !== null ? rtp : getMinesRTP();
     const totalCells = 25;
     const safeCells = totalCells - minesCount;
     if (hits > safeCells) return 0;
     const fair = combinations(totalCells, hits) / combinations(safeCells, hits);
-    const mult = rtp * fair;
+    const mult = currentRtp * fair;
     return Number(mult.toFixed(2));
   }
 

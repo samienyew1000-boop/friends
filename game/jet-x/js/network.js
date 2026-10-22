@@ -86,14 +86,16 @@ class EmbeddedJetXEngine {
     }
 
     generateCrashPoint() {
-        // Industry standard 97% RTP crash curve
-        const houseEdge = 0.03;
+        // Dynamic house profit edge from unified engine
+        const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
+            ? (window.HabeshaWallet.getGameMargin('jet_x', 3.0) / 100)
+            : 0.03;
         const rand = Math.random();
-        if (rand < 0.03) {
+        if (rand < margin) {
             return 1.00;
         }
         const r = Math.random();
-        const raw = (1 - houseEdge) / (1 - r);
+        const raw = (1 - margin) / (1 - r);
         const mult = Math.max(1.00, Math.min(25000.00, Math.floor(raw * 100) / 100));
         return Number(mult.toFixed(2));
     }

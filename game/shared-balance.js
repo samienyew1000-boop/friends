@@ -323,10 +323,33 @@
     }
   }
 
+  function getGameMargin(gameId, fallback = 3.5) {
+    const config = getAdminConfig();
+    if (!config) return fallback;
+    const raw = String(gameId || '').toLowerCase().trim();
+    const cleanId = raw.replace(/[\s-]/g, '_');
+    const games = config.games || {};
+    const gameObj = games[cleanId] || games[raw] || games[raw.replace(/_/g, '-')] || games[raw.replace(/_/g, '')];
+    if (gameObj && gameObj.margin !== undefined && gameObj.margin !== null && !isNaN(parseFloat(gameObj.margin))) {
+      return Math.min(100, Math.max(0, parseFloat(gameObj.margin)));
+    }
+    if (config.globalMarginEnabled !== false && config.globalMargin !== undefined && !isNaN(parseFloat(config.globalMargin))) {
+      return Math.min(100, Math.max(0, parseFloat(config.globalMargin)));
+    }
+    return fallback;
+  }
+
   function isGameEnabled(gameId) {
     const config = getAdminConfig();
-    const game = config.games[String(gameId)] || {};
-    return config.maintenanceMode !== true && game.enabled !== false;
+    if (config.maintenanceMode === true) return false;
+    const raw = String(gameId || '').toLowerCase().trim();
+    const cleanId = raw.replace(/[\s-]/g, '_');
+    const games = config.games || {};
+    const gameObj = games[cleanId] || games[raw] || games[raw.replace(/_/g, '-')] || games[raw.replace(/_/g, '')];
+    if (gameObj && gameObj.enabled !== undefined) {
+      return Boolean(gameObj.enabled);
+    }
+    return true;
   }
 
   function subscribeAdminConfig(callback) {
@@ -439,6 +462,7 @@
     subscribe: subscribe,
     getAdminConfig: getAdminConfig,
     isGameEnabled: isGameEnabled,
+    getGameMargin: getGameMargin,
     subscribeAdminConfig: subscribeAdminConfig,
     syncLegacyStorages: syncLegacyStorages
   };
