@@ -1100,8 +1100,8 @@ PAYMENT_METHODS: Dict[str, Dict[str, Any]] = {
         "account_name": "Abirham",
         "account_number": "0928233032",
         "min_amount": 50,
-        "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
-        "enabled": True,
+        "bonus": "ለጊዜው ተዘግቷል",
+        "enabled": False,
     },
     "M-Pesa": {
         "name": "M-Pesa",

@@ -20,8 +20,8 @@ window.LUCKY_BINGO_PAYMENT_METHODS = {
     "account_name": "Abirham",
     "account_number": "0928233032",
     "min_amount": 50,
-    "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
-    "enabled": true
+    "bonus": "ለጊዜው ተዘግቷል",
+    "enabled": false
   },
   "M-Pesa": {
     "name": "M-Pesa",

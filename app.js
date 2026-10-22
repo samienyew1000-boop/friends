@@ -390,13 +390,19 @@
   const paymentMethods = document.querySelectorAll('.payment-method-item');
   paymentMethods.forEach((item) => {
     item.addEventListener('click', () => {
+      if (item.dataset.disabled === 'true') {
+        sound.playClick();
+        triggerHaptic('error');
+        showToast('ለጊዜው ክፍያ የሚሰራው በቴሌብር (Telebirr) ብቻ ነው!', 'info');
+        return;
+      }
       sound.playClick();
       triggerHaptic('impact');
       paymentMethods.forEach((p) => {
-        p.classList.remove('border-teal-500', 'bg-teal-500/10');
+        p.classList.remove('border-teal-500', 'bg-teal-500/10', 'ring-1', 'ring-teal-500/40');
         p.classList.add('border-slate-800', 'bg-slate-900/60');
       });
-      item.classList.add('border-teal-500', 'bg-teal-500/10');
+      item.classList.add('border-teal-500', 'bg-teal-500/10', 'ring-1', 'ring-teal-500/40');
       item.classList.remove('border-slate-800', 'bg-slate-900/60');
       state.currentPayment = item.dataset.method;
       
