@@ -620,7 +620,7 @@
   const withdrawCustomAmount = document.getElementById('withdrawCustomAmount');
   const withdrawPhoneInput = document.getElementById('withdrawPhoneInput');
   const confirmWithdrawBtn = document.getElementById('confirmWithdrawBtn');
-  let selectedWithdrawAmount = 500;
+  let selectedWithdrawAmount = 200;
   let currentWithdrawPayment = 'telebirr';
 
   function updateWithdrawModalUI() {
@@ -645,6 +645,12 @@
   const withdrawMethods = document.querySelectorAll('.withdraw-method-item');
   withdrawMethods.forEach((item) => {
     item.addEventListener('click', () => {
+      if (item.dataset.disabled === 'true') {
+        sound.playClick();
+        triggerHaptic('error');
+        showToast('ለጊዜው ክፍያ የሚሰራው በቴሌብር (Telebirr) ብቻ ነው!', 'info');
+        return;
+      }
       sound.playClick();
       triggerHaptic('impact');
       withdrawMethods.forEach((p) => {
@@ -695,16 +701,20 @@
       const amount = selectedWithdrawAmount || parseFloat(withdrawCustomAmount.value) || 0;
       const phone = withdrawPhoneInput ? withdrawPhoneInput.value.trim() : '';
 
-      if (amount < 50) {
-        showToast('Minimum withdrawal amount is 50 ETB', 'error');
+      if (curBal < 200) {
+        showToast(`በቂ ገንዘብ የለዎትም! ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን 200 ETB ነው። የእርስዎ Real Balance: ${curBal.toFixed(2)} ETB ነው`, 'error');
+        return;
+      }
+      if (amount < 200) {
+        showToast('ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን 200 ETB ነው!', 'error');
         return;
       }
       if (amount > curBal) {
-        showToast(`Insufficient balance! Your balance is ${curBal.toFixed(2)} ETB`, 'error');
+        showToast(`በቂ ገንዘብ የለዎትም! የእርስዎ Real Balance: ${curBal.toFixed(2)} ETB ነው`, 'error');
         return;
       }
       if (!phone || phone.length < 8) {
-        showToast('Please enter your payout phone number', 'error');
+        showToast('እባክዎ ትክክለኛ የቴሌብር ስልክ ቁጥር ያስገቡ', 'error');
         return;
       }
 
@@ -714,7 +724,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
         </svg>
-        Processing Payout Request...
+        ጥያቄዎ እየተላከ ነው...
       `;
 
       setTimeout(() => {
@@ -734,9 +744,10 @@
         const methodLabel = currentWithdrawPayment === 'telebirr' ? 'Telebirr' : (currentWithdrawPayment === 'cbe' ? 'CBE Birr' : currentWithdrawPayment.toUpperCase());
         const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
 
+        const reqId = `WD-${Date.now().toString().slice(-6)}`;
         const txRecord = {
           id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
-          txId: `WD-${Date.now().toString().slice(-6)}`,
+          txId: reqId,
           playerId: pid,
           player: playerName,
           username: playerUsername,
@@ -759,31 +770,51 @@
           console.error('Error saving withdrawal record:', e);
         }
 
-        // Send admin notification
+        // Send admin notification with interactive approve / reject buttons
         const withdrawAdminText = 
-          `🚨 <b>አዲስ የገንዘብ ማውጣት ጥያቄ (New Withdrawal Request)!</b>\n\n` +
-          `🆔 <b>Ref:</b> <code>${txRecord.id}</code>\n` +
-          `👤 <b>ተጫዋች:</b> ${playerName} (${playerUsername})\n` +
+          `🚨 <b>አዲስ የወጪ ጥያቄ (New Withdrawal Request)!</b>\n\n` +
+          `🆔 <b>Ref:</b> <code>${reqId}</code>\n` +
+          `👤 <b>ተጠቃሚ:</b> ${playerName} (${playerUsername})\n` +
           `📱 <b>የሚላክበት ስልክ:</b> <code>${phone}</code>\n` +
           `🏦 <b>የክፍያ ዘዴ:</b> ${methodLabel}\n` +
           `💰 <b>መጠን:</b> <b>${Number(amount).toFixed(2)} ETB</b>\n` +
-          `⏰ <b>ሰዓት:</b> ${nowStr}`;
+          `⏰ <b>ሰዓት:</b> ${nowStr}\n\n` +
+          `ብር ወደ <code>${phone}</code> በቴሌብር ከላኩ በኋላ <b>'Approve'</b> ይጫኑ፦`;
+
+        const rawUid = user?.id ? String(user.id).replace(/^TG-/, '') : '';
+        const roundAmt = Math.round(Number(amount));
+        const cbApprove = rawUid ? `with_approve:${rawUid}:${roundAmt}:${reqId}` : `with_approve:${reqId}`;
+        const cbReject = rawUid ? `with_reject:${rawUid}:${roundAmt}:${reqId}` : `with_reject:${reqId}`;
+
+        const inlineKeyboard = {
+          inline_keyboard: [
+            [
+              { text: `✅ Approve (${roundAmt} ETB)`, callback_data: cbApprove },
+              { text: '❌ Reject (Refund)', callback_data: cbReject }
+            ]
+          ]
+        };
 
         for (const cid of TG_ADMIN_CHAT_IDS) {
           try {
             fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: cid, text: withdrawAdminText, parse_mode: 'HTML' })
+              body: JSON.stringify({
+                chat_id: cid,
+                text: withdrawAdminText,
+                parse_mode: 'HTML',
+                reply_markup: inlineKeyboard
+              })
             }).catch(() => {});
           } catch (e) {}
         }
 
         closeModal(withdrawModal);
         confirmWithdrawBtn.disabled = false;
-        confirmWithdrawBtn.innerHTML = `Request Payout`;
-        showToast(`✅ Withdrawal of ${amount.toFixed(2)} ETB requested! Payout will be sent to ${phone}.`, 'success');
-      }, 1200);
+        confirmWithdrawBtn.innerHTML = `የወጪ ጥያቄ ላክ (Request Payout)`;
+        showToast(`✅ የ ${amount.toFixed(2)} ETB ወጪ ጥያቄዎ ተመዝግቧል! ብር በ 10 ደቂቃ ውስጥ ወደ ቴሌብር አካውንትዎ (${phone}) ይላካል።`, 'success');
+      }, 1000);
     });
   }
 

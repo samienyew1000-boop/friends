@@ -500,120 +500,311 @@ def send_deposit_info(chat_id, user):
         "reply_markup": inline_keyboard
     })
 
+MIN_WITHDRAWAL_AMOUNT = 200.0
+
+def save_withdrawals(withdrawals):
+    try:
+        with open(WITHDRAWALS_FILE, "w", encoding="utf-8") as f:
+            json.dump(withdrawals, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"Error saving withdrawals: {e}")
+
 def send_withdraw_info(chat_id, user):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     app_url = get_user_webapp_url(chat_id, user)
+    real_bal = float(user.get("balance", 0.0))
+
+    if real_bal < MIN_WITHDRAWAL_AMOUNT:
+        text = (
+            f"⚠️ <b>በቂ ገንዘብ የለዎትም!</b>\n\n"
+            f"ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን <b>{MIN_WITHDRAWAL_AMOUNT:.0f} ETB</b> ነው።\n"
+            f"💵 የእርስዎ Real Balance: <b>{real_bal:.2f} ETB</b>\n\n"
+            f"ገንዘብ ለማውጣት ቢያንስ {MIN_WITHDRAWAL_AMOUNT:.0f} ብር ያስፈልግዎታል። እባክዎ ጨዋታዎችን በመጫወት ያሸንፉ!"
+        )
+        inline_keyboard = {
+            "inline_keyboard": [
+                [{"text": "🎮 ጨዋታዎችን ይጫወቱ (Play Games)", "web_app": {"url": app_url}}],
+                [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+            ]
+        }
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "reply_markup": inline_keyboard
+        })
+
+    # User has >= 200 ETB: save awaiting state
+    users = load_known_users()
+    uid_str = str(chat_id)
+    if uid_str in users:
+        users[uid_str]["awaiting_action"] = "withdraw"
+        save_all_users(users)
 
     text = (
         f"💸 <b>ወጪ ለማድረግ (Withdraw Funds)</b>\n\n"
         f"👤 <b>የተጠቃሚ ስም:</b> {full_name}\n"
-        f"📱 <b>ገንዘብ የሚላክበት ስልክ:</b> <code>{phone}</code>\n"
+        f"💵 <b>የእርስዎ Real Balance:</b> <b>{real_bal:.2f} ETB</b>\n"
+        f"📱 <b>ገንዘብ የሚላክበት ስልክ (Telebirr):</b> <code>{phone}</code>\n"
         f"🆔 <b>የተጫዋች ID:</b> <code>{chat_id}</code>\n\n"
-        f"📌 <b>ገንዘብ ለማውጣት፦</b>\n"
-        f"<code>/withdraw [የብር መጠን]</code> ብለው ይላኩ\n"
-        f"ምሳሌ፦ <code>/withdraw 500</code>\n\n"
-        f"ገንዘቡ በቀጥታ ወደ ተመዘገበው ስልክዎ (<code>{phone}</code>) በቴሌብር ይላክሎታል። አነስተኛው የማውጣት መጠን 50 ETB ነው።"
+        f"📌 <b>መመሪያ፦</b>\n"
+        f"ማውጣት የሚፈልጉትን የብር መጠን ይላኩ።\n"
+        f"ምሳሌ፦ <code>/withdraw 200</code> ወይም በቀጥታ ቁጥሩን <code>200</code> ብለው ይላኩ።\n\n"
+        f"<i>(ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን {MIN_WITHDRAWAL_AMOUNT:.0f} ETB ነው)</i>"
     )
-    inline_keyboard = {
-        "inline_keyboard": [
-            [{"text": "💸 Open Withdraw in Mini App", "web_app": {"url": app_url}}]
-        ]
-    }
+
+    quick_row = []
+    if real_bal >= 200:
+        quick_row.append({"text": "200 ETB", "callback_data": "quick_wd:200"})
+    if real_bal >= 500:
+        quick_row.append({"text": "500 ETB", "callback_data": "quick_wd:500"})
+    if real_bal >= 1000:
+        quick_row.append({"text": "1,000 ETB", "callback_data": "quick_wd:1000"})
+
+    inline_rows = []
+    if quick_row:
+        inline_rows.append(quick_row)
+    if real_bal > 200 and int(real_bal) not in [200, 500, 1000]:
+        inline_rows.append([{"text": f"ሙሉውን ወጪ አድርግ ({int(real_bal)} ETB)", "callback_data": f"quick_wd:{int(real_bal)}"}])
+    inline_rows.append([{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}])
+
     return api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "reply_markup": inline_keyboard
+        "reply_markup": {"inline_keyboard": inline_rows}
     })
 
 def handle_withdraw_request(chat_id, user, amount_str):
     try:
-        amt = float(amount_str)
-        if amt < 50:
-            return api_call("sendMessage", {
-                "chat_id": chat_id,
-                "text": "⚠️ አነስተኛው የማውጣት መጠን <b>50 ETB</b> ነው። እባክዎ ከ 50 ETB በላይ ይጥቀሱ።",
-                "parse_mode": "HTML",
-                "reply_markup": get_main_reply_keyboard(chat_id, user)
-            })
-    except ValueError:
+        amt = float(str(amount_str).replace("ETB", "").replace("ብር", "").strip())
+    except (ValueError, TypeError):
         return api_call("sendMessage", {
             "chat_id": chat_id,
-            "text": "⚠️ እባክዎ ትክክለኛ የብር መጠን ይጥቀሱ።\nምሳሌ፦ <code>/withdraw 500</code>",
+            "text": f"⚠️ እባክዎ ትክክለኛ የብር መጠን ይጥቀሱ።\nምሳሌ፦ <code>/withdraw 200</code> ወይም <code>200</code>",
+            "parse_mode": "HTML",
+            "reply_markup": get_main_reply_keyboard(chat_id, user)
+        })
+
+    real_bal = float(user.get("balance", 0.0))
+
+    if real_bal < MIN_WITHDRAWAL_AMOUNT:
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"⚠️ <b>በቂ ገንዘብ የለዎትም!</b>\n\n"
+                f"ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን <b>{MIN_WITHDRAWAL_AMOUNT:.0f} ETB</b> ነው።\n"
+                f"💵 የእርስዎ Real Balance: <b>{real_bal:.2f} ETB</b>\n\n"
+                f"እባክዎ ጨዋታዎችን በመጫወት ያሸንፉ!"
+            ),
+            "parse_mode": "HTML",
+            "reply_markup": get_main_reply_keyboard(chat_id, user)
+        })
+
+    if amt < MIN_WITHDRAWAL_AMOUNT:
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": f"⚠️ <b>ዝቅተኛው ወጪ ማድረግ የሚችሉት መጠን {MIN_WITHDRAWAL_AMOUNT:.0f} ብር ነው!</b>\n\nእባክዎ {MIN_WITHDRAWAL_AMOUNT:.0f} ETB ወይም ከዚያ በላይ ይጥቀሱ።\nምሳሌ፦ <code>/withdraw 200</code> ወይም በቀጥታ <code>200</code>",
+            "parse_mode": "HTML",
+            "reply_markup": get_main_reply_keyboard(chat_id, user)
+        })
+
+    if amt > real_bal:
+        return api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"⚠️ <b>በቂ ገንዘብ የለዎትም!</b>\n\n"
+                f"የጠየቁት መጠን: <b>{amt:.2f} ETB</b>\n"
+                f"💵 የእርስዎ Real Balance: <b>{real_bal:.2f} ETB</b>\n\n"
+                f"እባክዎ በሂሳብዎ ውስጥ ካለው መጠን እኩል ወይም ያነሰ ይጥቀሱ (ዝቅተኛው {MIN_WITHDRAWAL_AMOUNT:.0f} ETB)።"
+            ),
             "parse_mode": "HTML",
             "reply_markup": get_main_reply_keyboard(chat_id, user)
         })
 
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
-    real_bal = float(user.get("balance", 0.0))
-    if real_bal < amt:
-        bonus_bal = float(user.get("bonus_balance", 0.0))
-        bonus_note = f"\n\n<i>📌 የቦነስ ሂሳብዎ <b>{bonus_bal:.2f} ETB</b> መጫወቻ ብቻ ስለሆነ በቀጥታ ወጪ አይደረግም። በቦነስ ተጫውተው ሲያሸንፉ አሸናፊው ወደ Real Balance ይቀየራል!</i>" if bonus_bal > 0 else ""
-        return api_call("sendMessage", {
-            "chat_id": chat_id,
-            "text": f"⚠️ ወጪ ማድረግ የሚችሉት እውነተኛ ሂሳብ (Real Balance) ብቻ ነው።\n💵 የእርስዎ Real Balance: <b>{real_bal:.2f} ETB</b>{bonus_note}",
-            "parse_mode": "HTML",
-            "reply_markup": get_main_reply_keyboard(chat_id, user)
-        })
-
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
 
-    w_list = []
-    if WITHDRAWALS_FILE.exists():
-        try:
-            with open(WITHDRAWALS_FILE, "r", encoding="utf-8") as f:
-                w_list = json.load(f)
-        except Exception:
-            w_list = []
+    # Deduct balance immediately & reset awaiting status
+    users = load_known_users()
+    uid_str = str(chat_id)
+    new_bal = round(real_bal - amt, 2)
+    if uid_str in users:
+        users[uid_str]["balance"] = new_bal
+        users[uid_str]["updated"] = time.time()
+        users[uid_str].pop("awaiting_action", None)
+        save_all_users(users)
+    user["balance"] = new_bal
+    user.pop("awaiting_action", None)
 
+    # Save to withdrawals.json
+    withdrawals = load_withdrawals()
     req_id = f"WD-{int(time.time())}"
-    w_list.append({
+    wd_record = {
         "id": req_id,
-        "chat_id": chat_id,
+        "chat_id": int(chat_id),
         "name": full_name,
+        "username": user.get("username", ""),
         "phone": phone,
         "amount": amt,
         "status": "pending",
         "created_at": now_str
-    })
-    try:
-        with open(WITHDRAWALS_FILE, "w", encoding="utf-8") as f:
-            json.dump(w_list, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logging.error(f"Error saving withdrawal: {e}")
+    }
+    withdrawals.append(wd_record)
+    save_withdrawals(withdrawals)
 
-    # Notify admins
+    # 1. Notify Player with pending message, 10 minutes notice & Contact Support button
+    player_text = (
+        f"✅ <b>የወጪ ጥያቄዎ በተሳካ ሁኔታ ተመዝግቧል!</b>\n\n"
+        f"🆔 <b>የጥያቄ ቁጥር:</b> <code>{req_id}</code>\n"
+        f"💰 <b>የተጠየቀው መጠን:</b> <b>{amt:.2f} ETB</b>\n"
+        f"📱 <b>የሚላክበት ስልክ:</b> <code>{phone}</code>\n"
+        f"⏳ <b>ሁኔታ:</b> በመጠባበቅ ላይ (Pending)\n\n"
+        f"⚡ <b>ብር በ 10 ደቂቃ ውስጥ ወደ ቴሌብር አካውንትዎ ገቢ ይደረግልዎታል!</b>\n\n"
+        f"💵 <b>የቀሪ ሂሳብዎ:</b> <b>{new_bal:.2f} ETB</b>\n\n"
+        f"ማንኛውም ጥያቄ ካለዎት ድጋፍ ሰጪያችንን ማነጋገር ይችላሉ፦"
+    )
+    inline_kb = {
+        "inline_keyboard": [
+            [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+        ]
+    }
+    api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": player_text,
+        "parse_mode": "HTML",
+        "reply_markup": inline_kb
+    })
+
+    # 2. Notify Admins with interactive Approve / Reject buttons
+    admin_text = (
+        f"🚨 <b>አዲስ የወጪ ጥያቄ (New Withdrawal Request)!</b>\n\n"
+        f"🆔 <b>Ref:</b> <code>{req_id}</code>\n"
+        f"👤 <b>ተጠቃሚ:</b> {full_name} (@{user.get('username', '')})\n"
+        f"📱 <b>ስልክ (Telebirr):</b> <code>{phone}</code>\n"
+        f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n"
+        f"💰 <b>መጠን:</b> <b>{amt:.2f} ETB</b>\n"
+        f"⏰ <b>ሰዓት:</b> {now_str}\n\n"
+        f"ብር ወደ <code>{phone}</code> በቴሌብር ከላኩ በኋላ <b>'Approve'</b> ይጫኑ፦"
+    )
+    admin_kb = {
+        "inline_keyboard": [
+            [
+                {"text": f"✅ Approve ({amt:.0f} ETB)", "callback_data": f"with_approve:{chat_id}:{amt}:{req_id}"},
+                {"text": "❌ Reject (Refund)", "callback_data": f"with_reject:{chat_id}:{amt}:{req_id}"}
+            ]
+        ]
+    }
     for admin_id in ADMIN_USER_IDS:
         api_call("sendMessage", {
             "chat_id": admin_id,
-            "text": (
-                f"🚨 <b>አዲስ የገንዘብ ማውጣት ጥያቄ (New Withdrawal Request)!</b>\n\n"
-                f"🆔 <b>Ref:</b> <code>{req_id}</code>\n"
-                f"👤 <b>ተጫዋች:</b> {full_name} (@{user.get('username','')})\n"
-                f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
-                f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n"
-                f"💰 <b>መጠን:</b> <b>{amt:.2f} ETB</b>\n"
-                f"⏰ <b>ሰዓት:</b> {now_str}"
-            ),
-            "parse_mode": "HTML"
+            "text": admin_text,
+            "parse_mode": "HTML",
+            "reply_markup": admin_kb
         })
 
-    # Confirm to player
-    return api_call("sendMessage", {
-        "chat_id": chat_id,
-        "text": (
-            f"✅ <b>የማውጣት ጥያቄዎ በተሳካ ሁኔታ ተመዝግቧል!</b>\n\n"
-            f"🆔 <b>የጥያቄ ቁጥር:</b> <code>{req_id}</code>\n"
-            f"💰 <b>የተጠየቀው መጠን:</b> <b>{amt:.2f} ETB</b>\n"
-            f"📱 <b>የሚላክበት ስልክ:</b> <code>{phone}</code>\n"
-            f"⏳ <b>ሁኔታ:</b> በመጠባበቅ ላይ (Pending)\n\n"
-            f"አድሚኑ ጥያቄውን ተመልክቶ በጥቂት ደቂቃዎች ውስጥ በቴሌብር ወደ ስልክዎ ያስተላልፋል!"
-        ),
-        "parse_mode": "HTML",
-        "reply_markup": get_main_reply_keyboard(chat_id, user)
-    })
+    return True
+
+def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
+    withdrawals = load_withdrawals()
+    target = None
+    for w in withdrawals:
+        if w.get("id") == req_id:
+            target = w
+            break
+
+    if not target:
+        target = {
+            "id": req_id,
+            "status": "pending",
+            "amount": float(explicit_amount) if explicit_amount else MIN_WITHDRAWAL_AMOUNT,
+            "chat_id": int(explicit_chat_id) if explicit_chat_id else None
+        }
+        withdrawals.append(target)
+
+    if target.get("status") == "approved":
+        return False, "ቀድሞ ጸድቋል (Already approved)"
+
+    chat_id = target.get("chat_id") or explicit_chat_id
+    amt = float(target.get("amount") or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
+    phone = target.get("phone", "")
+
+    target["status"] = "approved"
+    target["approved_by"] = admin_id
+    target["approved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    save_withdrawals(withdrawals)
+
+    # Notify User that money has been deposited:
+    if chat_id:
+        users = load_known_users()
+        u = users.get(str(chat_id), {})
+        if not phone:
+            phone = u.get("phone", "")
+
+        api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"✅ <b>ገንዘብዎ ገቢ ሆኗል! (Withdrawal Completed)</b>\n\n"
+                f"የጠየቁት <b>{amt:.2f} ETB</b> ወደ ስልክ ቁጥርዎ <code>{phone}</code> በቴሌብር በተሳካ ሁኔታ ገቢ ተደርጓል!\n\n"
+                f"🧾 <b>Ref ID:</b> <code>{req_id}</code>\n\n"
+                f"🎮 Friendes Gameን ስለመረጡ እናመሰግናለን!"
+            ),
+            "parse_mode": "HTML",
+            "reply_markup": get_main_reply_keyboard(chat_id, u)
+        })
+
+    return True, f"Approved! {amt:.2f} ETB to user {chat_id}"
+
+def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
+    withdrawals = load_withdrawals()
+    target = None
+    for w in withdrawals:
+        if w.get("id") == req_id:
+            target = w
+            break
+
+    if target and target.get("status") in ("approved", "rejected"):
+        return False, f"ጥያቄው ቀድሞ {target.get('status')} ሆኗል!"
+
+    chat_id = (target.get("chat_id") if target else None) or explicit_chat_id
+    amt = float((target.get("amount") if target else None) or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
+
+    if target:
+        target["status"] = "rejected"
+        target["rejected_by"] = admin_id
+        target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        save_withdrawals(withdrawals)
+
+    # Refund amount back to user balance
+    new_bal = 0.0
+    if chat_id:
+        users = load_known_users()
+        uid_str = str(chat_id)
+        if uid_str in users:
+            new_bal = round(users[uid_str].get("balance", 0.0) + amt, 2)
+            users[uid_str]["balance"] = new_bal
+            users[uid_str]["updated"] = time.time()
+            save_all_users(users)
+
+        api_call("sendMessage", {
+            "chat_id": chat_id,
+            "text": (
+                f"❌ <b>የወጪ ጥያቄዎ ተሰርዟል!</b>\n\n"
+                f"የጠየቁት <b>{amt:.2f} ETB</b> ወደ ጌም ሂሳብዎ (Real Balance) ተመልሷል (Refunded)።\n"
+                f"💵 የአሁኑ Real Balance: <b>{new_bal:.2f} ETB</b>\n\n"
+                f"ለበለጠ መረጃ ድጋፍ ሰጪያችንን ማነጋገር ይችላሉ፦"
+            ),
+            "parse_mode": "HTML",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+                ]
+            }
+        })
+
+    return True, f"Rejected & Refunded {amt:.2f} ETB to user {chat_id}"
 
 def load_deposits():
     if DEPOSITS_FILE.exists():
@@ -1402,6 +1593,94 @@ def main():
                                     })
                             continue
 
+                        if cb_data.startswith("with_approve:") or cb_data.startswith("with_reject:"):
+                            action, rest = cb_data.split(":", 1)
+                            caller_id = cb_from.get("id")
+                            caller_username = cb_from.get("username", "")
+
+                            if not is_admin(caller_id, caller_username):
+                                api_call("answerCallbackQuery", {
+                                    "callback_query_id": cb_id,
+                                    "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
+                                    "show_alert": True
+                                })
+                                continue
+
+                            w_parts = rest.split(":")
+                            explicit_uid = None
+                            explicit_amt = None
+                            if len(w_parts) == 3:
+                                try:
+                                    if w_parts[0] and w_parts[0] != "0":
+                                        explicit_uid = int(w_parts[0])
+                                    explicit_amt = float(w_parts[1])
+                                except Exception:
+                                    pass
+                                req_id = w_parts[2]
+                            else:
+                                req_id = rest
+
+                            orig_text = cb_msg.get("text", "")
+                            admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                            if action == "with_approve":
+                                ok, info = approve_withdrawal(
+                                    req_id,
+                                    caller_id,
+                                    explicit_chat_id=explicit_uid,
+                                    explicit_amount=explicit_amt,
+                                    message_text=orig_text
+                                )
+                                if ok:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"✅ {info}"
+                                    })
+                                    api_call("editMessageText", {
+                                        "chat_id": cb_chat_id,
+                                        "message_id": cb_msg.get("message_id"),
+                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>(ገንዘቡ ለተጠቃሚው ተልኮ ተረጋግጧል)</i>",
+                                        "parse_mode": "HTML"
+                                    })
+                                else:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"⚠️ {info}",
+                                        "show_alert": True
+                                    })
+                            else:
+                                ok, info = reject_withdrawal(
+                                    req_id,
+                                    caller_id,
+                                    explicit_chat_id=explicit_uid,
+                                    explicit_amount=explicit_amt,
+                                    message_text=orig_text
+                                )
+                                if ok:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"❌ {info}"
+                                    })
+                                    api_call("editMessageText", {
+                                        "chat_id": cb_chat_id,
+                                        "message_id": cb_msg.get("message_id"),
+                                        "text": orig_text + f"\n\n<b>❌ REJECTED & REFUNDED by {admin_tag}</b>",
+                                        "parse_mode": "HTML"
+                                    })
+                                else:
+                                    api_call("answerCallbackQuery", {
+                                        "callback_query_id": cb_id,
+                                        "text": f"⚠️ {info}",
+                                        "show_alert": True
+                                    })
+                            continue
+
+                        if cb_data.startswith("quick_wd:"):
+                            amt_val = cb_data.split(":", 1)[1]
+                            api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                            if ensure_user_registered_or_prompt(cb_chat_id):
+                                handle_withdraw_request(cb_chat_id, cb_user, amt_val)
+                            continue
+
                         if cb_data == "check_channel_join":
                             is_member, reason = check_user_membership(cb_chat_id)
                             if is_member:
@@ -1727,6 +2006,11 @@ def main():
                         if not is_user_registered(chat_id):
                             request_phone_registration(chat_id)
                         else:
+                            clean_num = text.strip().replace("ETB", "").replace("ብር", "").strip()
+                            if user.get("awaiting_action") == "withdraw" and re.match(r"^\d+(\.\d+)?$", clean_num):
+                                handle_withdraw_request(chat_id, user, clean_num)
+                                continue
+
                             lower = text.lower()
                             # Only treat as deposit submission if text looks like a real transaction ID or payment confirmation
                             is_tx = bool(
@@ -1735,7 +2019,9 @@ def main():
                             )
                             if is_tx:
                                 clean_tx = text.strip().replace("\n", " ")
-                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / CBE")
+                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr")
+                            elif re.match(r"^\d+(\.\d+)?$", clean_num) and float(clean_num) >= 50:
+                                handle_withdraw_request(chat_id, user, clean_num)
                             else:
                                 send_welcome(chat_id, user)
 

@@ -625,7 +625,7 @@
           <p class="text-[10px] text-slate-400 uppercase font-semibold">Available Real Balance</p>
           <p id="withdrawAvailableBal" class="text-base font-extrabold text-teal-400">0.00 ETB</p>
         </div>
-        <span class="text-xs font-bold text-slate-500">Min: 50 ETB</span>
+        <span class="text-xs font-bold text-teal-400">Min: 200 ETB</span>
       </div>
 
       <!-- Payment Method Selection -->
@@ -639,13 +639,13 @@
               <p class="text-[10px] text-teal-300">Instant Payout</p>
             </div>
           </div>
-          <div class="withdraw-method-item cursor-pointer p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center space-x-3 transition-all" data-method="cbe">
-            <div class="w-8 h-8 rounded-md bg-purple-900/80 border border-purple-700 text-purple-200 font-extrabold flex items-center justify-center text-xs">
+          <div class="withdraw-method-item cursor-not-allowed opacity-50 p-3 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center space-x-3 transition-all" data-method="cbe" data-disabled="true">
+            <div class="w-8 h-8 rounded-md bg-purple-900/40 border border-purple-700/50 text-purple-300 font-extrabold flex items-center justify-center text-xs">
               CBE
             </div>
             <div>
-              <p class="text-xs font-bold text-white">CBE Birr</p>
-              <p class="text-[10px] text-slate-400">Direct Account</p>
+              <p class="text-xs font-bold text-slate-400">CBE Birr</p>
+              <p class="text-[9px] text-amber-400/80">ለጊዜው ቆሟል (Soon)</p>
             </div>
           </div>
         </div>
@@ -655,15 +655,15 @@
       <div>
         <label class="block text-xs font-semibold text-slate-300 mb-2">Withdraw Amount (ETB)</label>
         <div class="grid grid-cols-3 gap-2">
-          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="100">100 ETB</button>
-          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="200">200 ETB</button>
-          <button class="withdraw-amount-pill py-2 rounded-xl bg-teal-500 text-xs font-bold text-white shadow-md shadow-teal-500/20 transition-all" data-amount="500">500 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-teal-500 text-xs font-bold text-white shadow-md shadow-teal-500/20 transition-all" data-amount="200">200 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="500">500 ETB</button>
           <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="1000">1,000 ETB</button>
-          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="2500">2,500 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="2000">2,000 ETB</button>
+          <button class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all" data-amount="5000">5,000 ETB</button>
           <button id="withdrawAllBtn" class="withdraw-amount-pill py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-amber-400 transition-all">All In</button>
         </div>
         <div class="mt-2.5">
-          <input type="number" id="withdrawCustomAmount" value="500" min="50" placeholder="Custom Amount" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500" />
+          <input type="number" id="withdrawCustomAmount" value="200" min="200" placeholder="Custom Amount (Min 200)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500" />
         </div>
       </div>
 
