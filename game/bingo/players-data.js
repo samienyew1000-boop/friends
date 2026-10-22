@@ -2,7 +2,7 @@
 "use strict";
 window.LUCKY_BINGO_ADMIN = {
   "name": "Friendes Admin",
-  "username": "@FriendesAdmin",
+  "username": "@Friends_game_64",
   "phone": "+251939292694",
   "role": "Super administrator"
 };

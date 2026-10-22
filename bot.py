@@ -43,7 +43,7 @@ ADMIN_USER_IDS = {
 }
 ADMIN_USER_IDS.add("8474256363")
 ADMIN_USER_IDS.add("5663531258")  # samTesfa19 ID from logs
-ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19"}
+ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19", "friends_game_64"}
 if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
     for u in os.environ.get("TELEGRAM_ADMIN_USERNAMES", "").split(","):
         if u.strip():
@@ -341,7 +341,8 @@ def send_registration_success(chat_id, user):
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
-        f"📞 Contact 2: <code>+251972450776</code>"
+        f"📞 Contact 2: <code>+251972450776</code>\n"
+        f"✈️ Telegram: @Friends_game_64"
     )
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -426,7 +427,8 @@ def send_welcome(chat_id, user=None):
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
-        f"📞 Contact 2: <code>+251972450776</code>"
+        f"📞 Contact 2: <code>+251972450776</code>\n"
+        f"✈️ Telegram: @Friends_game_64"
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
@@ -938,21 +940,25 @@ def send_referral_info(chat_id, user):
     })
 
 def send_help_info(chat_id, user):
-    main_kb = get_main_reply_keyboard(chat_id, user)
     text = (
         f"🆘 <b>እርዳታ እና ድጋፍ (Help & 24/7 Support)</b>\n\n"
         f"ማንኛውም ጥያቄ ወይም ችግር ካጋጠመዎት የደንበኞች አገልግሎት ሰራተኞቻችንን 24/7 ማግኘት ይችላሉ፦\n\n"
-        f"• <b>ቴሌግራም ድጋፍ:</b> @Friends64_BOT\n"
+        f"• <b>ቴሌግራም ድጋፍ (Telegram):</b> @Friends_game_64\n"
         f"• <b>ስልክ ቁጥር 1:</b> <code>+251939292694</code>\n"
         f"• <b>ስልክ ቁጥር 2:</b> <code>+251972450776</code>\n"
         f"• <b>ሰዓት:</b> 24 ሰዓት ክፍት ነው\n\n"
         f"በፍጥነት ምላሽ እንሰጣለን!"
     )
+    inline_kb = {
+        "inline_keyboard": [
+            [{"text": "💬 አግኙን (Contact @Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+        ]
+    }
     return api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "reply_markup": main_kb
+        "reply_markup": inline_kb
     })
 
 def send_language_info(chat_id, user):
@@ -1189,16 +1195,16 @@ def send_contact_us_info(chat_id, user):
     text = (
         f"📞 <b>Contact Us & 24/7 Support | የደንበኞች አገልግሎት</b>\n\n"
         f"Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
-        f"👤 <b>Admin:</b> @Ninjaaj7\n"
-        f"🤖 <b>Support Bot:</b> @Friends64_BOT\n"
+        f"👤 <b>Customer Support:</b> @Friends_game_64\n"
+        f"🤖 <b>Official Bot:</b> @Friends64_BOT\n"
         f"📱 <b>Phone 1:</b> <code>+251939292694</code>\n"
         f"📱 <b>Phone 2:</b> <code>+251972450776</code>\n"
         f"📢 <b>Official Channel:</b> @{REQUIRED_GROUP_USERNAME}\n\n"
-        f"Tap below to message admin directly:"
+        f"Tap below to contact support directly:"
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": "💬 Message Admin (@Ninjaaj7)", "url": "https://t.me/Ninjaaj7"}],
+            [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}],
             [{"text": f"📢 Community Group (@{REQUIRED_GROUP_USERNAME})", "url": REQUIRED_GROUP_URL}]
         ]
     }
@@ -1267,7 +1273,7 @@ def main():
             "🛠 እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n\n"
             "📞 Contact 1: +251939292694\n"
             "📞 Contact 2: +251972450776\n"
-            "✈️ Telegram: @Friends64_BOT"
+            "✈️ Telegram: @Friends_game_64"
         )
     })
     api_call("setMyShortDescription", {
@@ -1695,7 +1701,7 @@ def main():
                             else:
                                 send_text_message(chat_id, (
                                     "🔐 <b>Friendes Game | Admin Access</b>\n\n"
-                                    "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Ninjaaj7, @samTesfa19) ብቻ የተወሰነ ነው።\n"
+                                    "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Friends_game_64, @samTesfa19) ብቻ የተወሰነ ነው።\n"
                                     "የይለፍ ቃል ካለዎት በሚከተለው መልኩ ይላኩ:\n\n"
                                     "👉 <code>/admin &lt;password&gt;</code>"
                                 ))

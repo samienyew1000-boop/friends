@@ -77,7 +77,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8882887936:AAEXtkABLYGWPSC-r4tXRMAOzET9Jp21N
 raw_web_url = os.getenv("WEB_APP_URL", "https://africa-bingo.ethiodeploy.com/").strip()
 WEB_APP_URL = raw_web_url if raw_web_url.endswith("/") else f"{raw_web_url}/"
 GROUP_URL = os.getenv("GROUP_URL", "https://t.me/Africa1bingo_bot")
-CONTACT_URL = os.getenv("CONTACT_URL", "https://t.me/su121316")
+CONTACT_URL = os.getenv("CONTACT_URL", "https://t.me/Friends_game_64")
 
 def get_game_web_url(subpath: str = "", extra_query: str = "", is_admin_user: bool = False, user_id: int = 0) -> str:
     """Builds authoritative WebApp URL including tunnel API and role params."""
@@ -2084,9 +2084,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data == "contact_us":
         text = (
             "📞 *የደንበኞች አገልግሎት (Contact Us)*\n\n"
-            "ማንኛውም ጥያቄ ወይም ድጋፍ ከፈለጉ የ 24/7 የደንበኞች አገልግሎታችንን ያነጋግሩ።"
+            "ማንኛውም ጥያቄ ወይም ድጋፍ ከፈለጉ የ 24/7 የደንበኞች አገልግሎታችንን ያነጋግሩ፦\n"
+            "👉 @Friends_game_64\n"
+            "📞 +251939292694 / +251972450776"
         )
         keyboard = [
+            [InlineKeyboardButton(text="💬 Contact Support (@Friends_game_64)", url="https://t.me/Friends_game_64")],
             [InlineKeyboardButton(text="« ወደ ዋናው ማውጫ (Back)", callback_data="back_to_menu")]
         ]
         await query.message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")

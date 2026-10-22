@@ -538,7 +538,7 @@
 
   // --- Admin Authentication Gate ---
   const AUTH_KEY = 'habesha_admin_session_auth_v1';
-  const VALID_USERS = ['admin', 'ninjaaj7', 'samtesfa19'];
+  const VALID_USERS = ['admin', 'ninjaaj7', 'samtesfa19', 'friends_game_64'];
   const VALID_PASSWORDS = ['admin123', '7DoGpDwZ4zpIvotZm9p'];
 
   function isAuthenticated() {
