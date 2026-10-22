@@ -912,7 +912,8 @@ def send_help_info(chat_id, user):
         f"🆘 <b>እርዳታ እና ድጋፍ (Help & 24/7 Support)</b>\n\n"
         f"ማንኛውም ጥያቄ ወይም ችግር ካጋጠመዎት የደንበኞች አገልግሎት ሰራተኞቻችንን 24/7 ማግኘት ይችላሉ፦\n\n"
         f"• <b>ቴሌግራም ድጋፍ:</b> @Friends64_BOT\n"
-        f"• <b>የስልክ መስመር:</b> <code>+251 981 247 219</code>\n"
+        f"• <b>ስልክ ቁጥር 1:</b> <code>+251939292694</code>\n"
+        f"• <b>ስልክ ቁጥር 2:</b> <code>+251972450776</code>\n"
         f"• <b>ሰዓት:</b> 24 ሰዓት ክፍት ነው\n\n"
         f"በፍጥነት ምላሽ እንሰጣለን!"
     )
@@ -1155,7 +1156,8 @@ def send_contact_us_info(chat_id, user):
         f"Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
         f"👤 <b>Admin:</b> @Ninjaaj7\n"
         f"🤖 <b>Support Bot:</b> @Friends64_BOT\n"
-        f"📱 <b>Phone:</b> <code>+251 981 247 219</code>\n"
+        f"📱 <b>Phone 1:</b> <code>+251939292694</code>\n"
+        f"📱 <b>Phone 2:</b> <code>+251972450776</code>\n"
         f"📢 <b>Official Channel:</b> @{REQUIRED_GROUP_USERNAME}\n\n"
         f"Tap below to message admin directly:"
     )
@@ -1219,6 +1221,22 @@ def main():
             {"command": "withdraw", "description": "💸 Withdraw to Registered Phone"},
             {"command": "profile", "description": "👤 View My Account Profile"}
         ]
+    })
+
+    # Configure Bot Description & "What can this bot do?" profile screen
+    api_call("setMyDescription", {
+        "description": (
+            "🎮 Welcome to Friendes Game!\n\n"
+            "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash! 💰\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "🛠 እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n\n"
+            "📞 Contact 1: +251939292694\n"
+            "📞 Contact 2: +251972450776\n"
+            "✈️ Telegram: @Friends64_BOT"
+        )
+    })
+    api_call("setMyShortDescription", {
+        "short_description": "Play Aviator, JetX, Betting & more! Casino development: +251939292694 / +251972450776"
     })
 
     # Sync personalized menu buttons for known registered users on startup
