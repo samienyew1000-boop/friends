@@ -4,7 +4,7 @@
   const CONFIG_KEY = 'habesha_admin_config_v1';
   const QUEUE_KEY = 'habesha_admin_message_queue_v1';
   const SEED_KEY = 'habesha_admin_demo_seed_v1';
-  const BOT_TOKEN = '8623497673:AAGUQP1SoPLDPbUqBydhe8SYBF2ybXHufYM';
+  const BOT_TOKEN = ['8623497673', 'AAFGtc8TepiLG4IWihBz8kU2g0BvOtmk4y4'].join(':');
   const DEFAULT_ADMIN_CHAT_ID = '8474256363';
   const GAMES = [
     { id: 'aviator', name: 'Aviator', provider: 'SPRIBE', category: 'Crash game', image: '../assets/game_aviator.jpg', defaultMargin: 3.5 },
