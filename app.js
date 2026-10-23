@@ -416,6 +416,16 @@
       } else {
         phoneInputPrefix.textContent = '+251';
       }
+
+      const recLabel = document.getElementById('depositReceiverLabel');
+      const recNumber = document.getElementById('depositReceiverNumber');
+      if (state.currentPayment === 'mpesa') {
+        if (recLabel) recLabel.textContent = 'የሳፋሪኮም መላኪያ ቁጥር (Safaricom M-Pesa)';
+        if (recNumber) recNumber.innerHTML = '+251717482251 <span class="text-teal-400 font-normal">(Abirham)</span>';
+      } else {
+        if (recLabel) recLabel.textContent = 'የቴሌብር መላኪያ ቁጥር (Telebirr Receiver)';
+        if (recNumber) recNumber.innerHTML = '0928233032 <span class="text-teal-400 font-normal">(Abirham)</span>';
+      }
     });
   });
 
@@ -458,18 +468,19 @@
   if (copyDepositAccountBtn) {
     copyDepositAccountBtn.addEventListener('click', () => {
       sound.playClick();
+      const activeNum = state.currentPayment === 'mpesa' ? '+251717482251' : '0928233032';
       try {
-        navigator.clipboard.writeText('0928233032').then(() => {
+        navigator.clipboard.writeText(activeNum).then(() => {
           if (copyAccountBtnText) copyAccountBtnText.textContent = 'ተቀድቷል!';
-          showToast('የመላኪያ ቁጥር 0928233032 ኮፒ ተደርጓል!', 'success');
+          showToast(`የመላኪያ ቁጥር ${activeNum} ኮፒ ተደርጓል!`, 'success');
           setTimeout(() => {
             if (copyAccountBtnText) copyAccountBtnText.textContent = 'ኮፒ (Copy)';
           }, 2500);
         }).catch(() => {
-          showToast('የመላኪያ ቁጥር: 0928233032', 'info');
+          showToast(`የመላኪያ ቁጥር: ${activeNum}`, 'info');
         });
       } catch (e) {
-        showToast('የመላኪያ ቁጥር: 0928233032', 'info');
+        showToast(`የመላኪያ ቁጥር: ${activeNum}`, 'info');
       }
     });
   }
@@ -557,7 +568,7 @@
       const pid = user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST';
       const playerName = user?.name || user?.username || 'Player';
       const playerUsername = user?.username ? `@${user.username}` : '';
-      const methodLabel = state.currentPayment === 'telebirr' ? 'Telebirr' : (state.currentPayment === 'cbe' ? 'CBE Birr' : state.currentPayment.toUpperCase());
+      const methodLabel = state.currentPayment === 'telebirr' ? 'Telebirr' : (state.currentPayment === 'mpesa' ? 'Safaricom M-Pesa' : (state.currentPayment === 'cbe' ? 'CBE Birr' : state.currentPayment.toUpperCase()));
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
 
       const rawUid = user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '';

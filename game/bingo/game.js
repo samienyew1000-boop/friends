@@ -26,7 +26,7 @@ const PLAYER_NAME = "Friendes Bingo Player";
 const PAYMENT_METHODS = Object.freeze({
   Telebirr: { accountName: "Abirham", accountNumber: "0928233032" },
   "CBE Birr": { accountName: "Abirham", accountNumber: "0928233032" },
-  "M-Pesa": { accountName: "Friendes Bingo M-Pesa", accountNumber: "0700 000 000" },
+  "M-Pesa": { accountName: "Abirham", accountNumber: "+251717482251" },
 });
 
 const ROOMS = [
@@ -3147,10 +3147,10 @@ function getDepositPaymentAccount(method) {
         accountNumber: adminSettings.depositCbeBirrPhone || "0928233032",
       };
     }
-    if (method === "M-Pesa" && adminSettings.depositMpesaPhone) {
+    if (method === "M-Pesa") {
       return {
-        accountName: adminSettings.depositMpesaName || "Friendes Bingo M-Pesa",
-        accountNumber: adminSettings.depositMpesaPhone || "0700 000 000",
+        accountName: adminSettings.depositMpesaName || "Abirham",
+        accountNumber: adminSettings.depositMpesaPhone || "+251717482251",
       };
     }
   } catch (e) {}

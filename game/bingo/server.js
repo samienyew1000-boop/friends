@@ -51,8 +51,8 @@ const DEFAULT_STATE = {
     depositTelebirrName: "Abirham",
     depositCbeBirrPhone: "0928233032",
     depositCbeBirrName: "Abirham",
-    depositMpesaPhone: "0700 000 000",
-    depositMpesaName: "Africa Bingo M-Pesa",
+    depositMpesaPhone: "+251717482251",
+    depositMpesaName: "Abirham",
   },
   metrics: {
     totalPlayers: 0,

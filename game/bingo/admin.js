@@ -131,8 +131,8 @@ const DEFAULT_SETTINGS = {
   depositTelebirrName: "Abirham",
   depositCbeBirrPhone: "0928233032",
   depositCbeBirrName: "Abirham",
-  depositMpesaPhone: "0700 000 000",
-  depositMpesaName: "Friendes Bingo M-Pesa",
+  depositMpesaPhone: "+251717482251",
+  depositMpesaName: "Abirham",
 };
 
 let state = loadState();
@@ -287,8 +287,8 @@ function saveSettings() {
       accountNumber: settings.depositCbeBirrPhone || "0928233032",
     },
     "M-Pesa": {
-      accountName: settings.depositMpesaName || "Friendes Bingo M-Pesa",
-      accountNumber: settings.depositMpesaPhone || "0700 000 000",
+      accountName: settings.depositMpesaName || "Abirham",
+      accountNumber: settings.depositMpesaPhone || "+251717482251",
     },
   };
 }

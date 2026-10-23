@@ -481,11 +481,11 @@ def send_deposit_info(chat_id, user):
         f"👤 <b>የተጠቃሚ ስም:</b> {full_name}\n"
         f"📱 <b>የተመዘገበ ስልክ:</b> <code>{phone}</code>\n"
         f"🆔 <b>የተጫዋች ID:</b> <code>{chat_id}</code>\n\n"
-        f"🏦 <b>ይፋዊ የክፍያ ቁጥር (Telebirr ብቻ):</b>\n"
-        f"• <b>Telebirr:</b> <code>0928233032</code> (Abirham)\n\n"
-        f"⚠️ <i>ማስታወሻ፦ ለጊዜው የተቀማጭ ገንዘብ (Deposit) የሚሰራው በቴሌብር ብቻ ነው!</i>\n\n"
+        f"🏦 <b>ይፋዊ የክፍያ ቁጥሮች:</b>\n"
+        f"• <b>Telebirr:</b> <code>0928233032</code> (Abirham)\n"
+        f"• <b>Safaricom (M-Pesa):</b> <code>+251717482251</code> (Abirham)\n\n"
         f"📌 <b>መመሪያ፦</b>\n"
-        f"1. በተመዘገበው ስልክዎ (<code>{phone}</code>) ወደ ቴሌብር ቁጥር <code>0928233032</code> ይላኩ።\n"
+        f"1. በተመዘገበው ስልክዎ (<code>{phone}</code>) ወደ ቴሌብር ወይም ሳፋሪኮም ይላኩ።\n"
         f"2. ከላኩ በኋላ የደረሰኝ ቁጥሩን (Transaction ID) እዚህ ይላኩልን ወይም ከስር ያለውን ሊንክ ተጭነው በዌብአፑ ውስጥ በቀጥታ ይሙሉ:"
     )
     inline_keyboard = {
@@ -1198,7 +1198,7 @@ def send_balance_info(chat_id, user):
         f"🎮 <b>Total Playable (አጠቃላይ መጫወቻ):</b> <b>{total_playable:.2f} ETB</b>\n"
         f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
         f"📌 <i>ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
-        f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr\n"
+        f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr / Safaricom\n"
         f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance\n"
         f"• Tap <b>'Play Games 🎮'</b> to start playing!"
     )
@@ -1449,7 +1449,7 @@ def main():
     api_call("setMyCommands", {
         "commands": [
             {"command": "start", "description": "🎮 Start & Register Account"},
-            {"command": "deposit", "description": "💰 Deposit Funds (Telebirr)"},
+            {"command": "deposit", "description": "💰 Deposit Funds (Telebirr/Safaricom)"},
             {"command": "withdraw", "description": "💸 Withdraw to Registered Phone"},
             {"command": "profile", "description": "👤 View My Account Profile"}
         ]
@@ -2015,11 +2015,11 @@ def main():
                             # Only treat as deposit submission if text looks like a real transaction ID or payment confirmation
                             is_tx = bool(
                                 re.search(r"\b(TX|FT|MP|TRX|REF)[\w\d]{6,}\b", text, re.IGNORECASE) or
-                                (any(k in lower for k in ["telebirr", "cbe", "ክፍያ", "ደረሰኝ"]) and any(k in lower for k in ["ብር", "etb", "transferred", "credited", "tx"]))
+                                (any(k in lower for k in ["telebirr", "safaricom", "mpesa", "cbe", "ክፍያ", "ደረሰኝ"]) and any(k in lower for k in ["ብር", "etb", "transferred", "credited", "tx"]))
                             )
                             if is_tx:
                                 clean_tx = text.strip().replace("\n", " ")
-                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr")
+                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / Safaricom")
                             elif re.match(r"^\d+(\.\d+)?$", clean_num) and float(clean_num) >= 50:
                                 handle_withdraw_request(chat_id, user, clean_num)
                             else:

@@ -25,11 +25,11 @@ window.LUCKY_BINGO_PAYMENT_METHODS = {
   },
   "M-Pesa": {
     "name": "M-Pesa",
-    "account_name": "Friendes Bingo M-Pesa",
-    "account_number": "0700 000 000",
+    "account_name": "Abirham",
+    "account_number": "+251717482251",
     "min_amount": 50,
     "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
-    "enabled": false
+    "enabled": true
   }
 };
 window.LUCKY_BINGO_PLAYERS = [];
