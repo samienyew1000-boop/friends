@@ -1458,17 +1458,15 @@ def main():
     # Configure Bot Description & "What can this bot do?" profile screen
     api_call("setMyDescription", {
         "description": (
-            "🎮 Welcome to Friendes Game!\n\n"
-            "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash! 💰\n\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "🛠 እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n\n"
-            "📞 Contact 1: +251939292694\n"
-            "📞 Contact 2: +251972450776\n"
-            "✈️ Telegram: @Friends_game_64"
+            "Welcome to Friendes Game!\n"
+            "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash!\n"
+            "እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n"
+            "Contact 1: +251939292694\n"
+            "Contact 2: +251972450776"
         )
     })
     api_call("setMyShortDescription", {
-        "short_description": "Play Aviator, JetX, Betting & more! Casino development: +251939292694 / +251972450776"
+        "short_description": "Play Aviator, JetX, Betting & win cash! 🛠 Casino Development: +251939292694 / +251972450776"
     })
 
     # Sync personalized menu buttons for known registered users on startup
