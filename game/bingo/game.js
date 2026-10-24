@@ -162,10 +162,15 @@ async function syncProfileWithServer() {
     const user = await LuckyBingoAPI.getProfile();
     if (!user || user.error) return;
 
-    if (typeof user.balance === "number") {
+    const w = window.FriendesWallet || window.HabeshaWallet;
+    if (w && typeof w.get === "function") {
+      balance = w.get();
+      // Keep multiplayer server synchronized with HabeshaWallet
+      if (user.id && user.balance !== balance && typeof LuckyBingoAPI.updateAdminUser === "function") {
+        LuckyBingoAPI.updateAdminUser(user.id, { balance: balance }).catch(() => {});
+      }
+    } else if (typeof user.balance === "number") {
       balance = Number(user.balance);
-      // Cache only the last server value for paint-time fallback. It is never
-      // used as an authority for charging, refunds, or winnings.
       localStorage.setItem(BALANCE_KEY, String(balance));
     }
 
@@ -271,7 +276,19 @@ function handleServerRoomState(sState) {
   // 3. Status is LIVE
   if (sState.status === "live") {
     if (!playing && selected.size > 0) {
-      entryCharged = true;
+      if (!entryCharged) {
+        const cost = stake * selected.size;
+        const w = window.FriendesWallet || window.HabeshaWallet;
+        if (w && typeof w.modify === "function") {
+          w.modify(-cost);
+          balance = w.get();
+        } else {
+          balance = Math.max(0, balance - cost);
+          saveBalance();
+        }
+        renderBalance();
+        entryCharged = true;
+      }
       beginLiveGame();
     }
     if (playing && Array.isArray(sState.calls)) {
@@ -305,6 +322,16 @@ function handleServerRoomState(sState) {
       if (isMe) {
         roundOutcome = "win";
         roundWinnerName = res.winner_name || PLAYER_NAME;
+        const winPrize = Number(res.prize) || 0;
+        const w = window.FriendesWallet || window.HabeshaWallet;
+        if (w && typeof w.modify === "function" && winPrize > 0) {
+          w.modify(winPrize);
+          balance = w.get();
+        } else if (winPrize > 0) {
+          balance += winPrize;
+          saveBalance();
+        }
+        renderBalance();
         showRoundResult("win", roundWinnerName, "LINE", res.card_id || selected.values().next().value);
         showWinnerOverlay("win", roundWinnerName, res.prize, res.card_id || selected.values().next().value, "LINE");
         toast("YOU WON!", "win");
@@ -672,10 +699,16 @@ function scheduleRoomCountdown(roomId, now = Date.now()) {
 
 function saveBalance() {
   const w = window.FriendesWallet || window.HabeshaWallet;
-  if (typeof w !== "undefined") {
+  if (typeof w !== "undefined" && typeof w.set === "function") {
     w.set(balance);
   }
   localStorage.setItem(BALANCE_KEY, String(balance));
+  try {
+    const user = typeof LuckyBingoAPI !== "undefined" ? LuckyBingoAPI.getTelegramUser?.() : null;
+    if (user?.id && typeof LuckyBingoAPI.updateAdminUser === "function") {
+      LuckyBingoAPI.updateAdminUser(user.id, { balance: balance }).catch(() => {});
+    }
+  } catch (e) {}
 }
 
 function fmtBal(n) {
@@ -1124,6 +1157,10 @@ function updateGameUserInfo() {
 }
 
 function renderBalance() {
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w && typeof w.get === "function") {
+    balance = w.get();
+  }
   const lobbyBalance = $("balance");
   if (lobbyBalance) lobbyBalance.textContent = fmtBal(balance);
   const pickBalance = $("pick-balance");
@@ -1200,6 +1237,10 @@ function prizePool() {
 }
 
 function canAfford(roomStake) {
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w && typeof w.get === "function") {
+    balance = w.get();
+  }
   return balance >= roomStake;
 }
 
@@ -1845,6 +1886,16 @@ function onCardSelectionChanged() {
           }
 
           if (res?.error === "Insufficient balance") {
+            const w = window.FriendesWallet || window.HabeshaWallet;
+            if (w && typeof w.get === "function" && w.get() >= (stake * selected.size)) {
+              const user = LuckyBingoAPI.getTelegramUser();
+              if (user?.id && typeof LuckyBingoAPI.updateAdminUser === "function") {
+                LuckyBingoAPI.updateAdminUser(user.id, { balance: w.get() }).then(() => {
+                  LuckyBingoAPI.joinRoom(activeRoomId, Array.from(requestedCards)).catch(() => {});
+                }).catch(() => {});
+                return;
+              }
+            }
             if (selectedPreviewId && selected.has(selectedPreviewId)) {
               selected.delete(selectedPreviewId);
               selectedPreviewId = selected.size ? [...selected][selected.size - 1] : null;
@@ -1900,7 +1951,12 @@ function onCardSelectionChanged() {
           return;
         }
         if (typeof res.balance === "number") {
-          balance = Number(res.balance);
+          const w = window.FriendesWallet || window.HabeshaWallet;
+          if (w && typeof w.get === "function") {
+            balance = w.get();
+          } else {
+            balance = Number(res.balance);
+          }
           renderBalance();
         }
         if (res && res.ok && activeRoomId) {
@@ -1994,9 +2050,15 @@ function startPickCountdown(roomStartsAt = null, roomRoundKey = null) {
         }
         if (!entryCharged) {
           const cost = stake * selected.size;
+          const w = window.FriendesWallet || window.HabeshaWallet;
           if (balance >= cost) {
-            balance -= cost;
-            saveBalance();
+            if (w && typeof w.modify === "function") {
+              w.modify(-cost);
+              balance = w.get();
+            } else {
+              balance -= cost;
+              saveBalance();
+            }
             renderBalance();
             entryCharged = true;
           } else {
@@ -2994,8 +3056,14 @@ function claimBingo() {
   const totalPlayers = Math.max(2, selected.size + (botPlayers || 3));
   const pool = calculateDerash(totalPlayers, stake);
   const win = Math.max(stake, Math.round(pool * mult));
-  balance += win;
-  saveBalance();
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w && typeof w.modify === "function") {
+    w.modify(win);
+    balance = w.get();
+  } else {
+    balance += win;
+    saveBalance();
+  }
   renderBalance();
   recordPlayerTransaction({
     type: "win",
@@ -3331,25 +3399,30 @@ function handleWithdrawSubmit(event) {
 }
 
 function syncPlayerWalletFromStorage() {
-  // localStorage is not an account ledger. Refresh the signed server profile
-  // whenever the tab regains focus instead of copying another tab's cache.
-  syncProfileWithServer();
+  const w = window.FriendesWallet || window.HabeshaWallet;
+  if (w && typeof w.get === "function") {
+    balance = w.get();
+    renderBalance();
+  } else {
+    syncProfileWithServer();
+  }
 }
 
 window.addEventListener("storage", (event) => {
   if (event.key === BALANCE_KEY || event.key === "habesha_balance" || event.key === ADMIN_STATE_KEY) {
     const w = window.FriendesWallet || window.HabeshaWallet;
-    if (typeof w !== "undefined") {
+    if (typeof w !== "undefined" && typeof w.get === "function") {
       balance = w.get();
       renderBalance();
       updatePickInfo();
+    } else {
+      syncPlayerWalletFromStorage();
     }
-    syncPlayerWalletFromStorage();
   }
 });
 
 const bWallet = window.FriendesWallet || window.HabeshaWallet;
-if (typeof bWallet !== "undefined") {
+if (typeof bWallet !== "undefined" && typeof bWallet.subscribe === "function") {
   bWallet.subscribe((newBal) => {
     balance = newBal;
     renderBalance();
