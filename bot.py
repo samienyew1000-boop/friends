@@ -216,6 +216,11 @@ def save_known_user(user_obj, phone=None):
     users = load_known_users()
     existing = users.get(uid, {})
     user_record = dict(existing)
+    
+    bal_updated = existing.get("balance_updated")
+    if not bal_updated:
+        bal_updated = existing.get("updated") or time.time()
+
     user_record.update({
         "id": user_obj.get("id"),
         "first_name": user_obj.get("first_name", existing.get("first_name", "Player")),
@@ -225,7 +230,9 @@ def save_known_user(user_obj, phone=None):
         "registered": bool(phone or existing.get("registered")),
         "balance": existing.get("balance", 0.0),
         "bonus_balance": existing.get("bonus_balance", 0.0),
-        "updated": time.time()
+        "balance_updated": bal_updated,
+        "updated": bal_updated,
+        "last_seen": time.time()
     })
     users[uid] = user_record
     save_all_users(users)
@@ -244,7 +251,7 @@ def get_user_webapp_url(chat_id, user=None):
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     bal = float(user.get("balance", 0.0))
     bonus_bal = float(user.get("bonus_balance", 0.0))
-    ts = int(float(user.get("updated") or time.time()) * 1000)
+    ts = int(float(user.get("balance_updated") or user.get("updated") or 0) * 1000)
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}&bonus_balance={bonus_bal:.2f}&ts={ts}"
@@ -764,6 +771,7 @@ def handle_withdraw_request(chat_id, user, amount_str):
     new_bal = round(real_bal - amt, 2)
     if uid_str in users:
         users[uid_str]["balance"] = new_bal
+        users[uid_str]["balance_updated"] = time.time()
         users[uid_str]["updated"] = time.time()
         users[uid_str].pop("awaiting_action", None)
         save_all_users(users)
@@ -916,6 +924,7 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
         if uid_str in users:
             new_bal = round(users[uid_str].get("balance", 0.0) + amt, 2)
             users[uid_str]["balance"] = new_bal
+            users[uid_str]["balance_updated"] = time.time()
             users[uid_str]["updated"] = time.time()
             save_all_users(users)
 
@@ -1108,6 +1117,7 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
             }
         new_balance = round(users[uid_str].get("balance", 0.0) + amt, 2)
         users[uid_str]["balance"] = new_balance
+        users[uid_str]["balance_updated"] = time.time()
         users[uid_str]["updated"] = time.time()
         save_all_users(users)
 
@@ -1466,8 +1476,12 @@ def handle_transfer(chat_id, user, target_str, amount_str):
 
     # Execute transfer
     users[str(chat_id)]["balance"] = round(sender_bal - amt, 2)
+    users[str(chat_id)]["balance_updated"] = time.time()
+    users[str(chat_id)]["updated"] = time.time()
     rec_bal = float(recipient_user.get("balance", 0.0))
     users[recipient_uid]["balance"] = round(rec_bal + amt, 2)
+    users[recipient_uid]["balance_updated"] = time.time()
+    users[recipient_uid]["updated"] = time.time()
     save_all_users(users)
 
     # Notify sender
@@ -1926,6 +1940,7 @@ def handle_single_update(update):
                     if uid_str in users:
                         users[uid_str]["balance"] = round(s_real, 2)
                         users[uid_str]["bonus_balance"] = round(s_bonus, 2)
+                        users[uid_str]["balance_updated"] = time.time()
                         users[uid_str]["updated"] = time.time()
                         save_all_users(users)
                         user = users[uid_str]
@@ -1948,20 +1963,40 @@ def handle_single_update(update):
             except Exception as ex:
                 logging.error(f"Error handling web_app_data: {ex}")
 
-        # Capture referral parameter if present in /start
+        # Capture referral or game sync parameter if present in /start
         if text.startswith("/start"):
             parts = text.split()
             if len(parts) > 1:
                 raw_param = parts[1].strip()
-                ref_id = raw_param.replace("ref_", "").strip()
-                if ref_id and ref_id.isdigit() and ref_id != str(chat_id):
-                    users_all = load_known_users()
-                    cur_u = users_all.get(str(chat_id), {})
-                    if not cur_u.get("registered") and not cur_u.get("referred_by"):
-                        cur_u["referred_by"] = ref_id
-                        users_all[str(chat_id)] = cur_u
-                        save_all_users(users_all)
-                        logging.info(f"User {chat_id} set referred_by={ref_id}")
+                if raw_param.startswith("sync_"):
+                    # Format: sync_<real>_<bonus>
+                    sync_parts = raw_param.split("_")
+                    if len(sync_parts) >= 3:
+                        try:
+                            s_real = max(0.0, float(sync_parts[1]))
+                            s_bonus = max(0.0, float(sync_parts[2]))
+                            users_all = load_known_users()
+                            uid_str = str(chat_id)
+                            if uid_str in users_all:
+                                users_all[uid_str]["balance"] = round(s_real, 2)
+                                users_all[uid_str]["bonus_balance"] = round(s_bonus, 2)
+                                users_all[uid_str]["balance_updated"] = time.time()
+                                users_all[uid_str]["updated"] = time.time()
+                                save_all_users(users_all)
+                                user = users_all[uid_str]
+                                logging.info(f"Updated live balance via /start sync for {chat_id}: real={s_real}, bonus={s_bonus}")
+                        except Exception as ex:
+                            logging.error(f"Error parsing /start sync: {ex}")
+                else:
+                    ref_id = raw_param.replace("ref_", "").strip()
+                    if ref_id and ref_id.isdigit() and ref_id != str(chat_id):
+                        users_all = load_known_users()
+                        cur_u = users_all.get(str(chat_id), {})
+                        if not cur_u.get("registered") and not cur_u.get("referred_by"):
+                            cur_u["referred_by"] = ref_id
+                            users_all[str(chat_id)] = cur_u
+                            save_all_users(users_all)
+                            logging.info(f"User {chat_id} set referred_by={ref_id}")
 
         # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
         if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):

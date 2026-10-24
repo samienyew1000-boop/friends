@@ -323,6 +323,7 @@
   function exitAndSave() {
     const realBal = getRealBalance();
     const bonusBal = getBonusBalance();
+    let sent = false;
     try {
       if (window.Telegram?.WebApp?.sendData) {
         window.Telegram.WebApp.sendData(JSON.stringify({
@@ -330,15 +331,25 @@
           balance: realBal,
           bonus_balance: bonusBal
         }));
-        return;
+        sent = true;
       }
-    } catch (e) {}
+    } catch (e) {
+      sent = false;
+    }
 
-    try {
-      if (window.Telegram?.WebApp?.close) {
-        window.Telegram.WebApp.close();
-      }
-    } catch (e) {}
+    if (!sent) {
+      try {
+        if (window.Telegram?.WebApp?.openTelegramLink) {
+          window.Telegram.WebApp.openTelegramLink('https://t.me/Friends64_BOT?start=sync_' + realBal.toFixed(2) + '_' + bonusBal.toFixed(2));
+          return;
+        }
+      } catch (e) {}
+      try {
+        if (window.Telegram?.WebApp?.close) {
+          window.Telegram.WebApp.close();
+        }
+      } catch (e) {}
+    }
   }
 
   // Hook Telegram's native BackButton across all pages
