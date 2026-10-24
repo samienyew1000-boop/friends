@@ -32,15 +32,15 @@
       const localTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
       const hasLocalReal = localStorage.getItem(STORAGE_KEY_REAL) !== null && localStorage.getItem(STORAGE_KEY_REAL) !== '';
 
-      // Only adopt URL balance if we don't have an active local balance, OR if a fresh server update (e.g. deposit) has a newer timestamp
-      const shouldUpdateFromUrl = !hasLocalReal || (urlTs > 0 && urlTs > localTs);
-
-      if (urlBal !== null && !isNaN(parseFloat(urlBal)) && shouldUpdateFromUrl) {
+      if (urlBal !== null && !isNaN(parseFloat(urlBal))) {
         const parsed = Math.max(0, round2(parseFloat(urlBal)));
         localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
-        if (urlTs > 0) {
-          localStorage.setItem('habesha_balance_ts', String(urlTs));
-        }
+        localStorage.setItem('habesha_balance_ts', String(urlTs > 0 ? urlTs : Date.now()));
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', parsed.toFixed(2), () => {});
+          }
+        } catch (e) {}
         syncLegacyStorages(parsed);
       } else if (!hasLocalReal) {
         // Fallback to Telegram CloudStorage if no local balance
@@ -58,9 +58,14 @@
         } catch (e) {}
       }
 
-      if (urlBonus !== null && !isNaN(parseFloat(urlBonus)) && shouldUpdateFromUrl) {
+      if (urlBonus !== null && !isNaN(parseFloat(urlBonus))) {
         const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
         localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
+        try {
+          if (window.Telegram?.WebApp?.CloudStorage) {
+            window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', parsedBonus.toFixed(2), () => {});
+          }
+        } catch (e) {}
       }
 
       // Clean query params so subsequent refreshes or navigation don't re-read stale URL balance
