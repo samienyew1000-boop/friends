@@ -496,6 +496,12 @@ def send_registration_success(chat_id, user):
             "reply_markup": inline_kb
         })
         if res and res.get("ok"):
+            w_mid = res.get("result", {}).get("message_id")
+            if w_mid:
+                users_up = load_known_users()
+                if str(chat_id) in users_up:
+                    users_up[str(chat_id)]["welcome_msg_id"] = w_mid
+                    save_all_users(users_up)
             photos = res.get("result", {}).get("photo", [])
             if photos:
                 CACHED_LOGO_FILE_ID = photos[-1]["file_id"]
@@ -506,6 +512,13 @@ def send_registration_success(chat_id, user):
                 "parse_mode": "HTML",
                 "reply_markup": inline_kb
             })
+    else:
+        w_mid = res.get("result", {}).get("message_id")
+        if w_mid:
+            users_up = load_known_users()
+            if str(chat_id) in users_up:
+                users_up[str(chat_id)]["welcome_msg_id"] = w_mid
+                save_all_users(users_up)
 
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
@@ -515,10 +528,89 @@ def send_registration_success(chat_id, user):
         "reply_markup": main_kb
     })
 
+def fetch_live_cloud_balance(chat_id, user):
+    """Fetch the latest live gameplay balance from the cloud relay if available."""
+    try:
+        req = urllib.request.Request(
+            "https://africa-bingo.ethiodeploy.com/api/me",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "X-Telegram-User-Id": str(chat_id),
+                "X-Telegram-User-Name": user.get("username", "") or ""
+            }
+        )
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data and "balance" in data and isinstance(data["balance"], (int, float)):
+                cloud_bal = round(float(data["balance"]), 2)
+                cur_bal = round(float(user.get("balance", 0.0)), 2)
+                if abs(cloud_bal - cur_bal) >= 0.01:
+                    users_all = load_known_users()
+                    uid_str = str(chat_id)
+                    if uid_str in users_all:
+                        users_all[uid_str]["balance"] = cloud_bal
+                        users_all[uid_str]["balance_updated"] = time.time()
+                        save_all_users(users_all)
+                    user["balance"] = cloud_bal
+                    return cloud_bal
+    except Exception:
+        pass
+    return float(user.get("balance", 0.0))
+
+def update_live_welcome_message(chat_id, user):
+    """Dynamically updates the welcome message caption & 'Play Games' button in real time."""
+    msg_id = user.get("welcome_msg_id")
+    if not msg_id:
+        return
+    username = user.get("username")
+    display_user = f"@{username}" if username else user.get("first_name", "Player")
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    total_playable = real_bal + bonus_bal
+    app_url = get_user_webapp_url(chat_id, user)
+
+    caption = (
+        f"👋 Welcome {display_user}!\n"
+        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
+        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
+        f"📞 Contact 1: <code>+251939292694</code>\n"
+        f"📞 Contact 2: <code>+251972450776</code>\n"
+        f"✈️ Telegram: @Friends_game_64"
+    )
+
+    inline_kb = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
+                    "web_app": {"url": app_url}
+                }
+            ],
+            [
+                {"text": "Deposit 💰", "callback_data": "deposit"},
+                {"text": "Withdraw 💰", "callback_data": "withdraw"}
+            ]
+        ]
+    }
+
+    try:
+        api_call("editMessageCaption", {
+            "chat_id": chat_id,
+            "message_id": msg_id,
+            "caption": caption,
+            "parse_mode": "HTML",
+            "reply_markup": inline_kb
+        })
+    except Exception as ex:
+        logging.warning(f"Failed to edit welcome caption: {ex}")
+
 def send_welcome(chat_id, user=None):
     if not user:
         users = load_known_users()
         user = users.get(str(chat_id), {})
+    fetch_live_cloud_balance(chat_id, user)
 
     first_name = user.get("first_name", "Player")
     username = user.get("username")
@@ -589,6 +681,14 @@ def send_welcome(chat_id, user=None):
             "reply_markup": inline_kb
         })
         if photo_res and photo_res.get("ok"):
+            w_mid = photo_res.get("result", {}).get("message_id")
+            if w_mid:
+                users_up = load_known_users()
+                uid_str = str(chat_id)
+                if uid_str in users_up:
+                    users_up[uid_str]["welcome_msg_id"] = w_mid
+                    save_all_users(users_up)
+                user["welcome_msg_id"] = w_mid
             photos = photo_res.get("result", {}).get("photo", [])
             if photos:
                 CACHED_LOGO_FILE_ID = photos[-1]["file_id"]
@@ -599,6 +699,15 @@ def send_welcome(chat_id, user=None):
                 "parse_mode": "HTML",
                 "reply_markup": inline_kb
             })
+    else:
+        w_mid = photo_res.get("result", {}).get("message_id")
+        if w_mid:
+            users_up = load_known_users()
+            uid_str = str(chat_id)
+            if uid_str in users_up:
+                users_up[uid_str]["welcome_msg_id"] = w_mid
+                save_all_users(users_up)
+            user["welcome_msg_id"] = w_mid
 
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
@@ -1328,6 +1437,7 @@ def send_agent_info(chat_id, user):
     })
 
 def send_balance_info(chat_id, user):
+    fetch_live_cloud_balance(chat_id, user)
     real_bal = float(user.get("balance", 0.0))
     bonus_bal = float(user.get("bonus_balance", 0.0))
     total_playable = real_bal + bonus_bal
@@ -2182,6 +2292,53 @@ def main():
             logging.warning(f"Error during bot background init: {e}")
 
     threading.Thread(target=_background_init, daemon=True).start()
+
+    def _live_cloud_balance_sync_worker():
+        """
+        Periodically polls the cloud relay for recent players' balances.
+        If a player's balance in the cloud differs from known_users, it updates the bot's
+        local database AND edits their active welcome photo caption & 'Play Games' button
+        so the Telegram chat message dynamically tracks gameplay in real time!
+        """
+        while True:
+            try:
+                time.sleep(3)
+                known = load_known_users()
+                now = time.time()
+                active_users = [
+                    (uid, udata) for uid, udata in known.items()
+                    if (now - float(udata.get("updated") or 0)) < 1800
+                ]
+                for uid, udata in active_users:
+                    try:
+                        req = urllib.request.Request(
+                            "https://africa-bingo.ethiodeploy.com/api/me",
+                            headers={
+                                "User-Agent": "Mozilla/5.0",
+                                "X-Telegram-User-Id": str(uid),
+                                "X-Telegram-User-Name": udata.get("username", "") or ""
+                            }
+                        )
+                        with urllib.request.urlopen(req, timeout=2.0) as resp:
+                            data = json.loads(resp.read().decode("utf-8"))
+                            if data and "balance" in data and isinstance(data["balance"], (int, float)):
+                                cloud_bal = round(float(data["balance"]), 2)
+                                cur_bal = round(float(udata.get("balance", 0.0)), 2)
+                                if abs(cloud_bal - cur_bal) >= 0.01:
+                                    logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
+                                    users_all = load_known_users()
+                                    if str(uid) in users_all:
+                                        users_all[str(uid)]["balance"] = cloud_bal
+                                        users_all[str(uid)]["balance_updated"] = time.time()
+                                        save_all_users(users_all)
+                                        udata["balance"] = cloud_bal
+                                    update_live_welcome_message(int(uid), udata)
+                    except Exception:
+                        pass
+            except Exception as e:
+                time.sleep(3)
+
+    threading.Thread(target=_live_cloud_balance_sync_worker, daemon=True).start()
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="BotWorker")
     last_heartbeat = time.time()

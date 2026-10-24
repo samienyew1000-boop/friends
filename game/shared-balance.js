@@ -25,7 +25,10 @@
       } else {
         localStorage.setItem(MODE_KEY, 'real');
       }
-
+      const qUid = params.get('uid');
+      if (qUid) {
+        localStorage.setItem('habesha_uid', qUid);
+      }
       const urlBal = params.get('balance');
       const urlBonus = params.get('bonus_balance');
       const urlTs = parseInt(params.get('ts') || '0', 10);
@@ -322,12 +325,50 @@
     const newTotal = round2(realBal + bonusBal);
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
+    syncLiveBalanceToCloud();
     return newTotal;
+  }
+
+  let syncDebounceTimer = null;
+  function syncLiveBalanceToCloud() {
+    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+      try {
+        const u = getUser();
+        const uid = u?.id || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
+        if (uid && /^\d+$/.test(String(uid))) {
+          const realBal = getRealBalance();
+          const bonusBal = getBonusBalance();
+          fetch("https://africa-bingo.ethiodeploy.com/api/admin/user/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: String(uid),
+              balance: realBal,
+              bonus_balance: bonusBal
+            })
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }, 200);
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        syncLiveBalanceToCloud();
+      }
+    });
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', syncLiveBalanceToCloud);
+    window.addEventListener('beforeunload', syncLiveBalanceToCloud);
   }
 
   function exitAndSave() {
     const realBal = getRealBalance();
     const bonusBal = getBonusBalance();
+    syncLiveBalanceToCloud();
     let sent = false;
     try {
       if (window.Telegram?.WebApp?.sendData) {
