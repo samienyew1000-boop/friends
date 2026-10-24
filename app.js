@@ -200,6 +200,15 @@
     }
   }
 
+  // Live balance listeners: auto-sync home balance when returning from any game
+  window.addEventListener('pageshow', () => updateBalanceDisplay());
+  window.addEventListener('habesha_balance_updated', () => updateBalanceDisplay());
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'habesha_balance' || e.key === 'habesha_bonus_balance' || e.key === 'habesha_demo_balance' || e.key === 'habesha_wallet_mode') {
+      updateBalanceDisplay();
+    }
+  });
+
   toggleBalanceBtn.addEventListener('click', () => {
     sound.playClick();
     triggerHaptic('impact');
@@ -225,16 +234,14 @@
     triggerHaptic('impact');
     refreshBalanceBtn.classList.add('rotate-180');
 
-    // 1. Re-check URL parameter
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlBal = params.get('balance');
-      if (urlBal !== null && !isNaN(parseFloat(urlBal)) && window.HabeshaWallet) {
-        window.HabeshaWallet.set(parseFloat(urlBal));
-      }
-    } catch (e) {}
+    // 1. Sync from HabeshaWallet (which reads the latest live balance updated during gameplay)
+    if (window.HabeshaWallet) {
+      state.balance = window.HabeshaWallet.get();
+    } else {
+      state.balance = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
+    }
 
-    // 2. Check Telegram CloudStorage if local balance is 0
+    // 2. Fallback to Telegram CloudStorage only if local balance is 0 or uninitialized
     try {
       if (window.Telegram?.WebApp?.CloudStorage && window.HabeshaWallet) {
         window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
@@ -254,7 +261,7 @@
       updateBalanceDisplay();
       const currentFormatted = window.HabeshaWallet ? window.HabeshaWallet.format(window.HabeshaWallet.get()) : state.balance.toFixed(2) + ' ETB';
       showToast(`የሂሳብ መጠን ተመሳስሏል: ${currentFormatted}`, 'success');
-    }, 400);
+    }, 350);
   });
 
   // --- Hero Carousel Engine ---

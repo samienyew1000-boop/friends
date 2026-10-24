@@ -62,6 +62,17 @@
         const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
         localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
       }
+
+      // Clean query params so subsequent refreshes or navigation don't re-read stale URL balance
+      if (window.history && window.history.replaceState && (urlBal !== null || urlBonus !== null)) {
+        try {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('balance');
+          cleanUrl.searchParams.delete('bonus_balance');
+          cleanUrl.searchParams.delete('ts');
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        } catch (e) {}
+      }
     } catch (e) {}
   })();
 
@@ -526,12 +537,6 @@
           if (p && (!u.phone || u.phone !== p)) {
             u.phone = p;
             localStorage.setItem(USER_KEY, JSON.stringify(u));
-          }
-          const b = params.get('balance');
-          if (b !== null && !isNaN(parseFloat(b))) {
-            const parsed = Math.max(0, round2(parseFloat(b)));
-            localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
-            syncLegacyStorages(parsed);
           }
         } catch (err) {}
         return u;
