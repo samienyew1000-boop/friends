@@ -277,7 +277,163 @@
   // - When placing a bet (delta < 0): deduct from Bonus Balance first, then Real Balance!
   // - When winning (delta > 0): ALL winnings/profits are credited to REAL BALANCE!
   //   (Bonus balance is play-only money; winnings convert to withdrawable Real Balance).
-  function modify(delta) {
+  function detectCurrentGameName() {
+    try {
+      const p = (window.location.pathname || '').toLowerCase();
+      if (p.includes('aviator')) return 'Aviator';
+      if (p.includes('jet-x') || p.includes('jetx')) return 'JetX';
+      if (p.includes('mines')) return 'Mines';
+      if (p.includes('multihot5') || p.includes('multi_hot_5')) return 'Multi Hot 5';
+      if (p.includes('fast keno') || p.includes('fast-keno') || p.includes('fast_keno')) return 'Fast Keno';
+      if (p.includes('chicken road') || p.includes('chicken-road') || p.includes('chicken_road')) return 'Chicken Road';
+      if (p.includes('chicken-crash') || p.includes('chicken_crash')) return 'Chicken Crash';
+      if (p.includes('tower-trash') || p.includes('tower_trash') || p.includes('tower-dash')) return 'Tower Dash';
+      if (p.includes('fish')) return 'Fish Road';
+      if (p.includes('bingo star') || p.includes('bingo-star')) return 'Bingo Star';
+      if (p.includes('bingo')) return 'Dallol Bingo';
+      if (p.includes('infinity')) return 'Infinity';
+      const title = (document.title || '').toLowerCase();
+      if (title.includes('aviator')) return 'Aviator';
+      if (title.includes('jetx')) return 'JetX';
+      if (title.includes('mines')) return 'Mines';
+      if (title.includes('bingo star')) return 'Bingo Star';
+      if (title.includes('bingo')) return 'Dallol Bingo';
+      if (title.includes('chicken')) return 'Chicken Road';
+      if (title.includes('tower')) return 'Tower Dash';
+      if (title.includes('keno')) return 'Fast Keno';
+      if (title.includes('slot') || title.includes('hot 5')) return 'Multi Hot 5';
+    } catch(e) {}
+    return 'Casino Game';
+  }
+
+  const SHARED_TX_KEY = 'habesha_shared_transactions_v1';
+  let betSyncDebounceTimer = null;
+  let pendingBetBatch = { stakes: 0, wins: 0, count: 0, items: [] };
+
+  function recordBetTransaction(gameName, stake, win) {
+    try {
+      const u = getUser();
+      const uid = u?.id || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid') || 'Guest';
+      const name = u?.name || u?.first_name || (localStorage.getItem('habesha_registered_user') ? JSON.parse(localStorage.getItem('habesha_registered_user')).first_name : '') || `Player ${String(uid).slice(-4)}`;
+      const username = u?.username ? `@${u.username}` : '';
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      let localTxs = [];
+      try {
+        localTxs = JSON.parse(localStorage.getItem(SHARED_TX_KEY) || '[]');
+        if (!Array.isArray(localTxs)) localTxs = [];
+      } catch(e) { localTxs = []; }
+
+      const ts = Date.now();
+      if (stake > 0) {
+        const txStake = {
+          id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+          playerId: `TG-${uid}`,
+          player: name,
+          username: username,
+          type: 'stake',
+          method: gameName,
+          amount: round2(stake),
+          status: 'completed',
+          time: `Today, ${nowStr}`,
+          timestamp: ts
+        };
+        localTxs.unshift(txStake);
+        pendingBetBatch.stakes = round2(pendingBetBatch.stakes + stake);
+        pendingBetBatch.count += 1;
+        pendingBetBatch.items.unshift(txStake);
+      }
+
+      if (win > 0) {
+        const txWin = {
+          id: `TX-${Math.floor(10000 + Math.random() * 90000)}`,
+          playerId: `TG-${uid}`,
+          player: name,
+          username: username,
+          type: 'win',
+          method: gameName,
+          amount: round2(win),
+          status: 'completed',
+          time: `Today, ${nowStr}`,
+          timestamp: ts + 1
+        };
+        localTxs.unshift(txWin);
+        pendingBetBatch.wins = round2(pendingBetBatch.wins + win);
+        pendingBetBatch.items.unshift(txWin);
+      }
+
+      localStorage.setItem(SHARED_TX_KEY, JSON.stringify(localTxs.slice(0, 200)));
+      scheduleBetCloudSync();
+    } catch(e) {}
+  }
+
+  function scheduleBetCloudSync() {
+    if (betSyncDebounceTimer) clearTimeout(betSyncDebounceTimer);
+    betSyncDebounceTimer = setTimeout(() => {
+      if (pendingBetBatch.count === 0 && pendingBetBatch.wins === 0) return;
+      const batchToSync = { ...pendingBetBatch, items: [...pendingBetBatch.items] };
+      pendingBetBatch = { stakes: 0, wins: 0, count: 0, items: [] };
+
+      fetch('https://africa-bingo.ethiodeploy.com/api/settings', {
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(r => r.json())
+        .then(settings => {
+          const ledger = settings.friends_betting_ledger || {
+            gross_volume: 0,
+            total_payouts: 0,
+            house_profit: 0,
+            total_bets: 0,
+            recent_bets: []
+          };
+          const newVol = round2((Number(ledger.gross_volume) || 0) + batchToSync.stakes);
+          const newPayouts = round2((Number(ledger.total_payouts) || 0) + batchToSync.wins);
+          const newProfit = round2(Math.max(0, newVol - newPayouts));
+          const newCount = (Number(ledger.total_bets) || 0) + batchToSync.count;
+          const mergedRecent = [...batchToSync.items, ...(Array.isArray(ledger.recent_bets) ? ledger.recent_bets : [])].slice(0, 150);
+
+          return fetch('https://africa-bingo.ethiodeploy.com/api/admin/settings/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              friends_betting_ledger: {
+                gross_volume: newVol,
+                total_payouts: newPayouts,
+                house_profit: newProfit,
+                total_bets: newCount,
+                recent_bets: mergedRecent,
+                updatedAt: new Date().toISOString()
+              }
+            })
+          });
+        })
+        .catch(() => {});
+    }, 1200);
+  }
+
+  // Cloud sync for Admin Configuration (authoritative house control across all games)
+  function syncAdminConfigFromCloud() {
+    try {
+      fetch('https://africa-bingo.ethiodeploy.com/api/settings', {
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.friends_admin_config && typeof data.friends_admin_config === 'object') {
+          const cfg = data.friends_admin_config;
+          localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(cfg));
+          window.dispatchEvent(new CustomEvent('habesha_admin_config_updated', { detail: cfg }));
+        }
+      })
+      .catch(() => {});
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined') {
+    syncAdminConfigFromCloud();
+    setInterval(syncAdminConfigFromCloud, 8000);
+  }
+
+  function modify(delta, arg2, arg3) {
     const numDelta = parseFloat(delta);
     if (isNaN(numDelta) || numDelta === 0) return get();
 
@@ -294,6 +450,9 @@
     let realBal = getRealBalance();
     let bonusBal = getBonusBalance();
 
+    const gameName = (typeof arg2 === 'string' && arg2 !== 'stake' && arg2 !== 'win') ? arg2 :
+                     (typeof arg3 === 'string' && arg3 !== 'stake' && arg3 !== 'win') ? arg3 : detectCurrentGameName();
+
     if (numDelta < 0) {
       // Player is placing a bet (spending money)
       const betAmt = Math.abs(numDelta);
@@ -305,9 +464,11 @@
       } else {
         realBal = Math.max(0, round2(realBal - betAmt));
       }
+      recordBetTransaction(gameName, betAmt, 0);
     } else {
       // Player won! Credited directly to Real Balance
       realBal = round2(realBal + numDelta);
+      recordBetTransaction(gameName, 0, numDelta);
     }
 
     try {
@@ -357,12 +518,15 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         syncLiveBalanceToCloud();
+      } else {
+        syncAdminConfigFromCloud();
       }
     });
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('pagehide', syncLiveBalanceToCloud);
     window.addEventListener('beforeunload', syncLiveBalanceToCloud);
+    window.addEventListener('focus', syncAdminConfigFromCloud);
   }
 
   function exitAndSave() {
@@ -676,7 +840,9 @@
     getGameMargin: getGameMargin,
     subscribeAdminConfig: subscribeAdminConfig,
     syncLegacyStorages: syncLegacyStorages,
-    exitAndSave: exitAndSave
+    exitAndSave: exitAndSave,
+    recordBet: recordBetTransaction,
+    syncAdminConfigFromCloud: syncAdminConfigFromCloud
   };
 
   global.HabeshaWallet = HabeshaWallet;

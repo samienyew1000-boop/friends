@@ -26,8 +26,12 @@
     { id: 'TX-80289', playerId: 'TG-339821', player: 'Yonas Addisu', username: '@yonas_a', type: 'deposit', method: 'Telebirr', amount: 1500, status: 'pending', time: 'Today, 10:31' },
     { id: 'TX-80288', playerId: 'TG-110293', player: 'Mimi Worku', username: '@mimi_worku', type: 'stake', method: 'Fast Keno', amount: 100, status: 'completed', time: 'Today, 10:24' },
     { id: 'TX-80287', playerId: 'TG-502981', player: 'Dawit Kassa', username: '@dawit_k', type: 'withdraw', method: 'CBE Birr', amount: 600, status: 'pending', time: 'Today, 10:18' },
-    { id: 'TX-80286', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Dallol Bingo', amount: 50, status: 'completed', time: 'Today, 10:12' },
+    { id: 'TX-80286', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Dallol Bingo', amount: 50, status: 'completed', time: 'Today, 10:12' }
   ];
+  const API_BASE = 'https://africa-bingo.ethiodeploy.com';
+  let cloudUsers = [];
+  let cloudLedger = null;
+  let isFetchingCloud = false;
 
   let config = loadConfig();
   let queue = loadQueue();
@@ -77,6 +81,60 @@
       localStorage.setItem(SHARED_TX_KEY, JSON.stringify(transactions.slice(0, 300)));
     } catch (e) {}
   }
+
+  async function fetchCloudData() {
+    if (isFetchingCloud) return;
+    isFetchingCloud = true;
+    try {
+      // 1. Fetch live overview: 71+ real players & transactions
+      const ovRes = await fetch(`${API_BASE}/api/admin/overview`);
+      if (ovRes.ok) {
+        const ovData = await ovRes.json();
+        if (Array.isArray(ovData.users) && ovData.users.length > 0) {
+          cloudUsers = ovData.users;
+        }
+        if (Array.isArray(ovData.transactions) && ovData.transactions.length > 0) {
+          const txMap = new Map();
+          ovData.transactions.forEach((t) => txMap.set(t.id, t));
+          transactions.forEach((t) => { if (!txMap.has(t.id)) txMap.set(t.id, t); });
+          transactions = Array.from(txMap.values());
+        }
+      }
+    } catch (e) {
+      console.warn('Overview fetch error:', e);
+    }
+
+    try {
+      // 2. Fetch live settings: friends_admin_config & friends_betting_ledger
+      const setRes = await fetch(`${API_BASE}/api/settings`);
+      if (setRes.ok) {
+        const setData = await setRes.json();
+        if (setData.friends_admin_config && typeof setData.friends_admin_config === 'object') {
+          config = { ...config, ...setData.friends_admin_config };
+          localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        }
+        if (setData.friends_betting_ledger && typeof setData.friends_betting_ledger === 'object') {
+          cloudLedger = setData.friends_betting_ledger;
+          if (Array.isArray(cloudLedger.recent_bets) && cloudLedger.recent_bets.length > 0) {
+            const txMap = new Map();
+            cloudLedger.recent_bets.forEach((t) => txMap.set(t.id, t));
+            transactions.forEach((t) => { if (!txMap.has(t.id)) txMap.set(t.id, t); });
+            transactions = Array.from(txMap.values());
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Settings fetch error:', e);
+    }
+
+    isFetchingCloud = false;
+    renderGameControls();
+    renderOverview();
+    renderPlayers();
+    renderTransactions();
+    renderQueue();
+  }
+
   function refreshFromStorage() {
     config = loadConfig();
     transactions = loadTransactions();
@@ -87,10 +145,16 @@
     renderTransactions();
     renderQueue();
   }
+
   function saveConfig() {
     config.updatedAt = new Date().toISOString();
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     window.dispatchEvent(new CustomEvent('habesha_admin_config_updated', { detail: config }));
+    fetch(`${API_BASE}/api/admin/settings/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ friends_admin_config: config })
+    }).catch(() => {});
   }
   function saveQueue() { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(0, 100))); }
   function showToast(message) { const toast = $('toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 3000); }
@@ -140,18 +204,29 @@
   }
 
   function getMetrics() {
-    const stakes = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    let stakes = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    if (cloudLedger && typeof cloudLedger.gross_volume === 'number' && cloudLedger.gross_volume > 0) {
+      stakes = Math.max(stakes, Number(cloudLedger.gross_volume) || 0);
+    }
     const deposits = transactions.filter((item) => item.type === 'deposit').reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const profit = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => {
-      const methodClean = String(item.method || '').toLowerCase().replace(/[\s-_]/g, '');
-      const game = GAMES.find((entry) => 
-        entry.name.toLowerCase().replace(/[\s-_]/g, '') === methodClean || 
-        entry.id.toLowerCase().replace(/[\s-_]/g, '') === methodClean
-      );
-      const margin = getGameSettings(game || GAMES[0]).margin;
-      return sum + Number(item.amount || 0) * (margin / 100);
-    }, 0);
-    const players = new Set(transactions.map((item) => item.playerId || item.player || item.username).filter(Boolean)).size;
+
+    let profit = 0;
+    if (cloudLedger && typeof cloudLedger.house_profit === 'number' && cloudLedger.house_profit > 0) {
+      profit = Number(cloudLedger.house_profit) || 0;
+    } else {
+      profit = transactions.filter((item) => item.type === 'stake').reduce((sum, item) => {
+        const methodClean = String(item.method || '').toLowerCase().replace(/[\s-_]/g, '');
+        const game = GAMES.find((entry) => 
+          entry.name.toLowerCase().replace(/[\s-_]/g, '') === methodClean || 
+          entry.id.toLowerCase().replace(/[\s-_]/g, '') === methodClean
+        );
+        const margin = getGameSettings(game || GAMES[0]).margin;
+        return sum + Number(item.amount || 0) * (margin / 100);
+      }, 0);
+    }
+
+    const txPlayers = new Set(transactions.map((item) => item.playerId || item.player || item.username).filter(Boolean)).size;
+    const players = Math.max(cloudUsers.length, txPlayers);
     const enabled = GAMES.filter((game) => getGameSettings(game).enabled).length;
     return { stakes, deposits, profit, players, enabled };
   }
@@ -167,7 +242,7 @@
   }
   function renderRecentActivity() {
     const items = transactions.slice(0, 5);
-    $('recentActivity').innerHTML = items.length ? items.map((item) => `<div class="activity-item"><span class="activity-icon">${item.type === 'win' ? '★' : item.type === 'deposit' ? '↓' : item.type === 'withdraw' ? '↑' : '▦'}</span><div><strong>${escapeHTML(item.player || 'Player')}</strong><small>${escapeHTML(item.method || 'Wallet')} · ${escapeHTML(item.time || 'Recently')}</small></div><span class="amount">${item.type === 'win' || item.type === 'deposit' ? '+' : '-'}${money(item.amount)}</span></div>`).join('') : '<p class="muted">No transaction activity yet. Load demo reporting data in Settings to preview the dashboard.</p>';
+    $('recentActivity').innerHTML = items.length ? items.map((item) => `<div class="activity-item"><span class="activity-icon">${item.type === 'win' ? '★' : item.type === 'deposit' ? '↓' : item.type === 'withdraw' ? '↑' : '▦'}</span><div><strong>${escapeHTML(item.player || 'Player')}</strong><small>${escapeHTML(item.method || 'Wallet')} · ${escapeHTML(item.time || 'Recently')}</small></div><span class="amount">${item.type === 'win' || item.type === 'deposit' ? '+' : '-'}${money(item.amount)}</span></div>`).join('') : '<p class="muted">No transaction activity yet.</p>';
   }
   function renderChart() {
     const days = Number($('chartRange').value || 7); const values = Array.from({ length: days }, (_, index) => { const base = getMetrics().profit; return Math.max(0, base * (0.38 + ((index * 17) % 51) / 100)); }); const max = Math.max(1000, ...values); const points = values.map((value, index) => `${(index / Math.max(1, days - 1)) * 700},${225 - (value / max) * 195}`).join(' '); $('chartLine').setAttribute('d', `M${points.replace(/ /g, ' L')}`); $('chartArea').setAttribute('d', `M${points.replace(/ /g, ' L')} L700,240 L0,240 Z`); $('chartLabels').innerHTML = values.map((_, index) => `<span>${days <= 7 ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index] || `D${index + 1}` : `D${index + 1}`}</span>`).join('');
@@ -221,17 +296,41 @@
   }
 
   function renderPlayers() {
-    const players = [...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()];
+    let playerList = [];
+    if (cloudUsers && cloudUsers.length > 0) {
+      playerList = cloudUsers.map((u) => {
+        const uname = u.username ? `@${u.username}` : '';
+        const displayName = u.first_name || (uname || `Player ${String(u.id).slice(-4)}`);
+        const joined = u.created_at ? new Date(u.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+        return {
+          player: displayName,
+          username: uname,
+          playerId: `TG-${u.id}`,
+          balance: Number(u.balance || 0),
+          time: joined,
+          rawId: String(u.id)
+        };
+      });
+    } else {
+      const mapped = [...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()];
+      playerList = mapped.map((p) => ({
+        player: p.player || 'Player',
+        username: p.username || '',
+        playerId: p.playerId || 'Local',
+        balance: 0,
+        time: p.time || 'Recently',
+        rawId: String(p.playerId || '').replace(/^TG-/, '')
+      }));
+    }
+
     const query = String($('playerSearch').value || '').toLowerCase();
-    const filtered = players.filter((player) => `${player.player} ${player.username} ${player.playerId}`.toLowerCase().includes(query));
+    const filtered = playerList.filter((player) => `${player.player} ${player.username} ${player.playerId}`.toLowerCase().includes(query));
     $('playerCount').textContent = `${filtered.length} player${filtered.length === 1 ? '' : 's'}`;
     $('playersTable').innerHTML = filtered.length ? filtered.map((player) => {
-      const playerRecords = transactions.filter((item) => (item.playerId || item.player) === (player.playerId || player.player));
-      const balance = playerRecords.reduce((sum, item) => sum + (item.type === 'deposit' || item.type === 'win' ? Number(item.amount) : -Number(item.amount || 0)), 0);
-      const cleanId = String(player.playerId || '').replace(/^TG-/, '');
+      const cleanId = player.rawId;
       const actionHtml = /^\d+$/.test(cleanId) ? `<button class="text-btn direct-msg-btn" data-chat-id="${cleanId}">Message 💬</button>` : `<span class="status-tag">ACTIVE</span>`;
-      return `<tr><td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td><td>${escapeHTML(player.playerId || 'Local')}</td><td><strong>${money(Math.max(0, balance))}</strong></td><td>${playerRecords.length} record${playerRecords.length === 1 ? '' : 's'}</td><td>${escapeHTML(player.time || 'Recently')}</td><td>${actionHtml}</td></tr>`;
-    }).join('') : '<tr><td colspan="6"><span class="muted">No matching players. Player records appear when the connected game ledger contains activity.</span></td></tr>';
+      return `<tr><td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td><td>${escapeHTML(player.playerId || 'Local')}</td><td><strong>${money(Math.max(0, player.balance))}</strong></td><td><span class="status-tag">ACTIVE</span></td><td>${escapeHTML(player.time || 'Recently')}</td><td>${actionHtml}</td></tr>`;
+    }).join('') : '<tr><td colspan="6"><span class="muted">No matching players.</span></td></tr>';
 
     document.querySelectorAll('.direct-msg-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -320,6 +419,13 @@
     tx.processedAt = new Date().toLocaleString();
     saveTransactions();
 
+    // Sync transaction status to cloud backend
+    fetch(`${API_BASE}/api/admin/transaction/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: txId, action: 'approve' })
+    }).catch(() => {});
+
     const amt = Number(tx.amount) || 0;
     const cleanPid = String(tx.playerId || '').replace(/^TG-/, '').trim();
 
@@ -378,6 +484,13 @@
     tx.status = 'rejected';
     tx.processedAt = new Date().toLocaleString();
     saveTransactions();
+
+    // Sync rejection to cloud backend
+    fetch(`${API_BASE}/api/admin/transaction/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: txId, action: 'reject' })
+    }).catch(() => {});
 
     const amt = Number(tx.amount) || 0;
     const cleanPid = String(tx.playerId || '').replace(/^TG-/, '').trim();
@@ -502,7 +615,12 @@
   $('maintenanceToggle').addEventListener('change', (event) => { config.maintenanceMode = event.target.checked; saveConfig(); renderGameControls(); renderOverview(); showToast(config.maintenanceMode ? 'All games paused' : 'Games are live again'); });
   $('saveGameSettings').addEventListener('click', () => { collectGameSettings(); saveConfig(); renderGameControls(); renderOverview(); showToast('Game controls saved and published'); });
   $('saveSettings').addEventListener('click', () => { config.globalMargin = clamp($('settingsMargin').value, 0, 25); config.globalMarginEnabled = $('settingsMarginToggle').checked; config.maintenanceMode = $('settingsMaintenanceToggle').checked; saveConfig(); renderGameControls(); renderOverview(); showToast('Platform settings saved'); });
-  $('chartRange').addEventListener('change', renderChart); $('refreshDashboard').addEventListener('click', () => { transactions = loadTransactions(); renderOverview(); showToast('Dashboard refreshed'); });
+  $('chartRange').addEventListener('change', renderChart);
+  $('refreshDashboard').addEventListener('click', async () => {
+    showToast('Refreshing live data from cloud server...');
+    await fetchCloudData();
+    showToast('✅ Live dashboard data updated');
+  });
   $('playerSearch').addEventListener('input', renderPlayers); $('transactionFilter').addEventListener('change', renderTransactions);
   $('messageAudience').addEventListener('change', (event) => $('chatIdField').classList.toggle('hidden', event.target.value !== 'selected'));
   $('messageText').addEventListener('input', (event) => { $('charCount').textContent = `${event.target.value.length} / 4096`; });
@@ -611,5 +729,7 @@
 
   updateAuthUI();
   renderGameControls(); renderOverview(); renderPlayers(); renderTransactions(); renderQueue();
+  fetchCloudData();
+  setInterval(fetchCloudData, 12000);
   const initialSection = (location.hash || '#overview').slice(1); showSection(document.getElementById(`section-${initialSection}`) ? initialSection : 'overview');
 })();
