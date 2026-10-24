@@ -14,6 +14,13 @@ import urllib.request
 import urllib.parse
 from pathlib import Path
 import re
+import threading
+import http.client
+import ssl
+import concurrent.futures
+
+# Permanent Telegram File ID for inout_logo.png (Delivered instantly from Telegram edge RAM)
+CACHED_LOGO_FILE_ID = "AgACAgQAAxkDAAIET2rbq2sGgbMD8e1JelhtRWVaYM3GAAJZDmsbtUokUvEw05b3lpqvAQADAgADeAADPQQ" 
 
 # Load environment variables from .env file if available
 def load_env():
@@ -69,21 +76,95 @@ if not TOKEN or TOKEN == "your_bot_token_here":
     logging.error("ERROR: TELEGRAM_BOT_TOKEN is not set.")
     sys.exit(1)
 
-def api_call(method, payload=None):
-    url = f"https://api.telegram.org/bot{TOKEN}/{method}"
-    headers = {"Content-Type": "application/json"}
-    data = json.dumps(payload).encode("utf-8") if payload else None
-    req = urllib.request.Request(url, data=data, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        err_msg = e.read().decode("utf-8", errors="ignore")
-        logging.error(f"API Error ({method}): HTTP {e.code} - {err_msg}")
-        return None
-    except Exception as e:
-        logging.error(f"API Error ({method}): {e}")
-        return None
+_tls = threading.local()
+
+def _get_api_connection(timeout=25):
+    conn = getattr(_tls, "api_conn", None)
+    if conn is None:
+        context = ssl.create_default_context()
+        conn = http.client.HTTPSConnection("api.telegram.org", timeout=timeout, context=context)
+        _tls.api_conn = conn
+    return conn
+
+def api_call(method, payload=None, retries=2):
+    path = f"/bot{TOKEN}/{method}"
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {
+        "Content-Type": "application/json",
+        "Connection": "keep-alive"
+    }
+    if data is not None:
+        headers["Content-Length"] = str(len(data))
+
+    for attempt in range(retries + 1):
+        try:
+            conn = _get_api_connection(timeout=25)
+            conn.request("POST" if payload is not None else "GET", path, body=data, headers=headers)
+            resp = conn.getresponse()
+            raw = resp.read()
+            if resp.status == 200:
+                return json.loads(raw.decode("utf-8"))
+            else:
+                try:
+                    res_json = json.loads(raw.decode("utf-8"))
+                    logging.warning(f"Telegram API response ({method}): HTTP {resp.status} - {res_json.get('description', '')}")
+                    return res_json
+                except Exception:
+                    logging.warning(f"Telegram API error ({method}): HTTP {resp.status}")
+                    return None
+        except (http.client.RemoteDisconnected, BrokenPipeError, ConnectionResetError, http.client.CannotSendRequest, http.client.BadStatusLine, TimeoutError, OSError) as e:
+            try:
+                if hasattr(_tls, "api_conn") and _tls.api_conn:
+                    _tls.api_conn.close()
+            except Exception:
+                pass
+            _tls.api_conn = None
+            if attempt >= retries:
+                logging.error(f"API Error ({method}) after {attempt+1} attempts: {e}")
+                return None
+        except Exception as e:
+            try:
+                if hasattr(_tls, "api_conn") and _tls.api_conn:
+                    _tls.api_conn.close()
+            except Exception:
+                pass
+            _tls.api_conn = None
+            logging.error(f"Unexpected API Error ({method}): {e}")
+            return None
+
+_polling_conn = None
+_polling_conn_lock = threading.Lock()
+
+def fetch_updates(offset, timeout=20):
+    global _polling_conn
+    path = f"/bot{TOKEN}/getUpdates"
+    payload = {"offset": offset, "timeout": timeout}
+    data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Connection": "keep-alive", "Content-Length": str(len(data))}
+    with _polling_conn_lock:
+        for attempt in range(2):
+            try:
+                if _polling_conn is None:
+                    context = ssl.create_default_context()
+                    _polling_conn = http.client.HTTPSConnection("api.telegram.org", timeout=timeout + 15, context=context)
+                _polling_conn.request("POST", path, body=data, headers=headers)
+                resp = _polling_conn.getresponse()
+                raw = resp.read()
+                if resp.status == 200:
+                    return json.loads(raw.decode("utf-8"))
+                else:
+                    logging.warning(f"getUpdates returned HTTP {resp.status}")
+                    return None
+            except Exception as e:
+                try:
+                    if _polling_conn:
+                        _polling_conn.close()
+                except Exception:
+                    pass
+                _polling_conn = None
+                if attempt == 1:
+                    logging.error(f"getUpdates error: {e}")
+                    return None
 
 def is_admin(user_id=None, username=None):
     if user_id and str(user_id) in ADMIN_USER_IDS:
@@ -100,21 +181,33 @@ KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
 WITHDRAWALS_FILE = Path(__file__).resolve().parent / "withdrawals.json"
 DEPOSITS_FILE = Path(__file__).resolve().parent / "deposits.json"
 
+_USERS_CACHE = None
+_USERS_CACHE_LOCK = threading.Lock()
+
 def load_known_users():
-    try:
-        if KNOWN_USERS_FILE.exists():
-            with open(KNOWN_USERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        logging.error(f"Error loading known users: {e}")
-    return {"8474256363": {"id": 8474256363, "first_name": "Admin", "username": "Ninjaaj7", "phone": "+251912345678", "registered": True, "updated": time.time()}}
+    global _USERS_CACHE
+    with _USERS_CACHE_LOCK:
+        if _USERS_CACHE is not None:
+            return dict(_USERS_CACHE)
+        try:
+            if KNOWN_USERS_FILE.exists():
+                with open(KNOWN_USERS_FILE, "r", encoding="utf-8") as f:
+                    _USERS_CACHE = json.load(f)
+                    return dict(_USERS_CACHE)
+        except Exception as e:
+            logging.error(f"Error loading known users: {e}")
+        _USERS_CACHE = {"8474256363": {"id": 8474256363, "first_name": "Admin", "username": "Ninjaaj7", "phone": "+251912345678", "registered": True, "updated": time.time()}}
+        return dict(_USERS_CACHE)
 
 def save_all_users(users):
-    try:
-        with open(KNOWN_USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logging.error(f"Error saving known users: {e}")
+    global _USERS_CACHE
+    with _USERS_CACHE_LOCK:
+        _USERS_CACHE = dict(users)
+        try:
+            with open(KNOWN_USERS_FILE, "w", encoding="utf-8") as f:
+                json.dump(users, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logging.error(f"Error saving known users: {e}")
 
 def save_known_user(user_obj, phone=None):
     if not user_obj:
@@ -363,30 +456,49 @@ def send_registration_success(chat_id, user):
         ]
     }
 
-    # Sync user's custom webapp URL (with exact balance) to their menu button
-    api_call("setChatMenuButton", {
-        "chat_id": chat_id,
-        "menu_button": {
-            "type": "web_app",
-            "text": "🎮 Play Games",
-            "web_app": {"url": app_url}
-        }
-    })
+    global CACHED_LOGO_FILE_ID
+    # Sync user's custom webapp URL in background thread (non-blocking)
+    def _sync_reg_menu():
+        try:
+            api_call("setChatMenuButton", {
+                "chat_id": chat_id,
+                "menu_button": {
+                    "type": "web_app",
+                    "text": "🎮 Play Games",
+                    "web_app": {"url": app_url}
+                }
+            })
+        except Exception:
+            pass
+    threading.Thread(target=_sync_reg_menu, daemon=True).start()
 
+    photo_target = CACHED_LOGO_FILE_ID or photo_url
     res = api_call("sendPhoto", {
         "chat_id": chat_id,
-        "photo": photo_url,
+        "photo": photo_target,
         "caption": caption,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
     if not res or not res.get("ok"):
-        api_call("sendMessage", {
+        res = api_call("sendPhoto", {
             "chat_id": chat_id,
-            "text": caption,
+            "photo": photo_url,
+            "caption": caption,
             "parse_mode": "HTML",
             "reply_markup": inline_kb
         })
+        if res and res.get("ok"):
+            photos = res.get("result", {}).get("photo", [])
+            if photos:
+                CACHED_LOGO_FILE_ID = photos[-1]["file_id"]
+        else:
+            api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": caption,
+                "parse_mode": "HTML",
+                "reply_markup": inline_kb
+            })
 
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
@@ -410,15 +522,21 @@ def send_welcome(chat_id, user=None):
     total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
 
-    # Sync user's custom webapp URL (with exact balance) to their menu button
-    api_call("setChatMenuButton", {
-        "chat_id": chat_id,
-        "menu_button": {
-            "type": "web_app",
-            "text": "🎮 Play Games",
-            "web_app": {"url": app_url}
-        }
-    })
+    global CACHED_LOGO_FILE_ID
+    # Sync user's custom webapp URL in background thread (non-blocking)
+    def _sync_welcome_menu():
+        try:
+            api_call("setChatMenuButton", {
+                "chat_id": chat_id,
+                "menu_button": {
+                    "type": "web_app",
+                    "text": "🎮 Play Games",
+                    "web_app": {"url": app_url}
+                }
+            })
+        except Exception:
+            pass
+    threading.Thread(target=_sync_welcome_menu, daemon=True).start()
 
     caption = (
         f"👋 Welcome {display_user}!\n"
@@ -432,6 +550,7 @@ def send_welcome(chat_id, user=None):
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
+    photo_target = CACHED_LOGO_FILE_ID or photo_url
     inline_kb = {
         "inline_keyboard": [
             [
@@ -449,18 +568,30 @@ def send_welcome(chat_id, user=None):
 
     photo_res = api_call("sendPhoto", {
         "chat_id": chat_id,
-        "photo": photo_url,
+        "photo": photo_target,
         "caption": caption,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
     if not photo_res or not photo_res.get("ok"):
-        api_call("sendMessage", {
+        photo_res = api_call("sendPhoto", {
             "chat_id": chat_id,
-            "text": caption,
+            "photo": photo_url,
+            "caption": caption,
             "parse_mode": "HTML",
             "reply_markup": inline_kb
         })
+        if photo_res and photo_res.get("ok"):
+            photos = photo_res.get("result", {}).get("photo", [])
+            if photos:
+                CACHED_LOGO_FILE_ID = photos[-1]["file_id"]
+        else:
+            api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": caption,
+                "parse_mode": "HTML",
+                "reply_markup": inline_kb
+            })
 
     # Also attach the bottom persistent reply keyboard
     api_call("sendMessage", {
@@ -1441,51 +1572,583 @@ def send_admin_menu(chat_id):
         "reply_markup": keyboard
     })
 
+def handle_single_update(update):
+    try:
+
+
+        # Handle Callback Queries (Inline button clicks)
+        callback_query = update.get("callback_query")
+        if callback_query:
+            cb_id = callback_query.get("id")
+            cb_data = callback_query.get("data", "")
+            cb_msg = callback_query.get("message", {})
+            cb_chat_id = cb_msg.get("chat", {}).get("id")
+            cb_from = callback_query.get("from", {})
+            cb_user = load_known_users().get(str(cb_chat_id), {})
+
+            if cb_data.startswith("dep_approve:") or cb_data.startswith("dep_reject:"):
+                action, rest = cb_data.split(":", 1)
+                caller_id = cb_from.get("id")
+                caller_username = cb_from.get("username", "")
+
+                if not is_admin(caller_id, caller_username):
+                    api_call("answerCallbackQuery", {
+                        "callback_query_id": cb_id,
+                        "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
+                        "show_alert": True
+                    })
+                    return
+
+                # Support format: <uid>:<amt>:<dep_id> or <dep_id>
+                dep_parts = rest.split(":")
+                explicit_uid = None
+                explicit_amt = None
+                if len(dep_parts) == 3:
+                    try:
+                        if dep_parts[0] and dep_parts[0] != "0":
+                            explicit_uid = int(dep_parts[0])
+                        explicit_amt = float(dep_parts[1])
+                    except Exception:
+                        pass
+                    dep_id = dep_parts[2]
+                else:
+                    dep_id = rest
+
+                orig_text = cb_msg.get("text", "")
+                if action == "dep_approve":
+                    ok, info = approve_deposit(
+                        dep_id,
+                        caller_id,
+                        explicit_chat_id=explicit_uid,
+                        explicit_amount=explicit_amt,
+                        message_text=orig_text
+                    )
+                    if ok:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"✅ {info}"
+                        })
+                        admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                        api_call("editMessageText", {
+                            "chat_id": cb_chat_id,
+                            "message_id": cb_msg.get("message_id"),
+                            "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>({info})</i>",
+                            "parse_mode": "HTML"
+                        })
+                    else:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"⚠️ {info}",
+                            "show_alert": True
+                        })
+                else:
+                    ok, info = reject_deposit(
+                        dep_id,
+                        caller_id,
+                        explicit_chat_id=explicit_uid,
+                        explicit_amount=explicit_amt,
+                        message_text=orig_text
+                    )
+                    if ok:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"❌ ገቢ {dep_id} ተሰርዟል!"
+                        })
+                        admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                        api_call("editMessageText", {
+                            "chat_id": cb_chat_id,
+                            "message_id": cb_msg.get("message_id"),
+                            "text": orig_text + f"\n\n<b>❌ CANCELLED/REJECTED by {admin_tag}</b>",
+                            "parse_mode": "HTML"
+                        })
+                    else:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"⚠️ {info}",
+                            "show_alert": True
+                        })
+                return
+
+            if cb_data.startswith("with_approve:") or cb_data.startswith("with_reject:"):
+                action, rest = cb_data.split(":", 1)
+                caller_id = cb_from.get("id")
+                caller_username = cb_from.get("username", "")
+
+                if not is_admin(caller_id, caller_username):
+                    api_call("answerCallbackQuery", {
+                        "callback_query_id": cb_id,
+                        "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
+                        "show_alert": True
+                    })
+                    return
+
+                w_parts = rest.split(":")
+                explicit_uid = None
+                explicit_amt = None
+                if len(w_parts) == 3:
+                    try:
+                        if w_parts[0] and w_parts[0] != "0":
+                            explicit_uid = int(w_parts[0])
+                        explicit_amt = float(w_parts[1])
+                    except Exception:
+                        pass
+                    req_id = w_parts[2]
+                else:
+                    req_id = rest
+
+                orig_text = cb_msg.get("text", "")
+                admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
+                if action == "with_approve":
+                    ok, info = approve_withdrawal(
+                        req_id,
+                        caller_id,
+                        explicit_chat_id=explicit_uid,
+                        explicit_amount=explicit_amt,
+                        message_text=orig_text
+                    )
+                    if ok:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"✅ {info}"
+                        })
+                        api_call("editMessageText", {
+                            "chat_id": cb_chat_id,
+                            "message_id": cb_msg.get("message_id"),
+                            "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>(ገንዘቡ ለተጠቃሚው ተልኮ ተረጋግጧል)</i>",
+                            "parse_mode": "HTML"
+                        })
+                    else:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"⚠️ {info}",
+                            "show_alert": True
+                        })
+                else:
+                    ok, info = reject_withdrawal(
+                        req_id,
+                        caller_id,
+                        explicit_chat_id=explicit_uid,
+                        explicit_amount=explicit_amt,
+                        message_text=orig_text
+                    )
+                    if ok:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"❌ {info}"
+                        })
+                        api_call("editMessageText", {
+                            "chat_id": cb_chat_id,
+                            "message_id": cb_msg.get("message_id"),
+                            "text": orig_text + f"\n\n<b>❌ REJECTED & REFUNDED by {admin_tag}</b>",
+                            "parse_mode": "HTML"
+                        })
+                    else:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": f"⚠️ {info}",
+                            "show_alert": True
+                        })
+                return
+
+            if cb_data.startswith("quick_wd:"):
+                amt_val = cb_data.split(":", 1)[1]
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                if ensure_user_registered_or_prompt(cb_chat_id):
+                    handle_withdraw_request(cb_chat_id, cb_user, amt_val)
+                return
+
+            if cb_data == "check_channel_join":
+                is_member, reason = check_user_membership(cb_chat_id)
+                if is_member:
+                    api_call("answerCallbackQuery", {
+                        "callback_query_id": cb_id,
+                        "text": "✅ ግሩፑን መቀላቀልዎ ተረጋግጧል! አሁን ስልክዎን ያጋሩ።",
+                        "show_alert": False
+                    })
+                    if not is_user_registered(cb_chat_id):
+                        request_phone_registration(cb_chat_id)
+                    else:
+                        send_welcome(cb_chat_id, cb_user)
+                else:
+                    if reason == "bot_needs_admin":
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": "⚠️ እባክዎ መጀመሪያ ግሩፑን (@friendsgame1) ይቀላቀሉ! (እንዲሁም ቦቱ ግሩፑ ውስጥ አድሚን መሆን አለበት)",
+                            "show_alert": True
+                        })
+                    else:
+                        api_call("answerCallbackQuery", {
+                            "callback_query_id": cb_id,
+                            "text": "⚠️ እስካሁን ግሩፑን አልተቀላቀሉም! እባክዎ መጀመሪያ ግሩፑን ይቀላቀሉ።",
+                            "show_alert": True
+                        })
+                    send_channel_join_prompt(cb_chat_id)
+                return
+
+            api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+
+            if not ensure_user_registered_or_prompt(cb_chat_id):
+                return
+            elif cb_data == "deposit":
+                send_deposit_info(cb_chat_id, cb_user)
+            elif cb_data == "withdraw":
+                send_withdraw_info(cb_chat_id, cb_user)
+            return
+
+        msg = update.get("message")
+        if not msg:
+            return
+
+        chat_id = msg["chat"]["id"]
+        from_user = msg.get("from") or {}
+        first_name = from_user.get("first_name", "Player")
+        username = from_user.get("username", "")
+        text = msg.get("text", "").strip()
+        web_app_data = msg.get("web_app_data")
+        contact = msg.get("contact")
+
+        # Handle Contact Sharing (Registration)
+        if contact:
+            raw_phone = contact.get("phone_number", "").strip()
+            phone = raw_phone
+            if not phone.startswith("+"):
+                if phone.startswith("251"):
+                    phone = "+" + phone
+                elif phone.startswith("0"):
+                    phone = "+251" + phone[1:]
+                else:
+                    phone = "+251" + phone
+
+            c_first = contact.get("first_name") or msg["from"].get("first_name", "Player")
+            c_last = contact.get("last_name") or msg["from"].get("last_name", "")
+            user_obj = {
+                "id": chat_id,
+                "first_name": c_first,
+                "last_name": c_last,
+                "username": msg["from"].get("username", "")
+            }
+            user = save_known_user(user_obj, phone=phone)
+            full_name = f"{c_first} {c_last}".strip()
+
+            # Award referral bonus if this user was referred by someone
+            referred_by = user.get("referred_by")
+            if referred_by and not user.get("referral_rewarded"):
+                ref_str = str(referred_by)
+                if ref_str != str(chat_id):
+                    all_users = load_known_users()
+                    if ref_str in all_users:
+                        ref_user = all_users[ref_str]
+                        cur_bonus = float(ref_user.get("bonus_balance", 0.0))
+                        ref_user["bonus_balance"] = round(cur_bonus + 10.0, 2)
+                        all_users[str(chat_id)]["referral_rewarded"] = True
+                        save_all_users(all_users)
+                        user["referral_rewarded"] = True
+                        api_call("sendMessage", {
+                            "chat_id": int(ref_str),
+                            "text": (
+                                f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
+                                f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+10.00 ETB</b> ጉርሻ ወደ Bonus Balance ገቢ ተደርጓል!\n\n"
+                                f"🎁 <b>የቦነስ ሂሳብዎ (Bonus Balance):</b> <b>{ref_user['bonus_balance']:.2f} ETB</b>\n"
+                                f"💵 <b>እውነተኛ ሂሳብዎ (Real Balance):</b> <b>{float(ref_user.get('balance', 0.0)):.2f} ETB</b>\n\n"
+                                f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>"
+                            ),
+                            "parse_mode": "HTML"
+                        })
+
+            # Notify admins
+            for admin_id in ADMIN_USER_IDS:
+                if str(admin_id) != str(chat_id):
+                    api_call("sendMessage", {
+                        "chat_id": admin_id,
+                        "text": (
+                            f"🎉 <b>አዲስ ተጫዋች ተመዝግቧል (New Player Registered)!</b>\n\n"
+                            f"👤 <b>ስም:</b> {full_name} (@{msg['from'].get('username','')})\n"
+                            f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
+                            f"🆔 <b>ID:</b> <code>{chat_id}</code>"
+                        ),
+                        "parse_mode": "HTML"
+                    })
+
+            # Send congratulations and attach persistent keyboard
+            send_registration_success(chat_id, user)
+            return
+
+        # Save user basic profile in registry
+        user = save_known_user(msg.get("from"))
+        if username and username.lower() in ADMIN_USERNAMES:
+            ADMIN_USER_IDS.add(str(chat_id))
+
+        logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
+
+        # Silent real-time wallet synchronization from WebApp games
+        if text.startswith("/sync_wallet"):
+            parts = text.split()
+            if len(parts) >= 4:
+                target_uid = parts[1].strip()
+                if str(chat_id) == target_uid:
+                    try:
+                        s_real = max(0.0, float(parts[2]))
+                        s_bonus = max(0.0, float(parts[3]))
+                        users = load_known_users()
+                        if target_uid in users:
+                            users[target_uid]["balance"] = round(s_real, 2)
+                            users[target_uid]["bonus_balance"] = round(s_bonus, 2)
+                            users[target_uid]["updated"] = time.time()
+                            save_all_users(users)
+                            logging.info(f"Successfully synced wallet for user {chat_id}: real={s_real:.2f}, bonus={s_bonus:.2f}")
+                    except Exception as ex:
+                        logging.error(f"Error parsing /sync_wallet: {ex}")
+
+            # Instantly delete the service message so chat remains completely spotless
+            try:
+                msg_id = msg.get("message_id")
+                if msg_id:
+                    api_call("deleteMessage", {
+                        "chat_id": chat_id,
+                        "message_id": msg_id
+                    })
+            except Exception:
+                pass
+            return
+
+        # Handle WebApp data sent from Admin Control Center or Game Mini App
+        if web_app_data:
+            data_raw = web_app_data.get("data", "")
+            logging.info(f"Received WebApp data: {data_raw}")
+            try:
+                payload = json.loads(data_raw)
+                action = payload.get("action")
+                if action == "sync_balance":
+                    s_real = max(0.0, float(payload.get("balance", 0.0)))
+                    s_bonus = max(0.0, float(payload.get("bonus_balance", 0.0)))
+                    users = load_known_users()
+                    uid_str = str(chat_id)
+                    if uid_str in users:
+                        users[uid_str]["balance"] = round(s_real, 2)
+                        users[uid_str]["bonus_balance"] = round(s_bonus, 2)
+                        users[uid_str]["updated"] = time.time()
+                        save_all_users(users)
+                        user = users[uid_str]
+                    send_welcome(chat_id, user)
+                    return
+                elif action in ("broadcast", "send"):
+                    out_msg = payload.get("message") or payload.get("text")
+                    aud = payload.get("audience", "all")
+                    target_id = payload.get("chatId")
+                    if target_id and (aud == "selected" or action == "send"):
+                        res = send_text_message(target_id, out_msg)
+                        if res and res.get("ok"):
+                            send_text_message(chat_id, f"✅ Message delivered to chat <code>{target_id}</code>:\n\n{out_msg}")
+                        else:
+                            send_text_message(chat_id, f"❌ Telegram delivery failed to chat <code>{target_id}</code>.")
+                    else:
+                        sent, failed = broadcast_message(out_msg)
+                        send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s)! (Failed: {failed})")
+                    return
+            except Exception as ex:
+                logging.error(f"Error handling web_app_data: {ex}")
+
+        # Capture referral parameter if present in /start
+        if text.startswith("/start"):
+            parts = text.split()
+            if len(parts) > 1:
+                raw_param = parts[1].strip()
+                ref_id = raw_param.replace("ref_", "").strip()
+                if ref_id and ref_id.isdigit() and ref_id != str(chat_id):
+                    users_all = load_known_users()
+                    cur_u = users_all.get(str(chat_id), {})
+                    if not cur_u.get("registered") and not cur_u.get("referred_by"):
+                        cur_u["referred_by"] = ref_id
+                        users_all[str(chat_id)] = cur_u
+                        save_all_users(users_all)
+                        logging.info(f"User {chat_id} set referred_by={ref_id}")
+
+        # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
+        if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):
+            request_phone_registration(chat_id)
+            return
+
+        # If user is registered and sends /start (or opens bot with any start link):
+        if text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄", "Restart", "restart"):
+            send_welcome(chat_id, user)
+            return
+
+        # --- Custom Keyboard Choices (matching Image 2 + legacy Image 1 compatibility) ---
+        if text in ("Play Games 🎮", "🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት", "/play"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            app_url = get_user_webapp_url(chat_id, user)
+            api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": "🎮 <b>Tap below to launch Friendes Games:</b>\n\nጨዋታዎችን ለመክፈት ከታች ያለውን ቁልፍ ይጫኑ፦",
+                "parse_mode": "HTML",
+                "reply_markup": {
+                    "inline_keyboard": [
+                        [{"text": "🚀 Open Mini App (Play Now)", "web_app": {"url": app_url}}]
+                    ]
+                }
+            })
+        elif text in ("Deposit 💰", "💰 ገቢ ለማድረግ") or text.startswith("/deposit"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            send_deposit_info(chat_id, user)
+        elif text in ("Withdraw 💰", "💸 ወጪ ለማድረግ") or text.startswith("/withdraw"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            parts = text.split(" ", 1)
+            if len(parts) > 1 and parts[1].strip():
+                handle_withdraw_request(chat_id, user, parts[1].strip())
+            else:
+                send_withdraw_info(chat_id, user)
+        elif text in ("Transfer ↔️", "/transfer") or text.startswith("/transfer"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            parts = text.split()
+            if len(parts) >= 3:
+                handle_transfer(chat_id, user, parts[1], parts[2])
+            else:
+                send_transfer_info(chat_id, user)
+        elif text in ("My Profile 👤", "👤 ፕሮፋይል & ሂሳብ", "/profile", "/account"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            send_profile_info(chat_id, user)
+        elif text in ("Transactions 📜", "/transactions", "/history"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            send_transactions_info(chat_id, user)
+        elif text in ("Balance 💰", "/balance"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            send_balance_info(chat_id, user)
+        elif text in ("Join Group ↗️", "Join Group", "/group"):
+            send_join_group_info(chat_id, user)
+        elif text in ("Contact Us", "Contact Us ↗️", "🆘 እርዳታ", "/contact", "/help"):
+            send_contact_us_info(chat_id, user)
+        elif text in ("Refer & Earn 🎁", "🎁 ፕሮሞ ኮድ", "🔗 ጋብዝ & አግኝ", "/referral", "/promo"):
+            if not ensure_user_registered_or_prompt(chat_id):
+                return
+            send_referral_info(chat_id, user)
+        elif text in ("🌐 ቋንቋ / Language", "/language"):
+            send_language_info(chat_id, user)
+        elif text in ("📢 አጀንት ፕሮሞተር", "/agent"):
+            send_agent_info(chat_id, user)
+
+        # --- Standard Bot Commands ---
+        elif text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄"):
+            if not is_user_registered(chat_id):
+                ensure_user_registered_or_prompt(chat_id)
+            else:
+                send_welcome(chat_id, user)
+
+        elif text.lower().startswith("/admin"):
+            if is_admin(chat_id, username):
+                send_admin_menu(chat_id)
+            else:
+                parts = text.split(" ", 1)
+                if len(parts) > 1:
+                    input_pass = parts[1].strip()
+                    if input_pass in ADMIN_PASSWORDS:
+                        ADMIN_USER_IDS.add(str(chat_id))
+                        send_text_message(chat_id, "✅ <b>የአድሚን መለያዎ ተረጋግጧል! (Admin access granted)</b>")
+                        send_admin_menu(chat_id)
+                    else:
+                        send_text_message(chat_id, "❌ <b>የተሳሳተ የአድሚን የይለፍ ቃል! (Incorrect password)</b>\nእባክዎ ትክክለኛውን የአድሚን የይለፍ ቃል ያስገቡ።")
+                else:
+                    send_text_message(chat_id, (
+                        "🔐 <b>Friendes Game | Admin Access</b>\n\n"
+                        "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Friends_game_64, @samTesfa19) ብቻ የተወሰነ ነው።\n"
+                        "የይለፍ ቃል ካለዎት በሚከተለው መልኩ ይላኩ:\n\n"
+                        "👉 <code>/admin &lt;password&gt;</code>"
+                    ))
+
+        elif text.startswith("/broadcast ") and is_admin(chat_id, username):
+            broadcast_text = text.split(" ", 1)[1].strip()
+            if not broadcast_text:
+                send_text_message(chat_id, "Usage: /broadcast <message>")
+            else:
+                sent, failed = broadcast_message(broadcast_text)
+                send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s) (Failed: {failed}).")
+
+        elif text.startswith("/send ") and is_admin(chat_id, username):
+            parts = text.split(" ", 2)
+            if len(parts) < 3:
+                send_text_message(chat_id, "Usage: /send <chat_id> <message>")
+            else:
+                target_chat_id, message = parts[1], parts[2]
+                result = send_text_message(target_chat_id, message)
+                send_text_message(chat_id, "✅ Message sent." if result and result.get("ok") else "❌ Telegram could not deliver that message.")
+
+        else:
+            if not is_user_registered(chat_id):
+                request_phone_registration(chat_id)
+            else:
+                clean_num = text.strip().replace("ETB", "").replace("ብር", "").strip()
+                if user.get("awaiting_action") == "withdraw" and re.match(r"^\d+(\.\d+)?$", clean_num):
+                    handle_withdraw_request(chat_id, user, clean_num)
+                    return
+
+                lower = text.lower()
+                # Only treat as deposit submission if text looks like a real transaction ID or payment confirmation
+                is_tx = bool(
+                    re.search(r"\b(TX|FT|MP|TRX|REF)[\w\d]{6,}\b", text, re.IGNORECASE) or
+                    (any(k in lower for k in ["telebirr", "safaricom", "mpesa", "cbe", "ክፍያ", "ደረሰኝ"]) and any(k in lower for k in ["ብር", "etb", "transferred", "credited", "tx"]))
+                )
+                if is_tx:
+                    clean_tx = text.strip().replace("\n", " ")
+                    handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / Safaricom")
+                elif re.match(r"^\d+(\.\d+)?$", clean_num) and float(clean_num) >= 50:
+                    handle_withdraw_request(chat_id, user, clean_num)
+                else:
+                    send_welcome(chat_id, user)
+    except Exception as e:
+        logging.error(f"Error handling update {update.get('update_id')}: {e}")
+
+
 def main():
     logging.info("Starting Friendes Game Telegram Bot runner...")
     offset = 0
 
-    # Configure Telegram commands menu (Keeps admin command hidden from public view)
-    api_call("setMyCommands", {
-        "commands": [
-            {"command": "start", "description": "🎮 Start & Register Account"},
-            {"command": "deposit", "description": "💰 Deposit Funds (Telebirr/Safaricom)"},
-            {"command": "withdraw", "description": "💸 Withdraw to Registered Phone"},
-            {"command": "profile", "description": "👤 View My Account Profile"}
-        ]
-    })
+    # Start background initialization (commands menu, descriptions, menu button sync)
+    def _background_init():
+        try:
+            api_call("setMyCommands", {
+                "commands": [
+                    {"command": "start", "description": "🎮 Start & Register Account"},
+                    {"command": "deposit", "description": "💰 Deposit Funds (Telebirr/Safaricom)"},
+                    {"command": "withdraw", "description": "💸 Withdraw to Registered Phone"},
+                    {"command": "profile", "description": "👤 View My Account Profile"}
+                ]
+            })
+            api_call("setMyDescription", {
+                "description": (
+                    "Welcome to Friendes Game!\n"
+                    "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash!\n"
+                    "እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n"
+                    "Contact 1: +251939292694\n"
+                    "Contact 2: +251972450776"
+                )
+            })
+            api_call("setMyShortDescription", {
+                "short_description": "Play Aviator, JetX, Betting & win cash! 🛠 Casino Development: +251939292694 / +251972450776"
+            })
+            known = load_known_users()
+            for uid, udata in known.items():
+                if udata.get("registered") or udata.get("phone"):
+                    user_app_url = get_user_webapp_url(uid, udata)
+                    api_call("setChatMenuButton", {
+                        "chat_id": int(uid),
+                        "menu_button": {
+                            "type": "web_app",
+                            "text": "🎮 Play Games",
+                            "web_app": {"url": user_app_url}
+                        }
+                    })
+        except Exception as e:
+            logging.warning(f"Error during bot background init: {e}")
 
-    # Configure Bot Description & "What can this bot do?" profile screen
-    api_call("setMyDescription", {
-        "description": (
-            "Welcome to Friendes Game!\n"
-            "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash!\n"
-            "እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n"
-            "Contact 1: +251939292694\n"
-            "Contact 2: +251972450776"
-        )
-    })
-    api_call("setMyShortDescription", {
-        "short_description": "Play Aviator, JetX, Betting & win cash! 🛠 Casino Development: +251939292694 / +251972450776"
-    })
+    threading.Thread(target=_background_init, daemon=True).start()
 
-    # Sync personalized menu buttons for known registered users on startup
-    try:
-        known = load_known_users()
-        for uid, udata in known.items():
-            if udata.get("registered") or udata.get("phone"):
-                user_app_url = get_user_webapp_url(uid, udata)
-                api_call("setChatMenuButton", {
-                    "chat_id": int(uid),
-                    "menu_button": {
-                        "type": "web_app",
-                        "text": "🎮 Play Games",
-                        "web_app": {"url": user_app_url}
-                    }
-                })
-    except Exception as e:
-        logging.warning(f"Error syncing menu buttons on startup: {e}")
-
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="BotWorker")
     last_heartbeat = time.time()
     while True:
         try:
@@ -1493,545 +2156,20 @@ def main():
                 logging.info(f"Bot active, polling updates (offset: {offset})...")
                 last_heartbeat = time.time()
 
-            updates = api_call("getUpdates", {"offset": offset, "timeout": 20})
+            updates = fetch_updates(offset, timeout=20)
             if updates and updates.get("ok"):
-                for update in updates.get("result", []):
-                    offset = update["update_id"] + 1
-
-                    # Handle Callback Queries (Inline button clicks)
-                    callback_query = update.get("callback_query")
-                    if callback_query:
-                        cb_id = callback_query.get("id")
-                        cb_data = callback_query.get("data", "")
-                        cb_msg = callback_query.get("message", {})
-                        cb_chat_id = cb_msg.get("chat", {}).get("id")
-                        cb_from = callback_query.get("from", {})
-                        cb_user = load_known_users().get(str(cb_chat_id), {})
-
-                        if cb_data.startswith("dep_approve:") or cb_data.startswith("dep_reject:"):
-                            action, rest = cb_data.split(":", 1)
-                            caller_id = cb_from.get("id")
-                            caller_username = cb_from.get("username", "")
-
-                            if not is_admin(caller_id, caller_username):
-                                api_call("answerCallbackQuery", {
-                                    "callback_query_id": cb_id,
-                                    "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
-                                    "show_alert": True
-                                })
-                                continue
-
-                            # Support format: <uid>:<amt>:<dep_id> or <dep_id>
-                            dep_parts = rest.split(":")
-                            explicit_uid = None
-                            explicit_amt = None
-                            if len(dep_parts) == 3:
-                                try:
-                                    if dep_parts[0] and dep_parts[0] != "0":
-                                        explicit_uid = int(dep_parts[0])
-                                    explicit_amt = float(dep_parts[1])
-                                except Exception:
-                                    pass
-                                dep_id = dep_parts[2]
-                            else:
-                                dep_id = rest
-
-                            orig_text = cb_msg.get("text", "")
-                            if action == "dep_approve":
-                                ok, info = approve_deposit(
-                                    dep_id,
-                                    caller_id,
-                                    explicit_chat_id=explicit_uid,
-                                    explicit_amount=explicit_amt,
-                                    message_text=orig_text
-                                )
-                                if ok:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"✅ {info}"
-                                    })
-                                    admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
-                                    api_call("editMessageText", {
-                                        "chat_id": cb_chat_id,
-                                        "message_id": cb_msg.get("message_id"),
-                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>({info})</i>",
-                                        "parse_mode": "HTML"
-                                    })
-                                else:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"⚠️ {info}",
-                                        "show_alert": True
-                                    })
-                            else:
-                                ok, info = reject_deposit(
-                                    dep_id,
-                                    caller_id,
-                                    explicit_chat_id=explicit_uid,
-                                    explicit_amount=explicit_amt,
-                                    message_text=orig_text
-                                )
-                                if ok:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"❌ ገቢ {dep_id} ተሰርዟል!"
-                                    })
-                                    admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
-                                    api_call("editMessageText", {
-                                        "chat_id": cb_chat_id,
-                                        "message_id": cb_msg.get("message_id"),
-                                        "text": orig_text + f"\n\n<b>❌ CANCELLED/REJECTED by {admin_tag}</b>",
-                                        "parse_mode": "HTML"
-                                    })
-                                else:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"⚠️ {info}",
-                                        "show_alert": True
-                                    })
-                            continue
-
-                        if cb_data.startswith("with_approve:") or cb_data.startswith("with_reject:"):
-                            action, rest = cb_data.split(":", 1)
-                            caller_id = cb_from.get("id")
-                            caller_username = cb_from.get("username", "")
-
-                            if not is_admin(caller_id, caller_username):
-                                api_call("answerCallbackQuery", {
-                                    "callback_query_id": cb_id,
-                                    "text": "❌ የተፈቀደለት አድሚን ብቻ ነው ማጽደቅ የሚችለው!",
-                                    "show_alert": True
-                                })
-                                continue
-
-                            w_parts = rest.split(":")
-                            explicit_uid = None
-                            explicit_amt = None
-                            if len(w_parts) == 3:
-                                try:
-                                    if w_parts[0] and w_parts[0] != "0":
-                                        explicit_uid = int(w_parts[0])
-                                    explicit_amt = float(w_parts[1])
-                                except Exception:
-                                    pass
-                                req_id = w_parts[2]
-                            else:
-                                req_id = rest
-
-                            orig_text = cb_msg.get("text", "")
-                            admin_tag = f"@{caller_username}" if caller_username else f"ID {caller_id}"
-                            if action == "with_approve":
-                                ok, info = approve_withdrawal(
-                                    req_id,
-                                    caller_id,
-                                    explicit_chat_id=explicit_uid,
-                                    explicit_amount=explicit_amt,
-                                    message_text=orig_text
-                                )
-                                if ok:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"✅ {info}"
-                                    })
-                                    api_call("editMessageText", {
-                                        "chat_id": cb_chat_id,
-                                        "message_id": cb_msg.get("message_id"),
-                                        "text": orig_text + f"\n\n<b>✅ APPROVED by {admin_tag}</b>\n<i>(ገንዘቡ ለተጠቃሚው ተልኮ ተረጋግጧል)</i>",
-                                        "parse_mode": "HTML"
-                                    })
-                                else:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"⚠️ {info}",
-                                        "show_alert": True
-                                    })
-                            else:
-                                ok, info = reject_withdrawal(
-                                    req_id,
-                                    caller_id,
-                                    explicit_chat_id=explicit_uid,
-                                    explicit_amount=explicit_amt,
-                                    message_text=orig_text
-                                )
-                                if ok:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"❌ {info}"
-                                    })
-                                    api_call("editMessageText", {
-                                        "chat_id": cb_chat_id,
-                                        "message_id": cb_msg.get("message_id"),
-                                        "text": orig_text + f"\n\n<b>❌ REJECTED & REFUNDED by {admin_tag}</b>",
-                                        "parse_mode": "HTML"
-                                    })
-                                else:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": f"⚠️ {info}",
-                                        "show_alert": True
-                                    })
-                            continue
-
-                        if cb_data.startswith("quick_wd:"):
-                            amt_val = cb_data.split(":", 1)[1]
-                            api_call("answerCallbackQuery", {"callback_query_id": cb_id})
-                            if ensure_user_registered_or_prompt(cb_chat_id):
-                                handle_withdraw_request(cb_chat_id, cb_user, amt_val)
-                            continue
-
-                        if cb_data == "check_channel_join":
-                            is_member, reason = check_user_membership(cb_chat_id)
-                            if is_member:
-                                api_call("answerCallbackQuery", {
-                                    "callback_query_id": cb_id,
-                                    "text": "✅ ግሩፑን መቀላቀልዎ ተረጋግጧል! አሁን ስልክዎን ያጋሩ።",
-                                    "show_alert": False
-                                })
-                                if not is_user_registered(cb_chat_id):
-                                    request_phone_registration(cb_chat_id)
-                                else:
-                                    send_welcome(cb_chat_id, cb_user)
-                            else:
-                                if reason == "bot_needs_admin":
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": "⚠️ እባክዎ መጀመሪያ ግሩፑን (@friendsgame1) ይቀላቀሉ! (እንዲሁም ቦቱ ግሩፑ ውስጥ አድሚን መሆን አለበት)",
-                                        "show_alert": True
-                                    })
-                                else:
-                                    api_call("answerCallbackQuery", {
-                                        "callback_query_id": cb_id,
-                                        "text": "⚠️ እስካሁን ግሩፑን አልተቀላቀሉም! እባክዎ መጀመሪያ ግሩፑን ይቀላቀሉ።",
-                                        "show_alert": True
-                                    })
-                                send_channel_join_prompt(cb_chat_id)
-                            continue
-
-                        api_call("answerCallbackQuery", {"callback_query_id": cb_id})
-
-                        if not ensure_user_registered_or_prompt(cb_chat_id):
-                            continue
-                        elif cb_data == "deposit":
-                            send_deposit_info(cb_chat_id, cb_user)
-                        elif cb_data == "withdraw":
-                            send_withdraw_info(cb_chat_id, cb_user)
-                        continue
-
-                    msg = update.get("message")
-                    if not msg:
-                        continue
-
-                    chat_id = msg["chat"]["id"]
-                    from_user = msg.get("from") or {}
-                    first_name = from_user.get("first_name", "Player")
-                    username = from_user.get("username", "")
-                    text = msg.get("text", "").strip()
-                    web_app_data = msg.get("web_app_data")
-                    contact = msg.get("contact")
-
-                    # Handle Contact Sharing (Registration)
-                    if contact:
-                        raw_phone = contact.get("phone_number", "").strip()
-                        phone = raw_phone
-                        if not phone.startswith("+"):
-                            if phone.startswith("251"):
-                                phone = "+" + phone
-                            elif phone.startswith("0"):
-                                phone = "+251" + phone[1:]
-                            else:
-                                phone = "+251" + phone
-
-                        c_first = contact.get("first_name") or msg["from"].get("first_name", "Player")
-                        c_last = contact.get("last_name") or msg["from"].get("last_name", "")
-                        user_obj = {
-                            "id": chat_id,
-                            "first_name": c_first,
-                            "last_name": c_last,
-                            "username": msg["from"].get("username", "")
-                        }
-                        user = save_known_user(user_obj, phone=phone)
-                        full_name = f"{c_first} {c_last}".strip()
-
-                        # Award referral bonus if this user was referred by someone
-                        referred_by = user.get("referred_by")
-                        if referred_by and not user.get("referral_rewarded"):
-                            ref_str = str(referred_by)
-                            if ref_str != str(chat_id):
-                                all_users = load_known_users()
-                                if ref_str in all_users:
-                                    ref_user = all_users[ref_str]
-                                    cur_bonus = float(ref_user.get("bonus_balance", 0.0))
-                                    ref_user["bonus_balance"] = round(cur_bonus + 10.0, 2)
-                                    all_users[str(chat_id)]["referral_rewarded"] = True
-                                    save_all_users(all_users)
-                                    user["referral_rewarded"] = True
-                                    api_call("sendMessage", {
-                                        "chat_id": int(ref_str),
-                                        "text": (
-                                            f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
-                                            f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+10.00 ETB</b> ጉርሻ ወደ Bonus Balance ገቢ ተደርጓል!\n\n"
-                                            f"🎁 <b>የቦነስ ሂሳብዎ (Bonus Balance):</b> <b>{ref_user['bonus_balance']:.2f} ETB</b>\n"
-                                            f"💵 <b>እውነተኛ ሂሳብዎ (Real Balance):</b> <b>{float(ref_user.get('balance', 0.0)):.2f} ETB</b>\n\n"
-                                            f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>"
-                                        ),
-                                        "parse_mode": "HTML"
-                                    })
-
-                        # Notify admins
-                        for admin_id in ADMIN_USER_IDS:
-                            if str(admin_id) != str(chat_id):
-                                api_call("sendMessage", {
-                                    "chat_id": admin_id,
-                                    "text": (
-                                        f"🎉 <b>አዲስ ተጫዋች ተመዝግቧል (New Player Registered)!</b>\n\n"
-                                        f"👤 <b>ስም:</b> {full_name} (@{msg['from'].get('username','')})\n"
-                                        f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
-                                        f"🆔 <b>ID:</b> <code>{chat_id}</code>"
-                                    ),
-                                    "parse_mode": "HTML"
-                                })
-
-                        # Send congratulations and attach persistent keyboard
-                        send_registration_success(chat_id, user)
-                        continue
-
-                    # Save user basic profile in registry
-                    user = save_known_user(msg.get("from"))
-                    if username and username.lower() in ADMIN_USERNAMES:
-                        ADMIN_USER_IDS.add(str(chat_id))
-
-                    logging.info(f"Received message: '{text}' from {first_name} (ID: {chat_id})")
-
-                    # Silent real-time wallet synchronization from WebApp games
-                    if text.startswith("/sync_wallet"):
-                        parts = text.split()
-                        if len(parts) >= 4:
-                            target_uid = parts[1].strip()
-                            if str(chat_id) == target_uid:
-                                try:
-                                    s_real = max(0.0, float(parts[2]))
-                                    s_bonus = max(0.0, float(parts[3]))
-                                    users = load_known_users()
-                                    if target_uid in users:
-                                        users[target_uid]["balance"] = round(s_real, 2)
-                                        users[target_uid]["bonus_balance"] = round(s_bonus, 2)
-                                        users[target_uid]["updated"] = time.time()
-                                        save_all_users(users)
-                                        logging.info(f"Successfully synced wallet for user {chat_id}: real={s_real:.2f}, bonus={s_bonus:.2f}")
-                                except Exception as ex:
-                                    logging.error(f"Error parsing /sync_wallet: {ex}")
-
-                        # Instantly delete the service message so chat remains completely spotless
-                        try:
-                            msg_id = msg.get("message_id")
-                            if msg_id:
-                                api_call("deleteMessage", {
-                                    "chat_id": chat_id,
-                                    "message_id": msg_id
-                                })
-                        except Exception:
-                            pass
-                        continue
-
-                    # Handle WebApp data sent from Admin Control Center or Game Mini App
-                    if web_app_data:
-                        data_raw = web_app_data.get("data", "")
-                        logging.info(f"Received WebApp data: {data_raw}")
-                        try:
-                            payload = json.loads(data_raw)
-                            action = payload.get("action")
-                            if action == "sync_balance":
-                                s_real = max(0.0, float(payload.get("balance", 0.0)))
-                                s_bonus = max(0.0, float(payload.get("bonus_balance", 0.0)))
-                                users = load_known_users()
-                                uid_str = str(chat_id)
-                                if uid_str in users:
-                                    users[uid_str]["balance"] = round(s_real, 2)
-                                    users[uid_str]["bonus_balance"] = round(s_bonus, 2)
-                                    users[uid_str]["updated"] = time.time()
-                                    save_all_users(users)
-                                    user = users[uid_str]
-                                send_welcome(chat_id, user)
-                                continue
-                            elif action in ("broadcast", "send"):
-                                out_msg = payload.get("message") or payload.get("text")
-                                aud = payload.get("audience", "all")
-                                target_id = payload.get("chatId")
-                                if target_id and (aud == "selected" or action == "send"):
-                                    res = send_text_message(target_id, out_msg)
-                                    if res and res.get("ok"):
-                                        send_text_message(chat_id, f"✅ Message delivered to chat <code>{target_id}</code>:\n\n{out_msg}")
-                                    else:
-                                        send_text_message(chat_id, f"❌ Telegram delivery failed to chat <code>{target_id}</code>.")
-                                else:
-                                    sent, failed = broadcast_message(out_msg)
-                                    send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s)! (Failed: {failed})")
-                                continue
-                        except Exception as ex:
-                            logging.error(f"Error handling web_app_data: {ex}")
-
-                    # Capture referral parameter if present in /start
-                    if text.startswith("/start"):
-                        parts = text.split()
-                        if len(parts) > 1:
-                            raw_param = parts[1].strip()
-                            ref_id = raw_param.replace("ref_", "").strip()
-                            if ref_id and ref_id.isdigit() and ref_id != str(chat_id):
-                                users_all = load_known_users()
-                                cur_u = users_all.get(str(chat_id), {})
-                                if not cur_u.get("registered") and not cur_u.get("referred_by"):
-                                    cur_u["referred_by"] = ref_id
-                                    users_all[str(chat_id)] = cur_u
-                                    save_all_users(users_all)
-                                    logging.info(f"User {chat_id} set referred_by={ref_id}")
-
-                    # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
-                    if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):
-                        request_phone_registration(chat_id)
-                        continue
-
-                    # If user is registered and sends /start (or opens bot with any start link):
-                    if text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄", "Restart", "restart"):
-                        send_welcome(chat_id, user)
-                        continue
-
-                    # --- Custom Keyboard Choices (matching Image 2 + legacy Image 1 compatibility) ---
-                    if text in ("Play Games 🎮", "🎮 ቢንጎ ተጫወት", "🎮 አሁን ተጫወት", "/play"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        app_url = get_user_webapp_url(chat_id, user)
-                        api_call("sendMessage", {
-                            "chat_id": chat_id,
-                            "text": "🎮 <b>Tap below to launch Friendes Games:</b>\n\nጨዋታዎችን ለመክፈት ከታች ያለውን ቁልፍ ይጫኑ፦",
-                            "parse_mode": "HTML",
-                            "reply_markup": {
-                                "inline_keyboard": [
-                                    [{"text": "🚀 Open Mini App (Play Now)", "web_app": {"url": app_url}}]
-                                ]
-                            }
-                        })
-                    elif text in ("Deposit 💰", "💰 ገቢ ለማድረግ") or text.startswith("/deposit"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_deposit_info(chat_id, user)
-                    elif text in ("Withdraw 💰", "💸 ወጪ ለማድረግ") or text.startswith("/withdraw"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        parts = text.split(" ", 1)
-                        if len(parts) > 1 and parts[1].strip():
-                            handle_withdraw_request(chat_id, user, parts[1].strip())
-                        else:
-                            send_withdraw_info(chat_id, user)
-                    elif text in ("Transfer ↔️", "/transfer") or text.startswith("/transfer"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        parts = text.split()
-                        if len(parts) >= 3:
-                            handle_transfer(chat_id, user, parts[1], parts[2])
-                        else:
-                            send_transfer_info(chat_id, user)
-                    elif text in ("My Profile 👤", "👤 ፕሮፋይል & ሂሳብ", "/profile", "/account"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_profile_info(chat_id, user)
-                    elif text in ("Transactions 📜", "/transactions", "/history"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_transactions_info(chat_id, user)
-                    elif text in ("Balance 💰", "/balance"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_balance_info(chat_id, user)
-                    elif text in ("Join Group ↗️", "Join Group", "/group"):
-                        send_join_group_info(chat_id, user)
-                    elif text in ("Contact Us", "Contact Us ↗️", "🆘 እርዳታ", "/contact", "/help"):
-                        send_contact_us_info(chat_id, user)
-                    elif text in ("Refer & Earn 🎁", "🎁 ፕሮሞ ኮድ", "🔗 ጋብዝ & አግኝ", "/referral", "/promo"):
-                        if not ensure_user_registered_or_prompt(chat_id):
-                            continue
-                        send_referral_info(chat_id, user)
-                    elif text in ("🌐 ቋንቋ / Language", "/language"):
-                        send_language_info(chat_id, user)
-                    elif text in ("📢 አጀንት ፕሮሞተር", "/agent"):
-                        send_agent_info(chat_id, user)
-
-                    # --- Standard Bot Commands ---
-                    elif text.startswith("/start") or text in ("/start", "🔄 /start", "/start 🔄"):
-                        if not is_user_registered(chat_id):
-                            ensure_user_registered_or_prompt(chat_id)
-                        else:
-                            send_welcome(chat_id, user)
-
-                    elif text.lower().startswith("/admin"):
-                        if is_admin(chat_id, username):
-                            send_admin_menu(chat_id)
-                        else:
-                            parts = text.split(" ", 1)
-                            if len(parts) > 1:
-                                input_pass = parts[1].strip()
-                                if input_pass in ADMIN_PASSWORDS:
-                                    ADMIN_USER_IDS.add(str(chat_id))
-                                    send_text_message(chat_id, "✅ <b>የአድሚን መለያዎ ተረጋግጧል! (Admin access granted)</b>")
-                                    send_admin_menu(chat_id)
-                                else:
-                                    send_text_message(chat_id, "❌ <b>የተሳሳተ የአድሚን የይለፍ ቃል! (Incorrect password)</b>\nእባክዎ ትክክለኛውን የአድሚን የይለፍ ቃል ያስገቡ።")
-                            else:
-                                send_text_message(chat_id, (
-                                    "🔐 <b>Friendes Game | Admin Access</b>\n\n"
-                                    "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Friends_game_64, @samTesfa19) ብቻ የተወሰነ ነው።\n"
-                                    "የይለፍ ቃል ካለዎት በሚከተለው መልኩ ይላኩ:\n\n"
-                                    "👉 <code>/admin &lt;password&gt;</code>"
-                                ))
-
-                    elif text.startswith("/broadcast ") and is_admin(chat_id, username):
-                        broadcast_text = text.split(" ", 1)[1].strip()
-                        if not broadcast_text:
-                            send_text_message(chat_id, "Usage: /broadcast <message>")
-                        else:
-                            sent, failed = broadcast_message(broadcast_text)
-                            send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s) (Failed: {failed}).")
-
-                    elif text.startswith("/send ") and is_admin(chat_id, username):
-                        parts = text.split(" ", 2)
-                        if len(parts) < 3:
-                            send_text_message(chat_id, "Usage: /send <chat_id> <message>")
-                        else:
-                            target_chat_id, message = parts[1], parts[2]
-                            result = send_text_message(target_chat_id, message)
-                            send_text_message(chat_id, "✅ Message sent." if result and result.get("ok") else "❌ Telegram could not deliver that message.")
-
-                    else:
-                        if not is_user_registered(chat_id):
-                            request_phone_registration(chat_id)
-                        else:
-                            clean_num = text.strip().replace("ETB", "").replace("ብር", "").strip()
-                            if user.get("awaiting_action") == "withdraw" and re.match(r"^\d+(\.\d+)?$", clean_num):
-                                handle_withdraw_request(chat_id, user, clean_num)
-                                continue
-
-                            lower = text.lower()
-                            # Only treat as deposit submission if text looks like a real transaction ID or payment confirmation
-                            is_tx = bool(
-                                re.search(r"\b(TX|FT|MP|TRX|REF)[\w\d]{6,}\b", text, re.IGNORECASE) or
-                                (any(k in lower for k in ["telebirr", "safaricom", "mpesa", "cbe", "ክፍያ", "ደረሰኝ"]) and any(k in lower for k in ["ብር", "etb", "transferred", "credited", "tx"]))
-                            )
-                            if is_tx:
-                                clean_tx = text.strip().replace("\n", " ")
-                                handle_deposit_submission(chat_id, user, clean_tx, amount=100.0, method="Telebirr / Safaricom")
-                            elif re.match(r"^\d+(\.\d+)?$", clean_num) and float(clean_num) >= 50:
-                                handle_withdraw_request(chat_id, user, clean_num)
-                            else:
-                                send_welcome(chat_id, user)
-
-                time.sleep(0.5)
+                res_list = updates.get("result", [])
+                for update in res_list:
+                    offset = max(offset, update["update_id"] + 1)
+                    executor.submit(handle_single_update, update)
             else:
-                time.sleep(3)
+                time.sleep(1)
         except KeyboardInterrupt:
             logging.info("Bot stopped.")
             break
         except BaseException as e:
-            logging.error(f"Polling loop exception (will retry in 5s): {e}")
-            time.sleep(5)
+            logging.error(f"Polling loop exception (will retry in 3s): {e}")
+            time.sleep(3)
 
 if __name__ == "__main__":
     main()
