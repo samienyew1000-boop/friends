@@ -133,6 +133,38 @@
   };
 
   // --- Shared Wallet Sync ---
+  function updateModeBanner() {
+    const banner = document.getElementById('modeBanner') || document.querySelector('.fun-mode-banner');
+    if (!banner) return;
+    const wallet = window.FriendesWallet || window.HabeshaWallet;
+    let mode = 'real';
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const urlM = p.get('mode');
+      if (urlM === 'demo') {
+        mode = 'demo';
+      } else if (urlM === 'real') {
+        mode = 'real';
+      } else if (wallet && typeof wallet.getMode === 'function') {
+        mode = wallet.getMode();
+      } else if (localStorage.getItem('habesha_wallet_mode') === 'demo') {
+        mode = 'demo';
+      }
+    } catch (e) {
+      if (wallet && typeof wallet.getMode === 'function') mode = wallet.getMode();
+    }
+
+    if (mode === 'demo') {
+      banner.textContent = 'FUN MODE';
+      banner.classList.add('demo-mode');
+      banner.classList.remove('real-mode');
+    } else {
+      banner.textContent = 'REAL';
+      banner.classList.remove('demo-mode');
+      banner.classList.add('real-mode');
+    }
+  }
+
   function initWallet() {
     const wallet = window.FriendesWallet || window.HabeshaWallet;
     if (wallet) {
@@ -140,6 +172,7 @@
       wallet.subscribe((newBal) => {
         state.balance = newBal;
         updateBalanceUI();
+        updateModeBanner();
       });
     } else {
       const stored = localStorage.getItem('habesha_balance');
@@ -150,7 +183,19 @@
       }
     }
     updateBalanceUI();
+    updateModeBanner();
   }
+
+  window.addEventListener('habesha_balance_updated', () => {
+    updateModeBanner();
+    updateBalanceUI();
+  });
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'habesha_wallet_mode' || e.key === 'habesha_balance' || e.key === 'habesha_demo_balance') {
+      updateModeBanner();
+      updateBalanceUI();
+    }
+  });
 
   function updateBalanceUI() {
     const el = document.getElementById('userBalanceText');
