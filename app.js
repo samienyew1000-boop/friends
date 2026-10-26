@@ -192,12 +192,33 @@
       const mode = window.HabeshaWallet.getMode();
       if (mode === 'demo') {
         modeBadge.textContent = 'DEMO';
-        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30';
+        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30 cursor-pointer hover:brightness-125 select-none active:scale-95 transition-all';
       } else {
         modeBadge.textContent = 'REAL';
-        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        modeBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 cursor-pointer hover:brightness-125 select-none active:scale-95 transition-all';
       }
     }
+  }
+
+  // Allow player to toggle Demo/Real directly by tapping the mode badge
+  const modeBadgeEl = document.getElementById('walletModeBadge');
+  if (modeBadgeEl) {
+    modeBadgeEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sound.playClick();
+      triggerHaptic('impact');
+      if (window.HabeshaWallet) {
+        const cur = window.HabeshaWallet.getMode();
+        const next = cur === 'demo' ? 'real' : 'demo';
+        window.HabeshaWallet.setMode(next);
+        updateBalanceDisplay();
+        if (next === 'demo') {
+          showToast('🎮 Demo Mode (Practice Balance)', 'info');
+        } else {
+          showToast('💰 Real Money Mode', 'success');
+        }
+      }
+    });
   }
 
   // Live balance listeners: auto-sync home balance when returning from any game
@@ -234,27 +255,12 @@
     triggerHaptic('impact');
     refreshBalanceBtn.classList.add('rotate-180');
 
-    // 1. Sync from HabeshaWallet (which reads the latest live balance updated during gameplay)
+    // Sync from HabeshaWallet (which reads the active mode and latest live balance)
     if (window.HabeshaWallet) {
       state.balance = window.HabeshaWallet.get();
     } else {
       state.balance = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
     }
-
-    // 2. Fallback to Telegram CloudStorage only if local balance is 0 or uninitialized
-    try {
-      if (window.Telegram?.WebApp?.CloudStorage && window.HabeshaWallet) {
-        window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
-          if (!err && val && !isNaN(parseFloat(val))) {
-            const parsedCloud = parseFloat(val);
-            if (parsedCloud > 0 && window.HabeshaWallet.get() === 0) {
-              window.HabeshaWallet.set(parsedCloud);
-              updateBalanceDisplay();
-            }
-          }
-        });
-      }
-    } catch (e) {}
 
     setTimeout(() => {
       refreshBalanceBtn.classList.remove('rotate-180');
@@ -1112,13 +1118,16 @@
       sound.playClick();
       triggerHaptic('impact');
 
-      // Set wallet mode to demo and renew 1,000 ETB balance
+      // Set wallet mode to demo and only renew if below 10 ETB
       if (window.HabeshaWallet) {
         window.HabeshaWallet.setMode('demo');
-        window.HabeshaWallet.renewDemoBalance();
+        if (window.HabeshaWallet.getDemoBalance() < 10) {
+          window.HabeshaWallet.renewDemoBalance();
+        }
       }
 
-      showToast('🎮 Demo Mode: 1,000 ETB practice balance ready!', 'info');
+      const curDemoVal = window.HabeshaWallet ? window.HabeshaWallet.getDemoBalance().toFixed(2) : '1,000.00';
+      showToast(`🎮 Demo Mode: ${curDemoVal} ETB practice balance ready!`, 'info');
       closeModal(gameModal);
       if (window.showGameLoader) window.showGameLoader();
 
@@ -1167,12 +1176,11 @@
 
       setTimeout(() => {
         if (activeGameUrl) {
-          const curBal = window.HabeshaWallet ? window.HabeshaWallet.get() : (parseFloat(localStorage.getItem('habesha_balance')) || 0.0);
           const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
           const uid = user?.id || '';
           const phone = user?.phone || '';
           const sep = activeGameUrl.includes('?') ? '&' : '?';
-          window.location.href = `${activeGameUrl}${sep}mode=real&balance=${curBal.toFixed(2)}&uid=${encodeURIComponent(uid)}&phone=${encodeURIComponent(phone)}`;
+          window.location.href = `${activeGameUrl}${sep}mode=real&uid=${encodeURIComponent(uid)}&phone=${encodeURIComponent(phone)}`;
         }
       }, 350);
     });

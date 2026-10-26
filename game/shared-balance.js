@@ -15,16 +15,18 @@
   const DEFAULT_REAL_BALANCE = 0.0;
   const DEFAULT_BONUS_BALANCE = 0.0;
 
-  // Auto-detect mode from URL param (?mode=demo). If not explicitly 'demo', default to 'real'
+  // Auto-detect mode from URL param (?mode=demo or ?mode=real).
+  // IMPORTANT: If mode is not present in URL (e.g. Back button or Lobby link), preserve the existing user mode!
   (function initUrlMode() {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlMode = params.get('mode');
       if (urlMode === 'demo') {
         localStorage.setItem(MODE_KEY, 'demo');
-      } else {
+      } else if (urlMode === 'real') {
         localStorage.setItem(MODE_KEY, 'real');
       }
+
       const qUid = params.get('uid');
       if (qUid) {
         localStorage.setItem('habesha_uid', qUid);
@@ -35,50 +37,37 @@
       const localTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
       const hasLocalReal = localStorage.getItem(STORAGE_KEY_REAL) !== null && localStorage.getItem(STORAGE_KEY_REAL) !== '';
 
+      // Only accept urlBal if local storage has no balance, or if urlTs is explicitly newer than local gameplay
       if (urlBal !== null && !isNaN(parseFloat(urlBal))) {
-        const parsed = Math.max(0, round2(parseFloat(urlBal)));
-        localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
-        localStorage.setItem('habesha_balance_ts', String(urlTs > 0 ? urlTs : Date.now()));
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', parsed.toFixed(2), () => {});
-          }
-        } catch (e) {}
-        syncLegacyStorages(parsed);
-      } else if (!hasLocalReal) {
-        // Fallback to Telegram CloudStorage if no local balance
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.getItem('habesha_balance', (err, val) => {
-              if (!err && val && !isNaN(parseFloat(val))) {
-                const cloudBal = Math.max(0, round2(parseFloat(val)));
-                localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
-                syncLegacyStorages(cloudBal);
-                notifyAll(cloudBal);
-              }
-            });
-          }
-        } catch (e) {}
+        if (!hasLocalReal || (urlTs > 0 && urlTs > localTs)) {
+          const parsed = Math.max(0, round2(parseFloat(urlBal)));
+          localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
+          localStorage.setItem('habesha_balance_ts', String(urlTs > 0 ? urlTs : Date.now()));
+          syncLegacyStorages(parsed);
+        }
       }
 
       if (urlBonus !== null && !isNaN(parseFloat(urlBonus))) {
-        const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
-        localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
-        try {
-          if (window.Telegram?.WebApp?.CloudStorage) {
-            window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', parsedBonus.toFixed(2), () => {});
-          }
-        } catch (e) {}
+        if (!hasLocalReal || (urlTs > 0 && urlTs > localTs)) {
+          const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
+          localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
+        }
       }
 
       // Clean query params so subsequent refreshes or navigation don't re-read stale URL balance
-      if (window.history && window.history.replaceState && (urlBal !== null || urlBonus !== null)) {
+      if (window.history && window.history.replaceState) {
         try {
           const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('balance');
-          cleanUrl.searchParams.delete('bonus_balance');
-          cleanUrl.searchParams.delete('ts');
-          window.history.replaceState({}, document.title, cleanUrl.toString());
+          let cleaned = false;
+          ['balance', 'bonus_balance', 'ts'].forEach((k) => {
+            if (cleanUrl.searchParams.has(k)) {
+              cleanUrl.searchParams.delete(k);
+              cleaned = true;
+            }
+          });
+          if (cleaned) {
+            window.history.replaceState({}, document.title, cleanUrl.toString());
+          }
         } catch (e) {}
       }
     } catch (e) {}
