@@ -450,13 +450,13 @@
   // --- Game Loop Engine ---
   function generateCrashPoint() {
     const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
-      ? (window.HabeshaWallet.getGameMargin('aviator', 3.5) / 100)
-      : 0.035;
+      ? (window.HabeshaWallet.getGameMargin('aviator', 6.0) / 100)
+      : 0.06;
     const rand = Math.random();
     if (rand < margin) return 1.00; // Immediate bust scaled dynamically by house margin
     const r = Math.random();
     const raw = (1 - margin) / (1 - r);
-    const crash = Math.max(1.00, Math.min(25000.00, Math.floor(raw * 100) / 100));
+    const crash = Math.max(1.00, Math.min(250.00, Math.floor(raw * 100) / 100));
     return Number(crash.toFixed(2));
   }
 
@@ -727,7 +727,9 @@
         }
       } else {
         // Cash out!
-        const winAmt = Math.round(p.amount * state.multiplier * 100) / 100;
+        const rawWin = Math.round(p.amount * state.multiplier * 100) / 100;
+        const maxWin = Math.min(2500, p.amount * 50);
+        const winAmt = Math.min(rawWin, maxWin);
         p.payout = winAmt;
         p.cashedAt = state.multiplier;
         creditBalance(winAmt);

@@ -658,12 +658,23 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, { ok: true });
     }
 
-    // 12. Admin User Update (Deposit / Withdraw / Status)
+    // 12. Admin User Update (Deposit / Withdraw / Status / Live Sync)
     if (pathname === "/api/admin/user/update" && req.method === "POST") {
       const body = await parseJsonBody(req);
       const uid = body.user_id || body.userId;
       if (uid && gameState.users[uid]) {
-        if (body.balance !== undefined) gameState.users[uid].balance = Number(body.balance);
+        if (body.balance !== undefined) {
+          const newBal = Math.max(0, Number(body.balance));
+          const prevBal = Number(gameState.users[uid].balance || 0);
+          // Safety cap: prevent massive single-request balance injections
+          if (newBal - prevBal > 2000) {
+            console.warn(`[Suspicious Balance Jump for ${uid}]: ${prevBal} -> ${newBal}`);
+            gameState.users[uid].balance = prevBal + 2000;
+          } else {
+            gameState.users[uid].balance = newBal;
+          }
+        }
+        if (body.bonus_balance !== undefined) gameState.users[uid].bonus_balance = Math.max(0, Number(body.bonus_balance));
         if (body.status !== undefined) gameState.users[uid].status = body.status;
         saveGameState();
         return sendJson(res, { ok: true, user: gameState.users[uid] });

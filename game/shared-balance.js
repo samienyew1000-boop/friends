@@ -453,21 +453,34 @@
     const gameName = (typeof arg2 === 'string' && arg2 !== 'stake' && arg2 !== 'win') ? arg2 :
                      (typeof arg3 === 'string' && arg3 !== 'stake' && arg3 !== 'win') ? arg3 : detectCurrentGameName();
 
+    let lastBonusRatio = parseFloat(localStorage.getItem('habesha_bet_bonus_ratio') || '0');
+
     if (numDelta < 0) {
       // Player is placing a bet (spending money)
       const betAmt = Math.abs(numDelta);
+      let takeBonus = 0;
+      let takeReal = 0;
       if (bonusBal > 0) {
-        const takeBonus = Math.min(bonusBal, betAmt);
+        takeBonus = Math.min(bonusBal, betAmt);
         bonusBal = round2(bonusBal - takeBonus);
-        const remBet = round2(betAmt - takeBonus);
-        realBal = Math.max(0, round2(realBal - remBet));
+        takeReal = round2(betAmt - takeBonus);
+        realBal = Math.max(0, round2(realBal - takeReal));
       } else {
+        takeReal = betAmt;
         realBal = Math.max(0, round2(realBal - betAmt));
       }
+      // Track bonus ratio so bets funded by bonus return winnings to bonus balance!
+      lastBonusRatio = betAmt > 0 ? round2(takeBonus / betAmt) : 0;
+      try { localStorage.setItem('habesha_bet_bonus_ratio', String(lastBonusRatio)); } catch (e) {}
       recordBetTransaction(gameName, betAmt, 0);
     } else {
-      // Player won! Credited directly to Real Balance
-      realBal = round2(realBal + numDelta);
+      // Player won! Credited proportionally to funding source (bonus wagers stay in bonus)
+      const winAmt = numDelta;
+      const bonusWin = round2(winAmt * lastBonusRatio);
+      const realWin = round2(winAmt - bonusWin);
+
+      bonusBal = round2(bonusBal + bonusWin);
+      realBal = round2(realBal + realWin);
       recordBetTransaction(gameName, 0, numDelta);
     }
 

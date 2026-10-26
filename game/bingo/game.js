@@ -3053,8 +3053,19 @@ function claimBingo() {
   $("bingo-btn").disabled = true;
 
   const mult = kind === "FULL HOUSE" ? 1 : 0.22;
-  const totalPlayers = Math.max(2, selected.size + (botPlayers || 3));
-  const pool = calculateDerash(totalPlayers, stake);
+  const sRoom = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
+  const realPlayers = Array.isArray(sRoom?.players) ? sRoom.players : [];
+  const realCards = realPlayers.reduce((sum, p) => sum + (p.card_ids?.length || 0), 0);
+
+  let pool = 0;
+  if (activeRoomId && realCards > 1) {
+    // Multiplayer round with 2+ real human players
+    pool = calculateDerash(realCards, stake);
+  } else {
+    // Solo / Practice / Simulated bots: house NEVER awards uncollected bot money!
+    // Maximum win is strictly capped at player's own stake (refund)
+    pool = selected.size * stake;
+  }
   const win = Math.max(stake, Math.round(pool * mult));
   const w = window.FriendesWallet || window.HabeshaWallet;
   if (w && typeof w.modify === "function") {

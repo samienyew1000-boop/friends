@@ -62,12 +62,12 @@
   const images = {};
   const vehicleKeys = ['delivery', 'car', 'truck', 'taxi', 'police', 'firetruck', 'icecream'];
 
-  // Difficulties - Hardcore starts at 1.44x matching user screenshot
+  // Difficulties - Balanced with healthy house margin
   const DIFFICULTIES = {
-    easy: { steps: 24, survival: 0.96, start: 1.05, growth: 1.07, label: 'Easy', baseSpeed: 105 },
-    medium: { steps: 22, survival: 0.88, start: 1.15, growth: 1.10, label: 'Medium', baseSpeed: 155 },
-    hard: { steps: 20, survival: 0.80, start: 1.25, growth: 1.14, label: 'Hard', baseSpeed: 215 },
-    hardcore: { steps: 15, survival: 0.60, start: 1.44, growth: 1.20, label: 'Hardcore', baseSpeed: 285 },
+    easy: { steps: 24, survival: 0.90, start: 1.03, growth: 1.06, label: 'Easy', baseSpeed: 105 },
+    medium: { steps: 22, survival: 0.84, start: 1.10, growth: 1.08, label: 'Medium', baseSpeed: 155 },
+    hard: { steps: 20, survival: 0.76, start: 1.20, growth: 1.12, label: 'Hard', baseSpeed: 215 },
+    hardcore: { steps: 15, survival: 0.55, start: 1.35, growth: 1.18, label: 'Hardcore', baseSpeed: 285 },
   };
 
   const MIN_BET = 1;
@@ -353,7 +353,8 @@
   }
 
   function potentialWin() {
-    return state.bet * currentMult();
+    const raw = state.bet * currentMult();
+    return Math.min(2000, Math.round(raw * 100) / 100);
   }
 
   function showToast(text, type = '') {

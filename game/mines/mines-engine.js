@@ -30,7 +30,7 @@
     if (hits > safeCells) return 0;
     const fair = combinations(totalCells, hits) / combinations(safeCells, hits);
     const mult = currentRtp * fair;
-    return Number(mult.toFixed(2));
+    return Math.min(50, Number(mult.toFixed(2)));
   }
 
   const VERIFIED_COEFFICIENTS = {
@@ -318,9 +318,10 @@
           // Safe Star!
           s.game.openedCells.push(cellPos);
           const hits = s.game.openedCells.length;
-          const safeTotal = 25 - s.game.minesCount;
           const coeff = calculateMultiplier(s.game.minesCount, hits);
-          const winAmount = (s.game.amount * coeff).toFixed(2);
+          const maxAllowedWin = Math.min(1500, s.game.amount * 50);
+          const rawWin = s.game.amount * coeff;
+          const winAmount = Math.min(rawWin, maxAllowedWin).toFixed(2);
           s.game.coeff = coeff;
           s.game.winAmount = winAmount;
 
