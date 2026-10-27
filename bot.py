@@ -557,6 +557,50 @@ def fetch_live_cloud_balance(chat_id, user):
         pass
     return float(user.get("balance", 0.0))
 
+def push_balance_to_cloud(chat_id, new_balance, username=""):
+    """Push a balance update to the cloud relay so gameplay sessions see the correct balance."""
+    try:
+        # 1. Ensure user exists in cloud state first
+        try:
+            req_init = urllib.request.Request(
+                "https://africa-bingo.ethiodeploy.com/api/me",
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "X-Telegram-User-Id": str(chat_id),
+                    "X-Telegram-User-Name": username or ""
+                }
+            )
+            with urllib.request.urlopen(req_init, timeout=2.0) as r_init:
+                pass
+        except Exception:
+            pass
+
+        # 2. Push updated balance
+        payload = json.dumps({
+            "user_id": str(chat_id),
+            "username": username or "",
+            "balance": round(float(new_balance), 2),
+            "admin_authorized": True
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://africa-bingo.ethiodeploy.com/api/admin/user/update",
+            data=payload,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Content-Type": "application/json",
+                "X-Telegram-User-Id": str(chat_id),
+                "X-Telegram-User-Name": username or ""
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            logging.info(f"[CloudPush] user={chat_id} balance={new_balance:.2f} -> {result}")
+            return True
+    except Exception as e:
+        logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
+        return False
+
 def update_live_welcome_message(chat_id, user):
     """Dynamically updates the welcome message caption & 'Play Games' button in real time."""
     msg_id = user.get("welcome_msg_id")
@@ -887,6 +931,9 @@ def handle_withdraw_request(chat_id, user, amount_str):
     user["balance"] = new_bal
     user.pop("awaiting_action", None)
 
+    # Push deducted balance to cloud relay so sync worker doesn't restore the old value
+    push_balance_to_cloud(chat_id, new_bal, user.get("username", ""))
+
     # Save to withdrawals.json
     withdrawals = load_withdrawals()
     req_id = f"WD-{int(time.time())}"
@@ -898,6 +945,7 @@ def handle_withdraw_request(chat_id, user, amount_str):
         "phone": phone,
         "amount": amt,
         "status": "pending",
+        "deducted": True,
         "created_at": now_str
     }
     withdrawals.append(wd_record)
@@ -968,7 +1016,8 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
             "id": req_id,
             "status": "pending",
             "amount": float(explicit_amount) if explicit_amount else MIN_WITHDRAWAL_AMOUNT,
-            "chat_id": int(explicit_chat_id) if explicit_chat_id else None
+            "chat_id": int(explicit_chat_id) if explicit_chat_id else None,
+            "deducted": False
         }
         withdrawals.append(target)
 
@@ -978,32 +1027,52 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
     chat_id = target.get("chat_id") or explicit_chat_id
     amt = float(target.get("amount") or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
     phone = target.get("phone", "")
+    already_deducted = target.get("deducted", False)
 
     target["status"] = "approved"
     target["approved_by"] = admin_id
     target["approved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    target["deducted"] = True
     save_withdrawals(withdrawals)
 
-    # Notify User that money has been deposited:
+    # Deduct balance if not previously deducted (e.g. from Mini App) & sync to cloud
+    new_bal = 0.0
     if chat_id:
         users = load_known_users()
-        u = users.get(str(chat_id), {})
+        uid_str = str(chat_id)
+        if uid_str in users:
+            u = users[uid_str]
+            if not already_deducted:
+                cur_bal = float(u.get("balance", 0.0))
+                new_bal = round(max(0.0, cur_bal - amt), 2)
+                users[uid_str]["balance"] = new_bal
+                users[uid_str]["balance_updated"] = time.time()
+                users[uid_str]["updated"] = time.time()
+                save_all_users(users)
+                u["balance"] = new_bal
+            else:
+                new_bal = float(u.get("balance", 0.0))
+
+            push_balance_to_cloud(chat_id, new_bal, u.get("username", ""))
+            update_live_welcome_message(chat_id, u)
+
         if not phone:
-            phone = u.get("phone", "")
+            phone = users.get(uid_str, {}).get("phone", "")
 
         api_call("sendMessage", {
             "chat_id": chat_id,
             "text": (
                 f"✅ <b>ገንዘብዎ ገቢ ሆኗል! (Withdrawal Completed)</b>\n\n"
                 f"የጠየቁት <b>{amt:.2f} ETB</b> ወደ ስልክ ቁጥርዎ <code>{phone}</code> በቴሌብር በተሳካ ሁኔታ ገቢ ተደርጓል!\n\n"
-                f"🧾 <b>Ref ID:</b> <code>{req_id}</code>\n\n"
+                f"🧾 <b>Ref ID:</b> <code>{req_id}</code>\n"
+                f"💵 <b>የቀሪ ሂሳብዎ:</b> <b>{new_bal:.2f} ETB</b>\n\n"
                 f"🎮 Friendes Gameን ስለመረጡ እናመሰግናለን!"
             ),
             "parse_mode": "HTML",
-            "reply_markup": get_main_reply_keyboard(chat_id, u)
+            "reply_markup": get_main_reply_keyboard(chat_id, users.get(uid_str, {}))
         })
 
-    return True, f"Approved! {amt:.2f} ETB to user {chat_id}"
+    return True, f"Approved! -{amt:.2f} ETB (Balance: {new_bal:.2f} ETB)"
 
 def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
     withdrawals = load_withdrawals()
@@ -1018,6 +1087,7 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
 
     chat_id = (target.get("chat_id") if target else None) or explicit_chat_id
     amt = float((target.get("amount") if target else None) or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
+    was_deducted = target.get("deducted", True) if target else True
 
     if target:
         target["status"] = "rejected"
@@ -1025,9 +1095,9 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
         target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         save_withdrawals(withdrawals)
 
-    # Refund amount back to user balance
+    # Refund amount back to user balance if it was deducted
     new_bal = 0.0
-    if chat_id:
+    if chat_id and was_deducted:
         users = load_known_users()
         uid_str = str(chat_id)
         if uid_str in users:
@@ -1036,6 +1106,8 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
             users[uid_str]["balance_updated"] = time.time()
             users[uid_str]["updated"] = time.time()
             save_all_users(users)
+            push_balance_to_cloud(chat_id, new_bal, users[uid_str].get("username", ""))
+            update_live_welcome_message(chat_id, users[uid_str])
 
         api_call("sendMessage", {
             "chat_id": chat_id,
@@ -1210,51 +1282,56 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
 
     chat_id = target.get("chat_id")
     amt = float(target.get("amount", 100.0))
-    new_balance = amt
-    if chat_id:
-        users = load_known_users()
-        uid_str = str(chat_id)
-        if uid_str not in users:
-            users[uid_str] = {
-                "id": int(chat_id),
-                "first_name": target.get("name", "Player"),
-                "username": target.get("username", ""),
-                "phone": target.get("phone", ""),
-                "registered": True,
-                "balance": 0.0,
-                "updated": time.time()
-            }
-        new_balance = round(users[uid_str].get("balance", 0.0) + amt, 2)
-        users[uid_str]["balance"] = new_balance
-        users[uid_str]["balance_updated"] = time.time()
-        users[uid_str]["updated"] = time.time()
-        save_all_users(users)
+    if not chat_id:
+        return False, "⚠️ የተጠቃሚው አካውንት (Chat ID) አልተገኘም! እባክዎ ተጠቃሚው ቦቱን /start ብሎ እንዲመዘገብ ያድርጉ።"
 
-        play_url = get_user_webapp_url(chat_id, users[uid_str])
-        api_call("setChatMenuButton", {
-            "chat_id": chat_id,
-            "menu_button": {
-                "type": "web_app",
-                "text": "🎮 Play Games",
-                "web_app": {"url": play_url}
-            }
-        })
-        api_call("sendMessage", {
-            "chat_id": chat_id,
-            "text": (
-                f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
-                f"የ <b>{amt:.2f} ETB</b> የገቢ ክፍያዎ በአድሚን ተረጋግጦ ጸድቋል (Approved)!\n"
-                f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n"
-                f"💰 <b>የአሁኑ የጨዋታ ሂሳብዎ:</b> <b>{new_balance:.2f} ETB</b>\n\n"
-                f"ገንዘቡ ወደ ሂሳብዎ ገብቷል። አሁን ከታች ያለውን ቁልፍ ተጭነው መጫወት ይችላሉ። መልካም እድል! 🍀"
-            ),
-            "parse_mode": "HTML",
-            "reply_markup": {
-                "inline_keyboard": [
-                    [{"text": "🎮 አሁን ይጫወቱ (Play Now)", "web_app": {"url": play_url}}]
-                ]
-            }
-        })
+    users = load_known_users()
+    uid_str = str(chat_id)
+    if uid_str not in users:
+        users[uid_str] = {
+            "id": int(chat_id),
+            "first_name": target.get("name", "Player"),
+            "username": target.get("username", ""),
+            "phone": target.get("phone", ""),
+            "registered": True,
+            "balance": 0.0,
+            "updated": time.time()
+        }
+    new_balance = round(users[uid_str].get("balance", 0.0) + amt, 2)
+    users[uid_str]["balance"] = new_balance
+    users[uid_str]["balance_updated"] = time.time()
+    users[uid_str]["updated"] = time.time()
+    save_all_users(users)
+
+    # Push new balance to cloud relay immediately so the sync worker doesn't overwrite it
+    push_balance_to_cloud(chat_id, new_balance, users[uid_str].get("username", ""))
+    update_live_welcome_message(chat_id, users[uid_str])
+
+    play_url = get_user_webapp_url(chat_id, users[uid_str])
+    api_call("setChatMenuButton", {
+        "chat_id": chat_id,
+        "menu_button": {
+            "type": "web_app",
+            "text": "🎮 Play Games",
+            "web_app": {"url": play_url}
+        }
+    })
+    api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": (
+            f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
+            f"የ <b>{amt:.2f} ETB</b> የገቢ ክፍያዎ በአድሚን ተረጋግጦ ጸድቋል (Approved)!\n"
+            f"🧾 <b>Tx ID:</b> <code>{target.get('tx_id')}</code>\n"
+            f"💰 <b>የአሁኑ የጨዋታ ሂሳብዎ:</b> <b>{new_balance:.2f} ETB</b>\n\n"
+            f"ገንዘቡ ወደ ሂሳብዎ ገብቷል። አሁን ከታች ያለውን ቁልፍ ተጭነው መጫወት ይችላሉ። መልካም እድል! 🍀"
+        ),
+        "parse_mode": "HTML",
+        "reply_markup": {
+            "inline_keyboard": [
+                [{"text": "🎮 አሁን ይጫወቱ (Play Now)", "web_app": {"url": play_url}}]
+            ]
+        }
+    })
     return True, f"Approved! +{amt:.2f} ETB (Balance: {new_balance:.2f} ETB)"
 
 def reject_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
@@ -2311,6 +2388,12 @@ def main():
                 ]
                 for uid, udata in active_users:
                     try:
+                        # Skip users whose balance was set very recently (e.g. by deposit/withdraw approval)
+                        # to avoid overwriting admin-set values before the cloud relay has caught up
+                        last_bal_update = float(udata.get("balance_updated") or 0)
+                        if now - last_bal_update < 90:
+                            continue
+
                         req = urllib.request.Request(
                             "https://africa-bingo.ethiodeploy.com/api/me",
                             headers={

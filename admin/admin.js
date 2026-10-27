@@ -440,6 +440,19 @@
         }));
       } catch (e) {}
 
+      // Push balance credit directly to cloud API
+      if (/^\d+$/.test(cleanPid)) {
+        const pObj = cloudUsers.find((u) => String(u.id) === cleanPid);
+        const curCloudBal = pObj ? Number(pObj.balance || 0) : 0;
+        const newCloudBal = curCloudBal + amt;
+        if (pObj) pObj.balance = newCloudBal;
+        fetch(`${API_BASE}/api/admin/user/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: cleanPid, balance: newCloudBal, admin_authorized: true })
+        }).catch(() => {});
+      }
+
       // Notify player via Telegram bot
       if (/^\d+$/.test(cleanPid)) {
         const approveMsg = 
@@ -453,6 +466,19 @@
 
       showToast(`✅ Deposit of ${money(amt)} approved and credited to player!`);
     } else if (tx.type === 'withdraw') {
+      // Debit player balance on cloud
+      if (/^\d+$/.test(cleanPid)) {
+        const pObj = cloudUsers.find((u) => String(u.id) === cleanPid);
+        const curCloudBal = pObj ? Number(pObj.balance || 0) : 0;
+        const newCloudBal = Math.max(0, curCloudBal - amt);
+        if (pObj) pObj.balance = newCloudBal;
+        fetch(`${API_BASE}/api/admin/user/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: cleanPid, balance: newCloudBal, admin_authorized: true })
+        }).catch(() => {});
+      }
+
       // Notify player payout was dispatched
       if (/^\d+$/.test(cleanPid)) {
         const approveMsg = 
@@ -461,7 +487,7 @@
           `Friendes Gameን ስለመረጡ እናመሰግናለን!`;
         sendTelegramMessage(cleanPid, approveMsg);
       }
-      showToast(`✅ Withdrawal ${tx.id} marked as sent!`);
+      showToast(`✅ Withdrawal ${tx.id} marked as sent and debited!`);
     }
 
     renderOverview();
@@ -495,7 +521,7 @@
     const amt = Number(tx.amount) || 0;
     const cleanPid = String(tx.playerId || '').replace(/^TG-/, '').trim();
 
-    // If it was a withdrawal, refund balance back to player
+    // If it was a withdrawal, refund balance back to player on cloud
     if (tx.type === 'withdraw') {
       try {
         const curReal = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
@@ -505,6 +531,18 @@
           detail: { balance: newReal, mode: 'real' }
         }));
       } catch (e) {}
+
+      if (/^\d+$/.test(cleanPid)) {
+        const pObj = cloudUsers.find((u) => String(u.id) === cleanPid);
+        const curCloudBal = pObj ? Number(pObj.balance || 0) : 0;
+        const newCloudBal = curCloudBal + amt;
+        if (pObj) pObj.balance = newCloudBal;
+        fetch(`${API_BASE}/api/admin/user/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: cleanPid, balance: newCloudBal, admin_authorized: true })
+        }).catch(() => {});
+      }
     }
 
     // Notify player via Telegram

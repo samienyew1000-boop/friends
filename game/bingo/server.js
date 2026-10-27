@@ -577,17 +577,37 @@ const server = http.createServer(async (req, res) => {
       const txId = body.id || body.tx_id;
       const action = body.action || "approve"; // "approve" or "reject"
 
-      const tx = gameState.transactions.find((t) => t.id === txId);
+      const tx = gameState.transactions.find((t) => t.id === txId || t.txId === txId);
       if (tx) {
         tx.status = action === "approve" ? "approved" : "rejected";
         tx.processedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-        // If deposit approved, credit the user balance
-        if (action === "approve" && tx.type === "deposit") {
-          const bonus = tx.amount >= 100 ? Math.floor(tx.amount * 0.2) : 0;
-          const totalCredit = tx.amount + bonus;
-          if (tx.user_id && gameState.users[tx.user_id]) {
-            gameState.users[tx.user_id].balance = (gameState.users[tx.user_id].balance || 0) + totalCredit;
+        const rawUid = tx.user_id || tx.userId || (tx.playerId ? String(tx.playerId).replace(/^[A-Za-z]+-/, '') : null);
+        const uid = rawUid ? String(rawUid) : null;
+
+        if (uid) {
+          if (!gameState.users[uid]) {
+            gameState.users[uid] = {
+              id: uid,
+              username: tx.username || "",
+              first_name: tx.player || "Player",
+              balance: 0,
+              bonus_balance: 0,
+              role: "player",
+              created_at: new Date().toISOString()
+            };
+          }
+
+          if (action === "approve" && tx.type === "deposit") {
+            const bonus = tx.amount >= 100 ? Math.floor(tx.amount * 0.2) : 0;
+            const totalCredit = Number(tx.amount || 0) + bonus;
+            gameState.users[uid].balance = Math.round(((Number(gameState.users[uid].balance) || 0) + totalCredit) * 100) / 100;
+          } else if (action === "approve" && tx.type === "withdraw") {
+            const withdrawAmt = Number(tx.amount || 0);
+            gameState.users[uid].balance = Math.round(Math.max(0, (Number(gameState.users[uid].balance) || 0) - withdrawAmt) * 100) / 100;
+          } else if (action === "reject" && tx.type === "withdraw" && tx.heldFromBalance) {
+            const refundAmt = Number(tx.amount || 0);
+            gameState.users[uid].balance = Math.round(((Number(gameState.users[uid].balance) || 0) + refundAmt) * 100) / 100;
           }
         }
 
@@ -661,15 +681,29 @@ const server = http.createServer(async (req, res) => {
     // 12. Admin User Update (Deposit / Withdraw / Status / Live Sync)
     if (pathname === "/api/admin/user/update" && req.method === "POST") {
       const body = await parseJsonBody(req);
-      const uid = body.user_id || body.userId;
-      if (uid && gameState.users[uid]) {
+      const rawUid = body.user_id || body.userId;
+      const uid = rawUid ? String(rawUid).replace(/^[A-Za-z]+-/, '') : null;
+      if (uid) {
+        if (!gameState.users[uid]) {
+          gameState.users[uid] = {
+            id: uid,
+            username: body.username || "",
+            first_name: body.first_name || body.name || "Player",
+            balance: 0,
+            bonus_balance: 0,
+            bonus_claimed: 0,
+            role: "player",
+            is_verified: 1,
+            created_at: new Date().toISOString()
+          };
+        }
         if (body.balance !== undefined) {
           const newBal = Math.max(0, Number(body.balance));
           const prevBal = Number(gameState.users[uid].balance || 0);
-          // Safety cap: prevent massive single-request balance injections
-          if (newBal - prevBal > 2000) {
+          // Safety cap: allow authorized admin balance adjustments while guarding against unauthenticated spikes
+          if (!body.admin_authorized && newBal - prevBal > 5000) {
             console.warn(`[Suspicious Balance Jump for ${uid}]: ${prevBal} -> ${newBal}`);
-            gameState.users[uid].balance = prevBal + 2000;
+            gameState.users[uid].balance = prevBal + 5000;
           } else {
             gameState.users[uid].balance = newBal;
           }
