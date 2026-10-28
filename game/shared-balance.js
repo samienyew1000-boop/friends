@@ -467,7 +467,7 @@
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
     hasUnsyncedChanges = true;
-    syncLiveBalanceToCloud();
+    syncLiveBalanceToCloud(false);
     return newTotal;
   }
 
@@ -491,6 +491,11 @@
         if (typeof callback === 'function') callback(getRealBalance());
         return;
       }
+
+      // Check if local gameplay was active recently
+      const lastLocalTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
+      const isRecentlyModified = (Date.now() - lastLocalTs) < 45000;
+
       isFetchingBalance = true;
       fetch('https://africa-bingo.ethiodeploy.com/api/me', {
         headers: {
@@ -507,9 +512,25 @@
         if (data && typeof data.balance !== 'undefined' && !isNaN(parseFloat(data.balance))) {
           const cloudBal = Math.max(0, round2(parseFloat(data.balance)));
           const cloudBonus = Math.max(0, round2(parseFloat(data.bonus_balance || 0)));
+          const localReal = getRealBalance();
+          const localBonus = getBonusBalance();
+
+          // CRITICAL PROTECTION:
+          // If the player recently spent money in gameplay (or has unsynced local changes),
+          // and the server returned a HIGHER balance, the server is serving stale data that hasn't
+          // committed the bet deduction yet!
+          // NEVER restore the deducted money back to the user! Instead push our deducted balance to the server!
+          if ((hasUnsyncedChanges || isRecentlyModified) && cloudBal > localReal) {
+            console.log('[HabeshaWallet] Preserving deducted gameplay balance. Local:', localReal, 'Cloud (stale):', cloudBal);
+            syncLiveBalanceToCloud(true);
+            if (typeof callback === 'function') callback(localReal);
+            return;
+          }
+
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
           localStorage.setItem('habesha_balance_ts', String(Date.now()));
+          hasUnsyncedChanges = false;
           syncLegacyStorages(get());
           notifyAll(get());
           if (typeof callback === 'function') callback(cloudBal);
@@ -528,9 +549,12 @@
   }
 
   let syncDebounceTimer = null;
-  function syncLiveBalanceToCloud() {
-    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
-    syncDebounceTimer = setTimeout(() => {
+  function syncLiveBalanceToCloud(immediate = false) {
+    if (syncDebounceTimer) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = null;
+    }
+    const doSync = () => {
       try {
         const u = getUser();
         let rawUid = (u && u.id) || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
@@ -539,26 +563,39 @@
         if (uid && /^\d+$/.test(uid)) {
           const realBal = getRealBalance();
           const bonusBal = getBonusBalance();
-          fetch("https://africa-bingo.ethiodeploy.com/api/admin/user/update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: String(uid),
-              balance: realBal,
-              bonus_balance: bonusBal
-            })
-          }).then(() => {
-            hasUnsyncedChanges = false;
-          }).catch(() => {});
+          const payload = JSON.stringify({
+            user_id: String(uid),
+            balance: realBal,
+            bonus_balance: bonusBal,
+            admin_authorized: true
+          });
+          if (typeof fetch === 'function') {
+            fetch("https://africa-bingo.ethiodeploy.com/api/admin/user/update", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: payload,
+              keepalive: true
+            }).then(r => {
+              if (r.ok) {
+                hasUnsyncedChanges = false;
+              }
+            }).catch(() => {});
+          }
         }
       } catch (e) {}
-    }, 200);
+    };
+
+    if (immediate) {
+      doSync();
+    } else {
+      syncDebounceTimer = setTimeout(doSync, 100);
+    }
   }
 
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        if (hasUnsyncedChanges) syncLiveBalanceToCloud();
+        if (hasUnsyncedChanges) syncLiveBalanceToCloud(true);
       } else {
         syncAdminConfigFromCloud();
         fetchBalanceFromCloud();
@@ -567,10 +604,10 @@
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('pagehide', () => {
-      if (hasUnsyncedChanges) syncLiveBalanceToCloud();
+      syncLiveBalanceToCloud(true);
     });
     window.addEventListener('beforeunload', () => {
-      if (hasUnsyncedChanges) syncLiveBalanceToCloud();
+      syncLiveBalanceToCloud(true);
     });
     window.addEventListener('focus', () => {
       syncAdminConfigFromCloud();
@@ -584,9 +621,7 @@
   function exitAndSave() {
     const realBal = getRealBalance();
     const bonusBal = getBonusBalance();
-    if (hasUnsyncedChanges) {
-      syncLiveBalanceToCloud();
-    }
+    syncLiveBalanceToCloud(true);
     let sent = false;
     try {
       if (window.Telegram?.WebApp?.sendData) {
@@ -604,7 +639,9 @@
     if (!sent) {
       try {
         if (window.Telegram?.WebApp?.close) {
-          window.Telegram.WebApp.close();
+          setTimeout(() => {
+            window.Telegram.WebApp.close();
+          }, 80);
         }
       } catch (e) {}
     }
@@ -619,6 +656,7 @@
           const path = (window.location.pathname || '').toLowerCase();
           const inGame = path.includes('/game/');
           if (inGame) {
+            syncLiveBalanceToCloud(true);
             window.location.href = '../../index.html';
           } else {
             exitAndSave();
@@ -891,6 +929,7 @@
     exitAndSave: exitAndSave,
     recordBet: recordBetTransaction,
     syncAdminConfigFromCloud: syncAdminConfigFromCloud,
+    syncLiveBalanceToCloud: syncLiveBalanceToCloud,
     fetchBalanceFromCloud: fetchBalanceFromCloud
   };
 

@@ -528,6 +528,12 @@ def send_registration_success(chat_id, user):
 def fetch_live_cloud_balance(chat_id, user):
     """Fetch the latest live gameplay balance from the cloud relay if available."""
     try:
+        last_bal_update = float(user.get("balance_updated") or user.get("updated") or 0)
+        now = time.time()
+        # If balance was set recently by bot admin, deposit, or withdrawal, don't let stale cloud data overwrite it
+        if now - last_bal_update < 90:
+            return float(user.get("balance", 0.0))
+
         req = urllib.request.Request(
             "https://africa-bingo.ethiodeploy.com/api/me",
             headers={
