@@ -249,12 +249,9 @@ def get_user_webapp_url(chat_id, user=None):
         user = users.get(str(chat_id), {})
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
-    bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    ts = int(time.time() * 1000)
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&balance={bal:.2f}&bonus_balance={bonus_bal:.2f}&ts={ts}"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -933,6 +930,18 @@ def handle_withdraw_request(chat_id, user, amount_str):
 
     # Push deducted balance to cloud relay so sync worker doesn't restore the old value
     push_balance_to_cloud(chat_id, new_bal, user.get("username", ""))
+    update_live_welcome_message(chat_id, user)
+    try:
+        api_call("setChatMenuButton", {
+            "chat_id": chat_id,
+            "menu_button": {
+                "type": "web_app",
+                "text": "🎮 Play Games",
+                "web_app": {"url": get_user_webapp_url(chat_id, user)}
+            }
+        })
+    except Exception:
+        pass
 
     # Save to withdrawals.json
     withdrawals = load_withdrawals()
@@ -1055,6 +1064,17 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
 
             push_balance_to_cloud(chat_id, new_bal, u.get("username", ""))
             update_live_welcome_message(chat_id, u)
+            try:
+                api_call("setChatMenuButton", {
+                    "chat_id": chat_id,
+                    "menu_button": {
+                        "type": "web_app",
+                        "text": "🎮 Play Games",
+                        "web_app": {"url": get_user_webapp_url(chat_id, u)}
+                    }
+                })
+            except Exception:
+                pass
 
         if not phone:
             phone = users.get(uid_str, {}).get("phone", "")
@@ -1108,6 +1128,17 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
             save_all_users(users)
             push_balance_to_cloud(chat_id, new_bal, users[uid_str].get("username", ""))
             update_live_welcome_message(chat_id, users[uid_str])
+            try:
+                api_call("setChatMenuButton", {
+                    "chat_id": chat_id,
+                    "menu_button": {
+                        "type": "web_app",
+                        "text": "🎮 Play Games",
+                        "web_app": {"url": get_user_webapp_url(chat_id, users[uid_str])}
+                    }
+                })
+            except Exception:
+                pass
 
         api_call("sendMessage", {
             "chat_id": chat_id,

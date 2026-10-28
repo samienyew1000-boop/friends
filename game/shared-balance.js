@@ -31,30 +31,8 @@
       if (qUid) {
         localStorage.setItem('habesha_uid', qUid);
       }
-      const urlBal = params.get('balance');
-      const urlBonus = params.get('bonus_balance');
-      const urlTs = parseInt(params.get('ts') || '0', 10);
-      const localTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
-      const hasLocalReal = localStorage.getItem(STORAGE_KEY_REAL) !== null && localStorage.getItem(STORAGE_KEY_REAL) !== '';
 
-      // Only accept urlBal if local storage has no balance, or if urlTs is explicitly newer than local gameplay
-      if (urlBal !== null && !isNaN(parseFloat(urlBal))) {
-        if (!hasLocalReal || (urlTs > 0 && urlTs > localTs)) {
-          const parsed = Math.max(0, round2(parseFloat(urlBal)));
-          localStorage.setItem(STORAGE_KEY_REAL, parsed.toFixed(2));
-          localStorage.setItem('habesha_balance_ts', String(urlTs > 0 ? urlTs : Date.now()));
-          syncLegacyStorages(parsed);
-        }
-      }
-
-      if (urlBonus !== null && !isNaN(parseFloat(urlBonus))) {
-        if (!hasLocalReal || (urlTs > 0 && urlTs > localTs)) {
-          const parsedBonus = Math.max(0, round2(parseFloat(urlBonus)));
-          localStorage.setItem(STORAGE_KEY_BONUS, parsedBonus.toFixed(2));
-        }
-      }
-
-      // Clean query params so subsequent refreshes or navigation don't re-read stale URL balance
+      // Clean query params so subsequent refreshes or navigation don't retain stale balance params
       if (window.history && window.history.replaceState) {
         try {
           const cleanUrl = new URL(window.location.href);
@@ -488,8 +466,65 @@
     const newTotal = round2(realBal + bonusBal);
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
+    hasUnsyncedChanges = true;
     syncLiveBalanceToCloud();
     return newTotal;
+  }
+
+  let hasUnsyncedChanges = false;
+  let isFetchingBalance = false;
+
+  function fetchBalanceFromCloud(callback) {
+    if (isFetchingBalance) {
+      if (typeof callback === 'function') callback(getRealBalance());
+      return;
+    }
+    try {
+      const u = getUser();
+      let rawUid = (u && u.id) || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
+      if (!rawUid) {
+        if (typeof callback === 'function') callback(getRealBalance());
+        return;
+      }
+      const uid = String(rawUid).replace(/^tg_/i, '').replace(/^TG-/, '').trim();
+      if (!/^\d+$/.test(uid)) {
+        if (typeof callback === 'function') callback(getRealBalance());
+        return;
+      }
+      isFetchingBalance = true;
+      fetch('https://africa-bingo.ethiodeploy.com/api/me', {
+        headers: {
+          'X-Telegram-User-Id': uid,
+          'Accept': 'application/json'
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        isFetchingBalance = false;
+        if (data && typeof data.balance !== 'undefined' && !isNaN(parseFloat(data.balance))) {
+          const cloudBal = Math.max(0, round2(parseFloat(data.balance)));
+          const cloudBonus = Math.max(0, round2(parseFloat(data.bonus_balance || 0)));
+          localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
+          localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
+          localStorage.setItem('habesha_balance_ts', String(Date.now()));
+          syncLegacyStorages(get());
+          notifyAll(get());
+          if (typeof callback === 'function') callback(cloudBal);
+        } else {
+          if (typeof callback === 'function') callback(getRealBalance());
+        }
+      })
+      .catch(() => {
+        isFetchingBalance = false;
+        if (typeof callback === 'function') callback(getRealBalance());
+      });
+    } catch (e) {
+      isFetchingBalance = false;
+      if (typeof callback === 'function') callback(getRealBalance());
+    }
   }
 
   let syncDebounceTimer = null;
@@ -498,8 +533,10 @@
     syncDebounceTimer = setTimeout(() => {
       try {
         const u = getUser();
-        const uid = u?.id || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
-        if (uid && /^\d+$/.test(String(uid))) {
+        let rawUid = (u && u.id) || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
+        if (!rawUid) return;
+        const uid = String(rawUid).replace(/^tg_/i, '').replace(/^TG-/, '').trim();
+        if (uid && /^\d+$/.test(uid)) {
           const realBal = getRealBalance();
           const bonusBal = getBonusBalance();
           fetch("https://africa-bingo.ethiodeploy.com/api/admin/user/update", {
@@ -510,6 +547,8 @@
               balance: realBal,
               bonus_balance: bonusBal
             })
+          }).then(() => {
+            hasUnsyncedChanges = false;
           }).catch(() => {});
         }
       } catch (e) {}
@@ -519,22 +558,35 @@
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        syncLiveBalanceToCloud();
+        if (hasUnsyncedChanges) syncLiveBalanceToCloud();
       } else {
         syncAdminConfigFromCloud();
+        fetchBalanceFromCloud();
       }
     });
   }
   if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', syncLiveBalanceToCloud);
-    window.addEventListener('beforeunload', syncLiveBalanceToCloud);
-    window.addEventListener('focus', syncAdminConfigFromCloud);
+    window.addEventListener('pagehide', () => {
+      if (hasUnsyncedChanges) syncLiveBalanceToCloud();
+    });
+    window.addEventListener('beforeunload', () => {
+      if (hasUnsyncedChanges) syncLiveBalanceToCloud();
+    });
+    window.addEventListener('focus', () => {
+      syncAdminConfigFromCloud();
+      fetchBalanceFromCloud();
+    });
+    window.addEventListener('pageshow', () => {
+      fetchBalanceFromCloud();
+    });
   }
 
   function exitAndSave() {
     const realBal = getRealBalance();
     const bonusBal = getBonusBalance();
-    syncLiveBalanceToCloud();
+    if (hasUnsyncedChanges) {
+      syncLiveBalanceToCloud();
+    }
     let sent = false;
     try {
       if (window.Telegram?.WebApp?.sendData) {
@@ -550,12 +602,6 @@
     }
 
     if (!sent) {
-      try {
-        if (window.Telegram?.WebApp?.openTelegramLink) {
-          window.Telegram.WebApp.openTelegramLink('https://t.me/Friends64_BOT?start=sync_' + realBal.toFixed(2) + '_' + bonusBal.toFixed(2));
-          return;
-        }
-      } catch (e) {}
       try {
         if (window.Telegram?.WebApp?.close) {
           window.Telegram.WebApp.close();
@@ -844,7 +890,8 @@
     syncLegacyStorages: syncLegacyStorages,
     exitAndSave: exitAndSave,
     recordBet: recordBetTransaction,
-    syncAdminConfigFromCloud: syncAdminConfigFromCloud
+    syncAdminConfigFromCloud: syncAdminConfigFromCloud,
+    fetchBalanceFromCloud: fetchBalanceFromCloud
   };
 
   global.HabeshaWallet = HabeshaWallet;
@@ -853,5 +900,6 @@
   // Initialize and synchronize immediately
   const initialBal = get();
   syncLegacyStorages(initialBal);
+  fetchBalanceFromCloud();
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

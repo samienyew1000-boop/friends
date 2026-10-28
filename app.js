@@ -222,7 +222,13 @@
   }
 
   // Live balance listeners: auto-sync home balance when returning from any game
-  window.addEventListener('pageshow', () => updateBalanceDisplay());
+  window.addEventListener('pageshow', () => {
+    if (window.HabeshaWallet && typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
+      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay());
+    } else {
+      updateBalanceDisplay();
+    }
+  });
   window.addEventListener('habesha_balance_updated', () => updateBalanceDisplay());
   window.addEventListener('storage', (e) => {
     if (e.key === 'habesha_balance' || e.key === 'habesha_bonus_balance' || e.key === 'habesha_demo_balance' || e.key === 'habesha_wallet_mode') {
@@ -1353,6 +1359,9 @@
       state.balance = newBal;
       updateBalanceDisplay();
     });
+    if (typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
+      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay());
+    }
   }
   renderDots();
   startAutoSlide();
