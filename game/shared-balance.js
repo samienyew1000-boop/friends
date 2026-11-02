@@ -480,8 +480,11 @@
       return;
     }
     try {
+      const params = new URLSearchParams(window.location.search);
+      const qUid = params.get('uid');
+      const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
       const u = getUser();
-      let rawUid = (u && u.id) || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
+      let rawUid = qUid || tgUid || (u && u.id) || localStorage.getItem('habesha_uid');
       if (!rawUid) {
         if (typeof callback === 'function') callback(getRealBalance());
         return;
@@ -491,10 +494,6 @@
         if (typeof callback === 'function') callback(getRealBalance());
         return;
       }
-
-      // Check if local gameplay was active recently
-      const lastLocalTs = parseInt(localStorage.getItem('habesha_balance_ts') || '0', 10);
-      const isRecentlyModified = (Date.now() - lastLocalTs) < 45000;
 
       isFetchingBalance = true;
       fetch('https://africa-bingo.ethiodeploy.com/api/me', {
@@ -516,20 +515,19 @@
           const localBonus = getBonusBalance();
 
           // CRITICAL PROTECTION:
-          // If the player recently spent money in gameplay (or has unsynced local changes),
-          // and the server returned a HIGHER balance, the server is serving stale data that hasn't
-          // committed the bet deduction yet!
-          // NEVER restore the deducted money back to the user! Instead push our deducted balance to the server!
-          if ((hasUnsyncedChanges || isRecentlyModified) && cloudBal > localReal) {
-            console.log('[HabeshaWallet] Preserving deducted gameplay balance. Local:', localReal, 'Cloud (stale):', cloudBal);
+          // If the player currently has active un-synced local gameplay changes (e.g. bet just placed)
+          // and the server returned a higher balance because the network call hasn't finished,
+          // push our local deducted balance to cloud.
+          if (hasUnsyncedChanges && cloudBal > localReal) {
+            console.log('[HabeshaWallet] Preserving local gameplay changes. Local:', localReal, 'Cloud (stale):', cloudBal);
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
           }
 
+          // Otherwise, server is authoritative (approved deposits, winnings, bot balance)!
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
-          localStorage.setItem('habesha_balance_ts', String(Date.now()));
           hasUnsyncedChanges = false;
           syncLegacyStorages(get());
           notifyAll(get());
@@ -556,8 +554,11 @@
     }
     const doSync = () => {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const qUid = params.get('uid');
+        const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
         const u = getUser();
-        let rawUid = (u && u.id) || new URLSearchParams(window.location.search).get('uid') || localStorage.getItem('habesha_uid');
+        let rawUid = qUid || tgUid || (u && u.id) || localStorage.getItem('habesha_uid');
         if (!rawUid) return;
         const uid = String(rawUid).replace(/^tg_/i, '').replace(/^TG-/, '').trim();
         if (uid && /^\d+$/.test(uid)) {
@@ -834,37 +835,63 @@
 
   // Telegram Registration Helpers
   function getUser() {
-    try {
-      const raw = localStorage.getItem(USER_KEY);
-      if (raw) {
-        const u = JSON.parse(raw);
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const p = params.get('phone');
-          if (p && (!u.phone || u.phone !== p)) {
-            u.phone = p;
-            localStorage.setItem(USER_KEY, JSON.stringify(u));
-          }
-        } catch (err) {}
-        return u;
-      }
-    } catch (e) {}
-
     let qPhone = '';
     let qUid = '';
     let qName = '';
+    let tgUser = null;
     try {
       const params = new URLSearchParams(window.location.search);
       qPhone = params.get('phone') || '';
       qUid = params.get('uid') || '';
       qName = params.get('name') || '';
+      tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || null;
     } catch (err) {}
 
+    const effectiveUid = qUid || (tgUser?.id ? String(tgUser.id) : '') || localStorage.getItem('habesha_uid') || '';
+
+    try {
+      const raw = localStorage.getItem(USER_KEY);
+      if (raw) {
+        const u = JSON.parse(raw);
+        let changed = false;
+        if (effectiveUid && String(u.id) !== String(effectiveUid)) {
+          u.id = effectiveUid;
+          changed = true;
+        }
+        if (qPhone && u.phone !== qPhone) {
+          u.phone = qPhone;
+          changed = true;
+        }
+        if (qName && u.name !== qName && u.name === 'Friendes Game Player') {
+          u.name = qName;
+          changed = true;
+        }
+        if (tgUser) {
+          if (tgUser.username && u.username !== tgUser.username) {
+            u.username = tgUser.username;
+            changed = true;
+          }
+          if (tgUser.first_name && (!u.name || u.name === 'Friendes Game Player')) {
+            u.name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
+            changed = true;
+          }
+        }
+        if (changed) {
+          localStorage.setItem(USER_KEY, JSON.stringify(u));
+        }
+        if (effectiveUid && /^\d+$/.test(effectiveUid)) {
+          localStorage.setItem('habesha_uid', String(effectiveUid));
+        }
+        return u;
+      }
+    } catch (e) {}
+
     // If inside Telegram WebApp or URL has phone/uid
-    if (typeof window !== 'undefined' && (window.Telegram?.WebApp?.initDataUnsafe?.user || qPhone || qUid)) {
-      const tg = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+    if (typeof window !== 'undefined' && (tgUser || qPhone || qUid || effectiveUid)) {
+      const tg = tgUser || {};
+      const finalId = effectiveUid || ('tg_' + Math.floor(100000000 + Math.random() * 900000000));
       const u = {
-        id: tg.id || qUid || ('tg_' + Math.floor(100000000 + Math.random() * 900000000)),
+        id: finalId,
         username: tg.username || '',
         name: qName || (tg.first_name ? tg.first_name + (tg.last_name ? ' ' + tg.last_name : '') : 'Friendes Game Player'),
         phone: qPhone,
@@ -873,6 +900,9 @@
       };
       try {
         localStorage.setItem(USER_KEY, JSON.stringify(u));
+        if (effectiveUid && /^\d+$/.test(effectiveUid)) {
+          localStorage.setItem('habesha_uid', String(effectiveUid));
+        }
       } catch (e) {}
       return u;
     }

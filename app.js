@@ -583,15 +583,17 @@
     `;
 
     setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const qUid = params.get('uid');
+      const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
       const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
-      const pid = user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST';
+      const rawUid = qUid || tgUid || (user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '') || localStorage.getItem('habesha_uid') || '';
+      const uid = /^\d+$/.test(rawUid) ? rawUid : '';
+      const pid = uid ? `TG-${uid}` : (user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST');
       const playerName = user?.name || user?.username || 'Player';
       const playerUsername = user?.username ? `@${user.username}` : '';
       const methodLabel = state.currentPayment === 'telebirr' ? 'Telebirr' : (state.currentPayment === 'mpesa' ? 'Safaricom M-Pesa' : (state.currentPayment === 'cbe' ? 'CBE Birr' : state.currentPayment.toUpperCase()));
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date().toLocaleDateString();
-
-      const rawUid = user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '';
-      const uid = /^\d+$/.test(rawUid) ? rawUid : (window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : '');
 
       const txRecord = {
         id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -767,8 +769,13 @@
         }
         updateBalanceDisplay();
 
+        const params = new URLSearchParams(window.location.search);
+        const qUid = params.get('uid');
+        const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
         const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
-        const pid = user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST';
+        const rawUid = qUid || tgUid || (user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '') || localStorage.getItem('habesha_uid') || '';
+        const uid = /^\d+$/.test(rawUid) ? rawUid : '';
+        const pid = uid ? `TG-${uid}` : (user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST');
         const playerName = user?.name || user?.username || 'Player';
         const playerUsername = user?.username ? `@${user.username}` : '';
         const methodLabel = currentWithdrawPayment === 'telebirr' ? 'Telebirr' : (currentWithdrawPayment === 'cbe' ? 'CBE Birr' : currentWithdrawPayment.toUpperCase());
@@ -779,6 +786,7 @@
           id: `TX-${Math.floor(100000 + Math.random() * 900000)}`,
           txId: reqId,
           playerId: pid,
+          userId: uid,
           player: playerName,
           username: playerUsername,
           phone: phone,
@@ -805,16 +813,16 @@
           `🚨 <b>አዲስ የወጪ ጥያቄ (New Withdrawal Request)!</b>\n\n` +
           `🆔 <b>Ref:</b> <code>${reqId}</code>\n` +
           `👤 <b>ተጠቃሚ:</b> ${playerName} (${playerUsername})\n` +
+          (uid ? `🆔 <b>User ID:</b> <code>${uid}</code>\n` : '') +
           `📱 <b>የሚላክበት ስልክ:</b> <code>${phone}</code>\n` +
           `🏦 <b>የክፍያ ዘዴ:</b> ${methodLabel}\n` +
           `💰 <b>መጠን:</b> <b>${Number(amount).toFixed(2)} ETB</b>\n` +
           `⏰ <b>ሰዓት:</b> ${nowStr}\n\n` +
           `ብር ወደ <code>${phone}</code> በቴሌብር ከላኩ በኋላ <b>'Approve'</b> ይጫኑ፦`;
 
-        const rawUid = user?.id ? String(user.id).replace(/^TG-/, '') : '';
         const roundAmt = Math.round(Number(amount));
-        const cbApprove = rawUid ? `with_approve:${rawUid}:${roundAmt}:${reqId}` : `with_approve:${reqId}`;
-        const cbReject = rawUid ? `with_reject:${rawUid}:${roundAmt}:${reqId}` : `with_reject:${reqId}`;
+        const cbApprove = uid ? `with_approve:${uid}:${roundAmt}:${reqId}` : `with_approve:${reqId}`;
+        const cbReject = uid ? `with_reject:${uid}:${roundAmt}:${reqId}` : `with_reject:${reqId}`;
 
         const inlineKeyboard = {
           inline_keyboard: [

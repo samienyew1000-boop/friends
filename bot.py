@@ -1215,8 +1215,8 @@ def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebi
     kb = {
         "inline_keyboard": [
             [
-                {"text": "✅ አጽድቅ (Approve)", "callback_data": f"dep_approve:{req_id}"},
-                {"text": "❌ ሰርዝ (Reject)", "callback_data": f"dep_reject:{req_id}"}
+                {"text": "✅ አጽድቅ (Approve)", "callback_data": f"dep_approve:{chat_id}:{int(amount)}:{req_id}"},
+                {"text": "❌ ሰርዝ (Reject)", "callback_data": f"dep_reject:{chat_id}:{int(amount)}:{req_id}"}
             ]
         ]
     }
@@ -1225,6 +1225,7 @@ def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebi
         f"🆔 <b>Ref:</b> <code>{req_id}</code>\n"
         f"🧾 <b>Tx ID:</b> <code>{tx_id}</code>\n"
         f"👤 <b>ተጫዋች:</b> {full_name} (@{username})\n"
+        f"🆔 <b>User ID:</b> <code>{chat_id}</code>\n"
         f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
         f"🏦 <b>ዘዴ:</b> {method}\n"
         f"💰 <b>መጠን:</b> <b>{amount:.2f} ETB</b>\n"
@@ -1273,11 +1274,11 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
     if target.get("status") == "completed":
         return False, "ቀድሞ ጸድቋል (Already approved)"
 
-    # Resolve chat_id if missing
-    if not target.get("chat_id"):
-        if explicit_chat_id:
-            target["chat_id"] = int(explicit_chat_id)
-        elif message_text:
+    # Resolve chat_id: prioritize explicit callback data if provided
+    if explicit_chat_id and int(explicit_chat_id) > 0:
+        target["chat_id"] = int(explicit_chat_id)
+    elif not target.get("chat_id"):
+        if message_text:
             m_uid = re.search(r"User\s*ID:\s*(\d+)", message_text, re.IGNORECASE)
             if m_uid:
                 target["chat_id"] = int(m_uid.group(1))
@@ -1334,7 +1335,31 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
             "balance": 0.0,
             "updated": time.time()
         }
-    new_balance = round(users[uid_str].get("balance", 0.0) + amt, 2)
+
+    # Query live cloud balance in case user has played and won on cloud
+    current_known_bal = float(users[uid_str].get("balance", 0.0))
+    cloud_bal = None
+    try:
+        req = urllib.request.Request(
+            "https://africa-bingo.ethiodeploy.com/api/me",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "X-Telegram-User-Id": str(chat_id),
+                "X-Telegram-User-Name": users[uid_str].get("username", "") or ""
+            }
+        )
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data and "balance" in data and isinstance(data["balance"], (int, float)):
+                cloud_bal = round(float(data["balance"]), 2)
+    except Exception:
+        pass
+
+    base_bal = current_known_bal
+    if cloud_bal is not None and cloud_bal > base_bal:
+        base_bal = cloud_bal
+
+    new_balance = round(base_bal + amt, 2)
     users[uid_str]["balance"] = new_balance
     users[uid_str]["balance_updated"] = time.time()
     users[uid_str]["updated"] = time.time()
@@ -2425,10 +2450,10 @@ def main():
                 ]
                 for uid, udata in active_users:
                     try:
-                        # Skip users whose balance was set very recently (e.g. by deposit/withdraw approval)
+                        # Skip users whose balance was set recently (e.g. by deposit/withdraw approval)
                         # to avoid overwriting admin-set values before the cloud relay has caught up
                         last_bal_update = float(udata.get("balance_updated") or 0)
-                        if now - last_bal_update < 90:
+                        if now - last_bal_update < 600:
                             continue
 
                         req = urllib.request.Request(
@@ -2445,6 +2470,11 @@ def main():
                                 cloud_bal = round(float(data["balance"]), 2)
                                 cur_bal = round(float(udata.get("balance", 0.0)), 2)
                                 if abs(cloud_bal - cur_bal) >= 0.01:
+                                    # If bot has positive balance and cloud reports 0.0, do NOT overwrite with 0; re-push to cloud
+                                    if cur_bal > 0 and cloud_bal == 0:
+                                        logging.warning(f"[LiveSync] Cloud has 0.0 but bot has {cur_bal} for {uid}. Re-pushing to cloud!")
+                                        push_balance_to_cloud(int(uid), cur_bal, udata.get("username", ""))
+                                        continue
                                     logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
                                     users_all = load_known_users()
                                     if str(uid) in users_all:
