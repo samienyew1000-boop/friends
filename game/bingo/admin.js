@@ -7,8 +7,9 @@ const ROOM_LIFECYCLE_KEY = "lucky-bingo-room-lifecycle-v1";
 const WINNING_PATTERN_OPTIONS = Object.freeze(["1", "2", "3", "4", "full-house"]);
 
 const ADMIN_AUTH_CONFIG = {
-  validUsers: ["0999909474", "+251999909474", "999909474", "su121316", "samtesfa19", "samienyew1000", "samienyew1000-boop", "africabingooo", "biregugsa", "admin"],
-  password: "AF7694",
+  validUsers: ["admin", "0918182355", "+251918182355", "918182355", "9029759446", "berihun", "0999909474", "+251999909474", "999909474", "su121316", "samtesfa19", "samienyew1000", "samienyew1000-boop", "africabingooo", "biregugsa"],
+  password: "Ber343477",
+  fallbackPassword: "Ber343477",
 };
 
 function checkAdminAuth() {
@@ -49,7 +50,7 @@ function updateAdminUIAuth(isAuthenticated, username = "") {
     }
     const userInp = $("admin-login-username");
     if (userInp) {
-      if (!userInp.value) userInp.value = "0999909474";
+      if (!userInp.value) userInp.value = "admin";
       setTimeout(() => $("admin-login-password")?.focus(), 50);
     }
   }
@@ -127,12 +128,12 @@ const DEFAULT_SETTINGS = {
   transactionAlerts: true,
   largeWithdrawal: true,
   timeout: "60",
-  depositTelebirrPhone: "0928233032",
-  depositTelebirrName: "Abirham",
-  depositCbeBirrPhone: "0928233032",
-  depositCbeBirrName: "Abirham",
-  depositMpesaPhone: "+251717482251",
-  depositMpesaName: "Abirham",
+  depositTelebirrPhone: "0918182355",
+  depositTelebirrName: "Berihun",
+  depositCbeBirrPhone: "1000076108653",
+  depositCbeBirrName: "Berihun",
+  depositMpesaPhone: "0700 000 000",
+  depositMpesaName: "Africa Bingo M-Pesa",
 };
 
 let state = loadState();
@@ -239,19 +240,56 @@ try {
 } catch (e) {}
 
 function loadState() {
+  let rawInitial = (typeof window !== "undefined" && Array.isArray(window.LUCKY_BINGO_PLAYERS) && window.LUCKY_BINGO_PLAYERS.length > 0)
+    ? window.LUCKY_BINGO_PLAYERS
+    : [];
+  if (!rawInitial.length) {
+    try {
+      const cached = JSON.parse(localStorage.getItem("lb_admin_cached_players") || "[]");
+      if (Array.isArray(cached) && cached.length > 0) rawInitial = cached;
+    } catch (e) {}
+  }
+  const initialPlayers = rawInitial.length > 0
+    ? window.LUCKY_BINGO_PLAYERS.map((p) => {
+        const uid = String(p.userId || p.id).replace(/^TG-/, "");
+        const rawP = p.phone && p.phone !== "N/A" ? p.phone : "";
+        return {
+          id: uid,
+          userId: uid,
+          name: p.name || `Player ${uid.slice(-4)}`,
+          email: p.email || "",
+          phone: rawP || "—",
+          rawPhone: rawP,
+          username: p.username ? String(p.username).replace(/^@/, "") : "",
+          password: "",
+          role: "player",
+          balance: Number(p.balance) || 0,
+          bonusBalance: 0,
+          games: Number(p.games) || 0,
+          lastActive: "Recently",
+          status: p.status || "active",
+          avatar: "blue",
+          verified: true,
+          joined: "Recent",
+          activeRoom: "Lobby",
+          source: "telegram",
+        };
+      })
+    : [];
+
   return {
     ...copy(DEFAULT_STATE),
     metrics: {
-      totalPlayers: 0,
-      verifiedPlayers: 0,
-      newPlayers: 0,
+      totalPlayers: initialPlayers.length,
+      verifiedPlayers: initialPlayers.length,
+      newPlayers: initialPlayers.length,
       blockedPlayers: 0,
       idlePlayers: 0,
       processedToday: 0,
     },
     rooms: copy(DEFAULT_STATE.rooms),
     transactions: [],
-    players: [],
+    players: initialPlayers,
     activities: copy(DEFAULT_STATE.activities),
   };
 }
@@ -279,16 +317,16 @@ function saveSettings() {
   localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(settings));
   window.LUCKY_BINGO_PAYMENT_METHODS = {
     Telebirr: {
-      accountName: settings.depositTelebirrName || "Abirham",
-      accountNumber: settings.depositTelebirrPhone || "0928233032",
+      accountName: settings.depositTelebirrName || "Berihun",
+      accountNumber: settings.depositTelebirrPhone || "0918182355",
     },
     "CBE Birr": {
-      accountName: settings.depositCbeBirrName || "Abirham",
-      accountNumber: settings.depositCbeBirrPhone || "0928233032",
+      accountName: settings.depositCbeBirrName || "Berihun",
+      accountNumber: settings.depositCbeBirrPhone || "1000076108653",
     },
     "M-Pesa": {
-      accountName: settings.depositMpesaName || "Abirham",
-      accountNumber: settings.depositMpesaPhone || "+251717482251",
+      accountName: settings.depositMpesaName || "Africa Bingo M-Pesa",
+      accountNumber: settings.depositMpesaPhone || "0700 000 000",
     },
   };
 }
@@ -766,23 +804,117 @@ function updateTransaction(id, nextStatus) {
 function renderPlayers() {
   const table = $("players-table");
   if (!table) return;
+
+  const normalizePhone = (str) =>
+    String(str || "")
+      .toLowerCase()
+      .replace(/[\s\-()]+/g, "")
+      .replace(/^(\+251|251)/, "0");
+
+  const q = (playerQuery || "").trim().toLowerCase();
+  const qNorm = normalizePhone(q);
+  const qClean = qNorm.replace(/^0/, "");
+
   const filtered = state.players.filter((player) => {
     const matchesStatus = playerStatusFilter === "all" || player.status === playerStatusFilter;
-    const haystack = `${player.id} ${player.name} ${player.email} ${player.phone}`.toLowerCase();
-    return matchesStatus && (!playerQuery || haystack.includes(playerQuery));
+    if (!matchesStatus) return false;
+    if (!q) return true;
+
+    const pPhone = String(player.phone || "").toLowerCase();
+    const pPhoneNorm = normalizePhone(pPhone);
+    const pPhoneClean = pPhoneNorm.replace(/^0/, "");
+
+    const pRawPhone = String(player.rawPhone || "").toLowerCase();
+    const pRawPhoneNorm = normalizePhone(pRawPhone);
+    const pRawPhoneClean = pRawPhoneNorm.replace(/^0/, "");
+
+    const pName = String(player.name || "").toLowerCase();
+    const pNameNorm = normalizePhone(pName);
+    const pNameClean = pNameNorm.replace(/^0/, "");
+
+    const pEmail = String(player.email || "").toLowerCase();
+    const pId = String(player.id || "").toLowerCase();
+    const pUser = String(player.username || "").toLowerCase();
+    const pUserClean = pUser.replace(/^@/, "");
+
+    return (
+      pPhone.includes(q) ||
+      (qNorm && pPhoneNorm.includes(qNorm)) ||
+      (qClean && pPhoneClean.includes(qClean)) ||
+      (qNorm && pRawPhoneNorm.includes(qNorm)) ||
+      (qClean && pRawPhoneClean.includes(qClean)) ||
+      pName.includes(q) ||
+      (qNorm && pNameNorm.includes(qNorm)) ||
+      (qClean && pNameClean.includes(qClean)) ||
+      pEmail.includes(q) ||
+      pId.includes(q) ||
+      pUser.includes(q) ||
+      pUserClean.includes(q)
+    );
   });
-  $("player-total-count").textContent = fmt(state.metrics.totalPlayers);
-  $("player-verified-count").textContent = fmt(state.metrics.verifiedPlayers);
-  $("player-new-count").textContent = fmt(state.metrics.newPlayers);
-  $("player-blocked-count").textContent = fmt(state.metrics.blockedPlayers);
-  $("player-result-count").textContent = `Showing ${filtered.length} player${filtered.length === 1 ? "" : "s"}`;
-  table.innerHTML = filtered.length ? filtered.map(playerRow).join("") : `<tr><td colspan="7"><p class="admin-empty-note">No players match this search.</p></td></tr>`;
+
+  const total = state.players.length || state.metrics.totalPlayers || 0;
+  const verified = state.players.filter((p) => p.verified).length || total;
+  const blocked = state.players.filter((p) => p.status === "blocked").length;
+  const newMonth = state.metrics.newPlayers || total;
+
+  if ($("player-total-count")) $("player-total-count").textContent = fmt(total);
+  if ($("player-verified-count")) $("player-verified-count").textContent = fmt(verified);
+  if ($("player-new-count")) $("player-new-count").textContent = fmt(newMonth);
+  if ($("player-blocked-count")) $("player-blocked-count").textContent = fmt(blocked);
+  if ($("player-result-count")) $("player-result-count").textContent = `Showing ${filtered.length} player${filtered.length === 1 ? "" : "s"}`;
+
+  table.innerHTML = filtered.length
+    ? filtered.map(playerRow).join("")
+    : `<tr><td colspan="7"><p class="admin-empty-note">No players match this search.</p></td></tr>`;
 }
 
 function playerRow(player) {
   const isBlocked = player.status === "blocked";
-  const statusLabel = player.status.charAt(0).toUpperCase() + player.status.slice(1);
-  return `<tr><td><div class="admin-player-cell"><span class="admin-player-avatar avatar-${escapeHTML(player.avatar || "blue")}">${initials(player.name)}</span><span><strong>${escapeHTML(player.name)}</strong><small>${escapeHTML(player.id)}</small></span></div></td><td><div class="admin-contact-cell"><span>${escapeHTML(player.email || player.username || "—")}</span><small>${escapeHTML(player.phone || "—")}</small></div></td><td><strong class="admin-table-amount">${money(player.balance)}</strong></td><td>${fmt(player.games || 0)}</td><td>${escapeHTML(player.lastActive || "Recently")}</td><td><span class="admin-status-pill is-${escapeHTML(player.status)}">${escapeHTML(statusLabel)}</span></td><td><div class="admin-action-menu"><button type="button" class="admin-action-menu-button" data-player-menu="${escapeHTML(player.id)}" aria-label="Actions for ${escapeHTML(player.name)}">•••</button><div class="admin-action-menu-list"><button type="button" data-player-action="balance" data-id="${escapeHTML(player.id)}">Deposit / Withdraw</button><button type="button" data-player-action="edit" data-id="${escapeHTML(player.id)}">Edit player</button><button type="button" data-player-action="password" data-id="${escapeHTML(player.id)}">Change password</button><button type="button" class="${isBlocked ? "" : "is-danger"}" data-player-action="${isBlocked ? "unblock" : "block"}" data-id="${escapeHTML(player.id)}">${isBlocked ? "Unblock account" : "Block account"}</button></div></div></td></tr>`;
+  const statusLabel = isBlocked ? "Blocked" : "Active";
+  const passDisp = player.password
+    ? ` <span title="Current Password: ${escapeHTML(player.password)}" style="cursor:help; font-size:11px; color:#4f46e5; background:#eef2ff; padding:1px 5px; border-radius:4px; margin-left:4px;">🔑 ${escapeHTML(player.password)}</span>`
+    : "";
+  const sourceBadge = player.source === "telegram"
+    ? ` <span style="font-size:10px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:4px; font-weight:700;">✈️ TG</span>`
+    : (player.phone && player.phone !== "—"
+      ? ` <span style="font-size:10px; color:#16a34a; background:#dcfce7; padding:1px 5px; border-radius:4px; font-weight:700;">📱 App</span>`
+      : "");
+
+  return `<tr>
+    <td>
+      <div class="admin-player-cell">
+        <span class="admin-player-avatar avatar-${escapeHTML(player.avatar || "blue")}">${initials(player.name)}</span>
+        <span>
+          <strong>${escapeHTML(player.name)}${passDisp}${sourceBadge}</strong>
+          <small>ID: ${escapeHTML(player.id)}</small>
+        </span>
+      </div>
+    </td>
+    <td>
+      <div class="admin-contact-cell">
+        <strong style="color:#0f172a; font-size:13px; font-family:monospace; font-weight:800;">${escapeHTML(player.phone || "—")}</strong>
+        <small>${escapeHTML(player.username ? `@${player.username}` : (player.email || "—"))}</small>
+      </div>
+    </td>
+    <td><strong class="admin-table-amount">${money(player.balance)}</strong></td>
+    <td>${fmt(player.games || 0)}</td>
+    <td>${escapeHTML(player.lastActive || "Recently")}</td>
+    <td><span class="admin-status-pill is-${escapeHTML(player.status || "active")}">${escapeHTML(statusLabel)}</span></td>
+    <td>
+      <div class="admin-action-menu">
+        <button type="button" class="admin-action-menu-button" data-player-menu="${escapeHTML(player.id)}" aria-label="Actions for ${escapeHTML(player.name)}">•••</button>
+        <div class="admin-action-menu-list">
+          <button type="button" data-player-action="balance" data-id="${escapeHTML(player.id)}">💰 Deposit / Withdraw</button>
+          <button type="button" data-player-action="password" data-id="${escapeHTML(player.id)}">🔑 Change Password</button>
+          <button type="button" data-player-action="edit" data-id="${escapeHTML(player.id)}">✏️ Edit Player</button>
+          <button type="button" class="${isBlocked ? "" : "is-danger"}" data-player-action="${isBlocked ? "unblock" : "block"}" data-id="${escapeHTML(player.id)}">
+            ${isBlocked ? "✅ Unblock Account" : "🚫 Block Account"}
+          </button>
+        </div>
+      </div>
+    </td>
+  </tr>`;
 }
 
 function renderAdminProfile() {
@@ -840,8 +972,8 @@ function openPlayerForm(player = null) {
 
 function openPasswordForm(player) {
   $("password-form-id").value = player.id;
-  $("password-player-name").textContent = player.name;
-  $("password-form-value").value = "";
+  $("password-player-name").textContent = `${player.name} (${player.phone || player.id})`;
+  $("password-form-value").value = player.password || "";
   $("password-notify").checked = true;
   openModal("password-modal");
   setTimeout(() => $("password-form-value").focus(), 40);
@@ -903,12 +1035,12 @@ function makePlayerId() {
   return `LB-${String(Math.max(10000, ...ids, 0) + 1).padStart(5, "0")}`;
 }
 
-function adjustPlayerBalance(player) {
+async function adjustPlayerBalance(player) {
   const currentBal = Number(player.balance || 0);
   const input = prompt(
-    `💰 Adjust balance for ${player.name} (${player.id})\n` +
+    `💰 Adjust balance for ${player.name} (${player.phone || player.id})\n` +
     `Current Balance: ${currentBal.toFixed(2)} ETB\n\n` +
-    `Enter deposit amount (e.g. +50), withdrawal amount (e.g. -20), or new total balance:`,
+    `Enter deposit amount (e.g. +50 or 50), withdrawal amount (e.g. -20), or new total balance:`,
     currentBal
   );
   if (input === null || input.trim() === "") return;
@@ -933,42 +1065,74 @@ function adjustPlayerBalance(player) {
   const act = diff >= 0 ? `Deposited +${diff.toFixed(2)} ETB to` : `Withdrew -${Math.abs(diff).toFixed(2)} ETB from`;
   addActivity(`${act} ${player.name} (New Balance: ${nextBal.toFixed(2)} ETB)`, "finance", "💰");
 
-  const targetUid = player.userId || (player.id && player.id.startsWith("TG-") ? Number(player.id.replace("TG-", "")) : null);
-  if (targetUid && typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.updateAdminUser) {
-    LuckyBingoAPI.updateAdminUser(targetUid, { balance: nextBal }).catch((err) => {
+  const targetUid = String(player.userId || player.id);
+  if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.updateAdminUser) {
+    try {
+      await LuckyBingoAPI.updateAdminUser(targetUid, { balance: nextBal });
+    } catch (err) {
       console.error("Failed to update user balance:", err);
-    });
+    }
   }
 
   renderAll();
   showToast(`Updated balance: ${nextBal.toFixed(2)} ETB for ${player.name}`);
 }
 
-function togglePlayerStatus(id) {
+async function togglePlayerStatus(id) {
   const player = state.players.find((item) => item.id === id);
   if (!player) return;
   const wasBlocked = player.status === "blocked";
-  player.status = wasBlocked ? "active" : "blocked";
-  state.metrics.blockedPlayers += wasBlocked ? -1 : 1;
-  state.metrics.blockedPlayers = Math.max(0, state.metrics.blockedPlayers);
-  addActivity(`${wasBlocked ? "Unblocked" : "Blocked"} player account ${player.id}`, "security", wasBlocked ? "✓" : "!");
-  const targetUid = player.userId || (player.id && player.id.startsWith("TG-") ? Number(player.id.replace("TG-", "")) : null);
-  if (targetUid && typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.updateAdminUser) {
-    LuckyBingoAPI.updateAdminUser(targetUid, { status: player.status }).catch(() => {});
+  const nextStatus = wasBlocked ? "active" : "blocked";
+  player.status = nextStatus;
+
+  addActivity(`${wasBlocked ? "Unblocked" : "Blocked"} account ${player.phone || player.name}`, "security", wasBlocked ? "✓" : "!");
+
+  const targetUid = String(player.userId || player.id);
+  if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.updateAdminUser) {
+    try {
+      await LuckyBingoAPI.updateAdminUser(targetUid, { status: nextStatus });
+    } catch (e) {
+      console.error("Error updating user status on server:", e);
+    }
   }
+
   renderAll();
-  showToast(`${player.name} is now ${player.status}.`);
+  showToast(`${player.name} (${player.phone}) is now ${nextStatus.toUpperCase()}`);
 }
 
-function savePassword(event) {
+async function savePassword(event) {
   event.preventDefault();
-  const player = state.players.find((item) => item.id === $("password-form-id").value);
-  if (!player) return;
+  const id = $("password-form-id").value;
+  const newPass = $("password-form-value").value.trim();
+  const player = state.players.find((item) => item.id === id);
+  if (!player || !newPass) return;
+
+  if (newPass.length < 4) {
+    alert("Password must be at least 4 characters");
+    return;
+  }
+
+  player.password = newPass;
   player.passwordUpdatedAt = new Date().toISOString();
-  addActivity(`Changed the password for ${player.name}`, "security", "⌁");
+  addActivity(`Changed password for ${player.name} (${player.phone}) to ${newPass}`, "security", "🔑");
+
+  const targetUid = String(player.userId || player.id);
+  if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.updateAdminUser) {
+    try {
+      const res = await LuckyBingoAPI.updateAdminUser(targetUid, { password: newPass });
+      if (res && res.error) {
+        showToast("Error updating password: " + res.error);
+        return;
+      }
+    } catch (e) {
+      console.error("Error updating password on server:", e);
+    }
+  }
+
   saveState();
   closeModal("password-modal");
-  showToast(`Password updated for ${player.name}.`);
+  renderPlayers();
+  showToast(`✅ Password successfully changed to "${newPass}" for ${player.name}`);
 }
 
 function downloadCSV(filename, rows) {
@@ -1179,7 +1343,7 @@ function bindEvents() {
       const cleanUser = uInput.trim().replace(/^@/, "").toLowerCase();
       const cleanPass = pInput.trim();
 
-      if (ADMIN_AUTH_CONFIG.validUsers.includes(cleanUser) && cleanPass === ADMIN_AUTH_CONFIG.password) {
+      if (ADMIN_AUTH_CONFIG.validUsers.includes(cleanUser) && (cleanPass === ADMIN_AUTH_CONFIG.password || cleanPass === ADMIN_AUTH_CONFIG.fallbackPassword)) {
         if (errorEl) errorEl.hidden = true;
         sessionStorage.setItem("lb_admin_auth", "true");
         sessionStorage.setItem("lb_admin_password", cleanPass);
@@ -1313,23 +1477,21 @@ function bindEvents() {
 function syncAdminWithServer() {
   if (typeof LuckyBingoAPI === "undefined" || !checkAdminAuth()) return;
 
-  // Auto server-login when auth flag is set but server token is missing (e.g. different device/fresh session)
+  // Immediately start live polling so players & rooms load right away
+  _startAdminDataPoll();
+
+  // Background server authentication if token is not cached
   const hasToken = sessionStorage.getItem("lb_admin_token") || localStorage.getItem("lb_admin_token");
   if (!hasToken && LuckyBingoAPI.adminLogin) {
     const savedPass = sessionStorage.getItem("lb_admin_password") || localStorage.getItem("lb_admin_password") || ADMIN_AUTH_CONFIG.password;
-    const savedUser = (sessionStorage.getItem("lb_admin_user") || localStorage.getItem("lb_admin_user") || "su121316").replace(/^@/, "").toLowerCase();
+    const savedUser = (sessionStorage.getItem("lb_admin_user") || localStorage.getItem("lb_admin_user") || "admin").replace(/^@/, "").toLowerCase();
     LuckyBingoAPI.adminLogin(savedUser, savedPass).then((res) => {
       if (res && res.token) {
         sessionStorage.setItem("lb_admin_token", res.token);
         localStorage.setItem("lb_admin_token", res.token);
       }
-      // Start polling after token is obtained (or even if login fails — will retry next cycle)
-      _startAdminDataPoll();
-    }).catch(() => { _startAdminDataPoll(); });
-    return;
+    }).catch(() => {});
   }
-
-  _startAdminDataPoll();
 }
 
 function _startAdminDataPoll() {
@@ -1391,25 +1553,45 @@ function _startAdminDataPoll() {
       renderFinanceSummary();
     }
 
-    // 3. Sync registered users / players from SQLite database
-    if (Array.isArray(data.players) && data.players.length > 0) {
-      state.players = data.players.map((u) => ({
-        id: `TG-${u.id}`,
-        userId: u.id,
-        name: [u.first_name, u.last_name].filter(Boolean).join(" ") || (u.username ? `@${u.username}` : `Player ${u.id}`),
-        email: u.username ? `@${u.username}` : `${u.id}@t.me`,
-        phone: u.phone_number || "—",
-        role: u.role || "player",
-        balance: Number(u.balance) || 0,
-        games: u.games || 0,
-        lastActive: u.last_active || "Recently",
-        status: u.status || "active",
-        avatar: "blue",
-        verified: Boolean(u.is_verified),
-        joined: u.registered_at || "Recent",
-        activeRoom: u.active_room || "Lobby",
-        note: `Telegram Verified Player (TG ID: ${u.id})`,
-      }));
+    // 3. Sync registered users / players from authoritative backend
+    const playerList = Array.isArray(data.players) && data.players.length > 0
+      ? data.players
+      : (Array.isArray(data.users) && data.users.length > 0 ? data.users : []);
+
+    if (playerList.length > 0) {
+      state.players = playerList.map((u) => {
+        const rawPhone = String(u.phone || u.phone_number || "").trim();
+        const dispPhone = rawPhone || (u.username && /^\d+$/.test(u.username) ? u.username : "—");
+        const dispName = [u.first_name, u.last_name].filter(Boolean).join(" ") ||
+          (u.first_name ? u.first_name : (u.username ? (u.username.startsWith("@") ? u.username : `@${u.username}`) : `Player ${String(u.id).slice(-4)}`));
+        return {
+          id: String(u.id),
+          userId: String(u.id),
+          name: dispName,
+          email: u.email || (u.username ? `@${u.username}` : `${dispPhone || u.id}@t.me`),
+          phone: dispPhone,
+          rawPhone: rawPhone,
+          username: u.username || "",
+          password: u.password || "",
+          role: u.role || "player",
+          balance: Number(u.balance) || 0,
+          bonusBalance: Number(u.bonus_balance) || 0,
+          games: Number(u.games) || 0,
+          lastActive: u.updated_at
+            ? new Date(u.updated_at).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+            : (u.created_at ? new Date(u.created_at).toLocaleDateString([], { month: "short", day: "numeric" }) : "Recently"),
+          status: u.status || "active",
+          avatar: u.source === "telegram" ? "purple" : "blue",
+          source: u.source || (u.phone ? "mobile" : "guest"),
+          verified: Boolean(u.is_verified ?? true),
+          joined: u.created_at || u.createdAt || "Recent",
+          activeRoom: u.active_room || "Lobby",
+          note: u.note || (u.source === "telegram" ? `Telegram Player (ID: ${u.id})` : `Registered Player (ID: ${u.id})`),
+        };
+      });
+      try {
+        localStorage.setItem("lb_admin_cached_players", JSON.stringify(state.players));
+      } catch (e) {}
       renderPlayers();
     }
 
@@ -1417,9 +1599,11 @@ function _startAdminDataPoll() {
     if (data.metrics) {
       state.metrics = {
         ...state.metrics,
-        totalPlayers: data.metrics.totalPlayers ?? state.metrics.totalPlayers,
-        verifiedPlayers: data.metrics.verifiedPlayers ?? state.metrics.verifiedPlayers,
-        activePlayers: data.metrics.activePlayers ?? state.metrics.activePlayers,
+        totalPlayers: data.metrics.totalPlayers ?? state.players.length,
+        verifiedPlayers: data.metrics.verifiedPlayers ?? state.players.length,
+        newPlayers: data.metrics.newPlayers ?? state.players.length,
+        blockedPlayers: data.metrics.blockedPlayers ?? state.players.filter((p) => p.status === "blocked").length,
+        activePlayers: data.metrics.activePlayers ?? state.players.filter((p) => p.status !== "blocked").length,
         processedToday: data.metrics.processedToday ?? (Number(data.metrics.totalDeposits || 0) + Number(data.metrics.totalWithdrawals || 0)),
       };
     }
@@ -1469,9 +1653,7 @@ function initialise() {
   const isAuth = checkAdminAuth();
   const savedUser = sessionStorage.getItem("lb_admin_user") || localStorage.getItem("lb_admin_user") || "@Su121316";
   updateAdminUIAuth(isAuth, savedUser);
-  if (isAuth) {
-    syncAdminWithServer();
-  }
+  syncAdminWithServer();
 
   bindSettings();
   bindEvents();

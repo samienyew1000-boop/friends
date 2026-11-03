@@ -13,7 +13,7 @@ const DEFAULT_STARTING_BONUS = 10;
 const CARD_COUNT = 1000;
 const MAX_PICK = 50;
 const CALL_MS = 3200;
-const DEFAULT_PICK_SECS = 60;
+const DEFAULT_PICK_SECS = 120;
 const DEFAULT_WINNING_PATTERN = "1";
 const WINNING_PATTERNS = Object.freeze(["1", "2", "3", "4", "full-house"]);
 const ROOM_GAME_MS = CALL_MS * 75;
@@ -22,11 +22,11 @@ const ROOM_STATUS_UPDATE_MS = 1000;
 const COMMISSION_RATE = 0.2;
 const MIN_WALLET_AMOUNT = 50;
 const PLAYER_ID = "LB-PLAYER";
-const PLAYER_NAME = "Friendes Bingo Player";
+const PLAYER_NAME = "Africa Bingo Player";
 const PAYMENT_METHODS = Object.freeze({
-  Telebirr: { accountName: "Abirham", accountNumber: "0928233032" },
-  "CBE Birr": { accountName: "Abirham", accountNumber: "0928233032" },
-  "M-Pesa": { accountName: "Abirham", accountNumber: "+251717482251" },
+  Telebirr: { accountName: "Berihun", accountNumber: "0918182355" },
+  "CBE Birr": { accountName: "Berihun", accountNumber: "1000076108653" },
+  "M-Pesa": { accountName: "Africa Bingo M-Pesa", accountNumber: "0700 000 000" },
 });
 
 const ROOMS = [
@@ -55,6 +55,7 @@ const COL_RANGES = [
 
 const $ = (id) => document.getElementById(id);
 const views = {
+  landing: $("view-landing"),
   lobby: $("view-lobby"),
   pick: $("view-pick"),
   game: $("view-game"),
@@ -132,6 +133,7 @@ let callPool = [];
 let callTimer = null;
 let pickTimer = null;
 let winnerTimer = null;
+const displayedResultIds = new Set();
 let roomTimer = null;
 let roomStatusTimer = null;
 let roomLifecycle = loadRoomLifecycle();
@@ -162,17 +164,23 @@ async function syncProfileWithServer() {
     const user = await LuckyBingoAPI.getProfile();
     if (!user || user.error) return;
 
-    const w = window.FriendesWallet || window.HabeshaWallet;
-    if (w && typeof w.get === "function") {
-      balance = w.get();
-      // Keep multiplayer server synchronized with HabeshaWallet
-      if (user.id && user.balance !== balance && typeof LuckyBingoAPI.updateAdminUser === "function") {
-        LuckyBingoAPI.updateAdminUser(user.id, { balance: balance }).catch(() => {});
-      }
-    } else if (typeof user.balance === "number") {
+    if (typeof user.balance === "number") {
       balance = Number(user.balance);
+      if (typeof window.HabeshaWallet !== "undefined") {
+        window.HabeshaWallet.set(balance);
+      }
       localStorage.setItem(BALANCE_KEY, String(balance));
+      renderBalance();
     }
+
+    try {
+      const txRes = await LuckyBingoAPI.apiRequest("/api/my-transactions");
+      if (txRes && txRes.ok && Array.isArray(txRes.transactions)) {
+        const saved = JSON.parse(localStorage.getItem(ADMIN_STATE_KEY) || "{}");
+        saved.transactions = txRes.transactions;
+        localStorage.setItem(ADMIN_STATE_KEY, JSON.stringify(saved));
+      }
+    } catch (e) {}
 
     if (user.active_room) {
       const recoveredRoomId = String(user.active_room.room_id);
@@ -214,6 +222,171 @@ async function syncProfileWithServer() {
   }
 }
 
+function updateLandingLiveTracker(rooms) {
+  const tracker = $("landing-live-tracker");
+  if (!tracker) return;
+
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+  if (mUser || isTg) {
+    tracker.style.display = "none";
+    return;
+  }
+
+  const roomList = Array.isArray(rooms) ? rooms : Object.values(serverRoomStates || {});
+  const liveRoom = roomList.find((r) => r.status === "live" && Array.isArray(r.calls) && r.calls.length > 0);
+  const cdRoom = !liveRoom ? roomList.find((r) => r.status === "countdown") : null;
+  const endedRoom = !liveRoom && !cdRoom ? roomList.find((r) => r.status === "ended" && Array.isArray(r.calls) && r.calls.length > 0) : null;
+  const activeTrackerRoom = liveRoom || cdRoom || endedRoom;
+
+  if (!activeTrackerRoom) {
+    // If no game has started, keep landing view clean as user requested
+    tracker.style.display = "none";
+    return;
+  }
+
+  tracker.style.display = "flex";
+  const isLive = activeTrackerRoom.status === "live";
+  const isCd = activeTrackerRoom.status === "countdown";
+  const calls = activeTrackerRoom.calls || [];
+  const latestBall = calls.length ? calls[calls.length - 1] : null;
+  const remBalls = Math.max(0, 75 - calls.length);
+
+  const elPattern = $("llt-pattern");
+  if (elPattern) {
+    if (isLive) {
+      elPattern.textContent = currentLang === "en" ? "4 Corners (Live Game)" : "4 ስክሪ የማያገናኙ (የቀጥታ ጨዋታ)";
+    } else if (isCd) {
+      const cdSec = activeTrackerRoom.countdown_remaining || 15;
+      elPattern.textContent = currentLang === "en" ? `Game starts in ${cdSec}s` : `ጨዋታ በ ${cdSec} ሰከንድ ውስጥ ይጀምራል`;
+    } else {
+      elPattern.textContent = currentLang === "en" ? "4 Corners (Last Game)" : "4 ስክሪ የማያገናኙ (ያለፈ ጨዋታ)";
+    }
+  }
+
+  const elBadge = $("llt-badge");
+  if (elBadge) {
+    const dotColor = isLive ? "#10b981" : isCd ? "#3b82f6" : "#f59e0b";
+    const badgeText = currentLang === "en" ? (isLive ? "LIVE" : isCd ? "STARTING" : "ENDED") : "ቀጥታ";
+    elBadge.innerHTML = `<i class="lb-llt-pulse" style="background:${dotColor};box-shadow:0 0 6px ${dotColor};"></i> ${badgeText}`;
+  }
+
+  const elFooter = $("llt-footer");
+  if (elFooter) {
+    if (isLive) {
+      elFooter.textContent = currentLang === "en" ? `${remBalls} balls remaining` : `የቀሩ ${remBalls} ኳሶች`;
+    } else if (isCd) {
+      elFooter.textContent = currentLang === "en" ? "Get ready to play!" : "ካርቴላዎችን ለመምረጥ ይመዝገቡ!";
+    } else {
+      elFooter.textContent = currentLang === "en" ? `Last game remaining ${remBalls} balls` : `ያለፈውን ጨዋታ የቀሩ ${remBalls} ኳሶች`;
+    }
+  }
+
+  const ballsRow = $("llt-balls-row");
+  if (ballsRow) {
+    if (calls.length) {
+      const latestLetter = letterFor(latestBall);
+      const prevCalls = calls.slice(0, -1).reverse();
+
+      let html = `<div class="lb-llt-ball-latest">${latestLetter}-${latestBall}</div>`;
+      for (const n of prevCalls) {
+        const letCode = letterFor(n);
+        html += `<div class="lb-llt-ball is-${letCode.toLowerCase()}">${letCode}-${n}</div>`;
+      }
+      ballsRow.innerHTML = html;
+    } else if (isCd) {
+      ballsRow.innerHTML = `<div style="padding: 10px 14px; font-size: 13px; font-weight: 700; color: #4338ca; width: 100%; text-align: center;">🎲 ${currentLang === "en" ? "Next round is about to start..." : "ቀጣዩ ዙር ሊጀመር ነው..."}</div>`;
+    }
+  }
+}
+
+function updatePickLiveTracker(sState) {
+  const tracker = $("pick-live-tracker");
+  if (!tracker) return;
+
+  const currentPattern = sState?.pattern || { id: "3_lines", name: "3 መስመር", label: "3 መስመር ዝግ", targetLines: 3 };
+  const nextPattern = sState?.next_pattern || { id: "4_lines", name: "4 መስመር", label: "4 መስመር ዝግ", targetLines: 4 };
+  const isLive = sState?.status === "live";
+  const isCd = sState?.status === "countdown";
+  const calls = Array.isArray(sState?.calls) ? sState.calls : [];
+  const latestBall = calls.length ? calls[calls.length - 1] : null;
+  const remBalls = Math.max(0, 75 - calls.length);
+
+  const cardTitle = $("plt-card-title");
+  const titlePill = $("plt-title-pill");
+  const patternEl = $("plt-pattern");
+  const badgeEl = $("plt-badge");
+  const footerEl = $("plt-footer");
+  const ballsRow = $("plt-balls-row");
+  const lineCurrent = $("plt-line-current");
+  const lineNext = $("plt-line-next");
+  const infoText = $("plt-info-text");
+
+  if (cardTitle) {
+    cardTitle.textContent = isLive ? "የቀጥታ ጨዋታ" : "ቀጣይ ጨዋታ";
+  }
+  if (titlePill) {
+    titlePill.textContent = isLive ? "ቀጥታ" : "ቀጣይ ጨዋታ";
+  }
+
+  if (patternEl) {
+    if (isLive) {
+      patternEl.textContent = `${currentPattern.name || "3 መስመር"} (የቀጥታ ጨዋታ)`;
+    } else if (isCd) {
+      patternEl.textContent = `${currentPattern.name || "3 መስመር"} (ሊጀመር ነው)`;
+    } else {
+      const pastName = sState?.last_result?.pattern || currentPattern.name || "3 መስመር";
+      patternEl.textContent = `${pastName} (ያለፈ ጨዋታ)`;
+    }
+  }
+
+  if (badgeEl) {
+    badgeEl.textContent = isLive ? "ቀጥታ" : (isCd ? "ዝግጁ" : "ቀጥታ");
+  }
+
+  if (footerEl) {
+    if (isLive) {
+      footerEl.textContent = `የቀሩ ${remBalls} ኳሶች`;
+    } else if (calls.length) {
+      footerEl.textContent = `ያለፈውን ጨዋታ የቀሩ ${remBalls} ኳሶች`;
+    } else {
+      footerEl.textContent = `ይህ ዙር በ ${currentPattern.label || "3 መስመር ዝግ"} ይጫወታል`;
+    }
+  }
+
+  if (ballsRow) {
+    if (calls.length) {
+      const latestLetter = letterFor(latestBall);
+      const prevCalls = calls.slice(0, -1).reverse();
+      let html = `<div class="lb-plt-ball-latest">${latestLetter}-${latestBall}</div>`;
+      for (const n of prevCalls) {
+        const letCode = letterFor(n);
+        html += `<div class="lb-plt-ball is-${letCode.toLowerCase()}">${letCode}-${n}</div>`;
+      }
+      ballsRow.innerHTML = html;
+    } else {
+      ballsRow.innerHTML = `<div style="padding: 10px 14px; font-size: 13px; font-weight: 700; color: #4338ca; width: 100%; text-align: center;">🎲 ${isCd ? "ጨዋታው ሊጀመር ነው... ቁጥሮች በቅርቡ ይወጣሉ" : "ካርቴላዎችን ይምረጡ፤ ቁጥሮች ሲወጡ እዚህ ይታያሉ"}</div>`;
+    }
+  }
+
+  if (lineCurrent) {
+    if (isLive) {
+      lineCurrent.textContent = `የአሁኑ ጨዋታ · ${currentPattern.label || "3 መስመር ዝግ"}`;
+    } else {
+      const pastPatternName = sState?.last_result?.pattern || currentPattern.label || "3 መስመር ዝግ";
+      lineCurrent.textContent = `ያለፊት ጨዋታ · ${pastPatternName}`;
+    }
+  }
+
+  if (lineNext) {
+    lineNext.textContent = `ቀጣይ ዝግጁ · ${currentPattern.label || "3 መስመር ዝግ"} · አሁን ለቀጣይ ጨዋታ መመዝገብ ይቻላል`;
+  }
+
+  if (infoText) {
+    infoText.textContent = `ይህ ዙር የሚጫወተው በ ${currentPattern.label || "3 መስመር ዝግ"} ነው። የሚቀጥለው ዙር ደግሞ ${nextPattern.label || "4 መስመር ዝግ"} ይሆናል!`;
+  }
+}
+
 function startServerLobbySync() {
   if (typeof LuckyBingoAPI === "undefined") return;
   LuckyBingoAPI.startLobbyPoll((data) => {
@@ -230,6 +403,15 @@ function startServerLobbySync() {
         lifecycleKey: `${sRoom.status}:${sRoom.round_id}:server`,
       };
     }
+    if (data.settings) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || "{}");
+        const merged = { ...saved, ...data.settings };
+        localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(merged));
+        updateDepositAccount();
+      } catch (e) {}
+    }
+    updateLandingLiveTracker(data.rooms);
     if (views.lobby && views.lobby.classList.contains("is-on")) renderRooms();
   }, 1500);
 }
@@ -240,7 +422,9 @@ function handleServerRoomState(sState) {
   serverRoomStates[rid] = { ...serverRoomStates[rid], ...sState };
   if (activeRoomId && rid !== String(activeRoomId)) return;
 
-  const current = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  const tgUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+  const current = mUser || tgUser;
   const myId = current?.id;
 
   // 1. Sync cards taken by other players in this room
@@ -251,8 +435,13 @@ function handleServerRoomState(sState) {
       const cids = Array.isArray(player.card_ids) ? player.card_ids : (typeof player.card_ids === "string" ? JSON.parse(player.card_ids || "[]") : []);
       if (!isMine) {
         cids.forEach((cid) => takenByOthers.add(Number(cid)));
-      } else if (!playing && !gameWaiting && selected.size === 0) {
-        cids.forEach((cid) => selected.add(Number(cid)));
+      } else {
+        if (cids.length > 0 && selected.size === 0) {
+          cids.forEach((cid) => selected.add(Number(cid)));
+          if (views.game && views.game.classList.contains("is-on")) {
+            renderMineCards();
+          }
+        }
       }
     });
     if (views.pick && views.pick.classList.contains("is-on")) {
@@ -261,6 +450,8 @@ function handleServerRoomState(sState) {
       updatePickInfo();
     }
   }
+
+  updatePickLiveTracker(sState);
 
   // 2. Status is COUNTDOWN
   if (sState.status === "countdown" && sState.countdown_ends_at > 0) {
@@ -275,20 +466,14 @@ function handleServerRoomState(sState) {
 
   // 3. Status is LIVE
   if (sState.status === "live") {
-    if (!playing && selected.size > 0) {
-      if (!entryCharged) {
-        const cost = stake * selected.size;
-        const w = window.FriendesWallet || window.HabeshaWallet;
-        if (w && typeof w.modify === "function") {
-          w.modify(-cost);
-          balance = w.get();
-        } else {
-          balance = Math.max(0, balance - cost);
-          saveBalance();
-        }
-        renderBalance();
-        entryCharged = true;
+    if (selected.size === 0 && Array.isArray(sState.players)) {
+      const myPlayer = sState.players.find((p) => myId && String(p.user_id) === String(myId));
+      if (myPlayer && Array.isArray(myPlayer.card_ids)) {
+        myPlayer.card_ids.forEach((cid) => selected.add(Number(cid)));
       }
+    }
+    if (!playing && selected.size > 0) {
+      entryCharged = true;
       beginLiveGame();
     }
     if (playing && Array.isArray(sState.calls)) {
@@ -311,37 +496,38 @@ function handleServerRoomState(sState) {
   }
 
   // 5. Server reports round result (Winner announced!)
-  if (sState.last_result && !claimed) {
+  if (sState.last_result) {
     const res = sState.last_result;
-    if (res.ended_at && (Date.now() / 1000 - res.ended_at) < 12) {
-      const isMe = res.winner_id && myId && String(res.winner_id) === String(myId);
+    const resultKey = String(
+      res.result_id || `${sState.room_id || activeRoomId || "R"}_R${res.round_id || ""}_${res.ended_at || ""}`
+    );
+    const ageSeconds = res.ended_at ? Math.max(0, Date.now() / 1000 - res.ended_at) : 0;
+
+    // Show ONLY ONCE per round across all devices, and only while fresh (< 14s)
+    if (ageSeconds < 14 && !displayedResultIds.has(resultKey)) {
+      displayedResultIds.add(resultKey);
       claimed = true;
       playing = false;
       clearInterval(callTimer);
       callTimer = null;
-      if (isMe) {
-        roundOutcome = "win";
-        roundWinnerName = res.winner_name || PLAYER_NAME;
-        const winPrize = Number(res.prize) || 0;
-        const w = window.FriendesWallet || window.HabeshaWallet;
-        if (w && typeof w.modify === "function" && winPrize > 0) {
-          w.modify(winPrize);
-          balance = w.get();
-        } else if (winPrize > 0) {
-          balance += winPrize;
-          saveBalance();
+
+      // If winner overlay is already showing for this exact round, don't restart it
+      if (!winnerTimer) {
+        const isMe = res.winner_id && myId && String(res.winner_id) === String(myId);
+        if (isMe) {
+          roundOutcome = "win";
+          roundWinnerName = res.winner_name || PLAYER_NAME;
+          showRoundResult("win", roundWinnerName, "LINE", res.card_id || selected.values().next().value);
+          showWinnerOverlay("win", roundWinnerName, res.prize, res.card_id || selected.values().next().value, "LINE");
+          toast("YOU WON!", "win");
+        } else {
+          roundOutcome = "lose";
+          roundWinnerName = res.winner_name || "Opponent";
+          showRoundResult("lose", roundWinnerName, "LINE", res.card_id);
+          markLoserCards();
+          showWinnerOverlay("lose", roundWinnerName, res.prize != null ? res.prize : stake, res.card_id, "LINE");
+          toast((roundWinnerName).toUpperCase() + " WON!", "lose");
         }
-        renderBalance();
-        showRoundResult("win", roundWinnerName, "LINE", res.card_id || selected.values().next().value);
-        showWinnerOverlay("win", roundWinnerName, res.prize, res.card_id || selected.values().next().value, "LINE");
-        toast("YOU WON!", "win");
-      } else {
-        roundOutcome = "lose";
-        roundWinnerName = res.winner_name || "Opponent";
-        showRoundResult("lose", roundWinnerName, "LINE", res.card_id);
-        markLoserCards();
-        showWinnerOverlay("lose", roundWinnerName, res.prize || stake * 3, res.card_id, "LINE");
-        toast((roundWinnerName).toUpperCase() + " WON!", "lose");
       }
       syncProfileWithServer();
     }
@@ -367,9 +553,8 @@ function getStartingBonusSettings() {
 }
 
 function loadInitialBalance() {
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (typeof w !== "undefined") {
-    return w.get();
+  if (typeof window.HabeshaWallet !== "undefined") {
+    return window.HabeshaWallet.get();
   }
   const stored = Number(localStorage.getItem(BALANCE_KEY));
   return Number.isFinite(stored) && stored >= 0 ? stored : START_BALANCE;
@@ -391,11 +576,17 @@ function normalizeWinningPattern(value) {
 }
 
 function getWinningPattern() {
+  if (activeRoomId && serverRoomStates[activeRoomId]?.pattern) {
+    const p = serverRoomStates[activeRoomId].pattern;
+    if (p.isFullHouse || p.id === "fullhouse") return "full-house";
+    if (p.targetLines) return String(p.targetLines);
+    if (typeof p === "string") return p;
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || "null");
     return normalizeWinningPattern(saved?.winningPattern);
   } catch (error) {
-    return DEFAULT_WINNING_PATTERN;
+    return "3";
   }
 }
 
@@ -698,17 +889,10 @@ function scheduleRoomCountdown(roomId, now = Date.now()) {
 }
 
 function saveBalance() {
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (typeof w !== "undefined" && typeof w.set === "function") {
-    w.set(balance);
+  if (typeof window.HabeshaWallet !== "undefined") {
+    window.HabeshaWallet.set(balance);
   }
   localStorage.setItem(BALANCE_KEY, String(balance));
-  try {
-    const user = typeof LuckyBingoAPI !== "undefined" ? LuckyBingoAPI.getTelegramUser?.() : null;
-    if (user?.id && typeof LuckyBingoAPI.updateAdminUser === "function") {
-      LuckyBingoAPI.updateAdminUser(user.id, { balance: balance }).catch(() => {});
-    }
-  } catch (e) {}
 }
 
 function fmtBal(n) {
@@ -823,15 +1007,162 @@ function checkAdminAccess() {
   }
 }
 
+// --- Landing Page 5x5 Bingo Demo Pattern Animation ---
+const DEMO_PATTERNS = [
+  {
+    name: "ዲያጎናል ቢንጎ",
+    desc: "በመጨረሻ ዲያጎናል ሲሆን ይጠናቀቃል::",
+    called: [0, 6, 12, 18, 24, 2, 8, 14, 21],
+    lines: [{ x1: 10, y1: 10, x2: 90, y2: 90 }]
+  },
+  {
+    name: "አግድም ቢንጎ",
+    desc: "በአግድም መስመር 5 ቁጥሮች ሲሞሉ ያሸንፋል::",
+    called: [10, 11, 12, 13, 14, 1, 7, 18, 23],
+    lines: [{ x1: 8, y1: 50, x2: 92, y2: 50 }]
+  },
+  {
+    name: "ቁልቁል ቢንጎ",
+    desc: "በቁልቁል መስመር 5 ቁጥሮች ሲሞሉ ያሸንፋል::",
+    called: [2, 7, 12, 17, 22, 6, 10, 14, 20],
+    lines: [{ x1: 50, y1: 8, x2: 50, y2: 92 }]
+  },
+  {
+    name: "ቀኝ ዲያጎናል",
+    desc: "በቀኝ ዲያጎናል 5 ቁጥሮች ሲሞሉ ያሸንፋል::",
+    called: [4, 8, 12, 16, 20, 0, 7, 13, 22],
+    lines: [{ x1: 90, y1: 10, x2: 10, y2: 90 }]
+  },
+  {
+    name: "መስቀለኛ (X) ቢንጎ",
+    desc: "በሁለቱ ዲያጎናሎች መስቀል (X) ሲዘጋ ያሸንፋል::",
+    called: [0, 6, 12, 18, 24, 4, 8, 16, 20, 2, 22],
+    lines: [
+      { x1: 10, y1: 10, x2: 90, y2: 90 },
+      { x1: 90, y1: 10, x2: 10, y2: 90 }
+    ]
+  },
+  {
+    name: "4 ማዕዘን ቢንጎ",
+    desc: "በአራቱ ማዕዘን ቁጥሮች ሲሞሉ ያሸንፋል::",
+    called: [0, 4, 12, 20, 24, 7, 11, 17],
+    lines: [
+      { x1: 10, y1: 10, x2: 90, y2: 10 },
+      { x1: 90, y1: 10, x2: 90, y2: 90 },
+      { x1: 90, y1: 90, x2: 10, y2: 90 },
+      { x1: 10, y1: 90, x2: 10, y2: 10 }
+    ]
+  },
+  {
+    name: "ሁለት መስመር ቢንጎ",
+    desc: "በሁለት አግድም እና ቁልቁል መስመሮች ሲዘጋ ያሸንፋል::",
+    called: [10, 11, 12, 13, 14, 2, 7, 17, 22, 0, 24],
+    lines: [
+      { x1: 8, y1: 50, x2: 92, y2: 50 },
+      { x1: 50, y1: 8, x2: 50, y2: 92 }
+    ]
+  }
+];
+
+let demoAnimationTimer = null;
+let demoPatternIndex = 0;
+
+function applyDemoPattern(idx) {
+  const p = DEMO_PATTERNS[idx % DEMO_PATTERNS.length];
+  if (!p) return;
+  demoPatternIndex = idx % DEMO_PATTERNS.length;
+
+  const descEl = $("demo-pattern-desc");
+  if (descEl) descEl.textContent = p.desc;
+
+  const btnEl = $("demo-diagonal-btn");
+  if (btnEl) {
+    btnEl.textContent = p.name;
+    btnEl.classList.remove("is-animating");
+    void btnEl.offsetWidth;
+    btnEl.classList.add("is-animating");
+  }
+
+  const calledSet = new Set(p.called);
+  const cells = document.querySelectorAll("#demo-grid .lb-demo-cell");
+  cells.forEach(cell => {
+    const rawVal = cell.getAttribute("data-cell");
+    if (rawVal === null) return;
+    const cellIdx = parseInt(rawVal, 10);
+    if (cellIdx === 12) {
+      cell.classList.add("is-free");
+      cell.classList.remove("is-called");
+    } else if (calledSet.has(cellIdx)) {
+      cell.classList.add("is-called");
+    } else {
+      cell.classList.remove("is-called");
+    }
+  });
+
+  const svgEl = $("demo-win-lines-svg");
+  if (svgEl) {
+    const linesHtml = p.lines.map(line =>
+      `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" class="lb-red-win-line" />`
+    ).join("");
+    svgEl.innerHTML = linesHtml;
+  }
+}
+
+function startDemoCardAnimation() {
+  stopDemoCardAnimation();
+  applyDemoPattern(demoPatternIndex);
+  demoAnimationTimer = setInterval(() => {
+    const landingEl = views.landing || $("view-landing");
+    if (document.body.classList.contains("is-landing-active") || (landingEl && landingEl.classList.contains("is-on"))) {
+      demoPatternIndex = (demoPatternIndex + 1) % DEMO_PATTERNS.length;
+      applyDemoPattern(demoPatternIndex);
+    }
+  }, 2800);
+}
+
+function stopDemoCardAnimation() {
+  if (demoAnimationTimer) {
+    clearInterval(demoAnimationTimer);
+    demoAnimationTimer = null;
+  }
+}
+
+function nextDemoPattern() {
+  demoPatternIndex = (demoPatternIndex + 1) % DEMO_PATTERNS.length;
+  applyDemoPattern(demoPatternIndex);
+}
+
 function showView(name) {
-  Object.entries(views).forEach(([key, el]) => el.classList.toggle("is-on", key === name));
+  const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  if (!mUser && !isTg && name !== "landing") {
+    name = "landing";
+    setAuthMode("register");
+    showMobileAuthModal(true);
+  }
+
+  Object.entries(views).forEach(([key, el]) => {
+    if (el) el.classList.toggle("is-on", key === name);
+  });
+  document.body.classList.toggle("is-landing-active", name === "landing");
   document.body.classList.toggle("is-selection-active", name === "pick");
   document.body.classList.toggle("is-game-active", name === "game");
   document.body.classList.toggle("is-lobby-active", name === "lobby");
+
+  const globalHeader = $("global-header");
+  if (globalHeader) {
+    globalHeader.style.display = name === "game" ? "none" : "";
+  }
+  if (name === "landing") {
+    startDemoCardAnimation();
+  } else {
+    stopDemoCardAnimation();
+  }
   if (name === "lobby") {
     checkAdminAccess();
     startRoomUpdates();
     startRoomStatusUpdates();
+    renderRooms();
   } else {
     stopRoomUpdates();
     stopRoomStatusUpdates();
@@ -863,10 +1194,15 @@ function recordPlayerTransaction(data) {
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_STATE_KEY) || "{}");
     const transactions = Array.isArray(saved.transactions) ? saved.transactions : [];
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    const tgUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+    const user = mUser || tgUser;
     const txn = {
       id: makeTransactionId(),
       playerId: PLAYER_ID,
       player: PLAYER_NAME,
+      phone: user ? (user.phone || user.username || "") : "",
+      user_id: user ? (user.id || "") : "",
       type: data.type || "stake",
       method: data.method || "Game Stake",
       amount: Number(data.amount) || 0,
@@ -883,25 +1219,22 @@ function recordPlayerTransaction(data) {
 }
 
 function getStoredTransactions() {
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  const tgUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+  const user = mUser || tgUser;
+  if (!user) return [];
+
+  const userPhone = String(user.phone || user.username || "");
+  const userId = String(user.id || "");
+
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_STATE_KEY) || "{}");
     const transactions = Array.isArray(saved.transactions) ? saved.transactions : [];
-    if (!transactions.length) {
-      return [
-        {
-          id: "TX-1001",
-          playerId: PLAYER_ID,
-          player: PLAYER_NAME,
-          type: "bonus",
-          method: "Welcome Bonus",
-          amount: 50,
-          requested: "Today",
-          status: "completed",
-          details: "Starting balance credit",
-        },
-      ];
-    }
-    return transactions;
+    return transactions.filter((t) =>
+      (userPhone && t.phone && t.phone === userPhone) ||
+      (userId && t.user_id && String(t.user_id) === userId) ||
+      (userId && t.playerId && String(t.playerId).includes(userId.slice(-5)))
+    );
   } catch (error) {
     return [];
   }
@@ -995,23 +1328,34 @@ function renderMobilePanelContent(tab) {
   }
 
   if (tab === "profile") {
+    const user = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser)
+      ? LuckyBingoAPI.getMobileUser()
+      : ((typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null);
+
+    const displayName = user?.first_name || user?.name || user?.username || "Africa Player";
+    const phoneDisplay = user?.phone || user?.username || PLAYER_ID;
+
     content.innerHTML = `
       <div class="lb-mobile-profile-card">
-        <div class="lb-mobile-avatar">LB</div>
+        <div class="lb-mobile-avatar">👤</div>
         <div>
-          <strong>${escapeHTML(PLAYER_NAME)}</strong>
-          <span>${PLAYER_ID}</span>
+          <strong>${escapeHTML(displayName)}</strong>
+          <span>${escapeHTML(phoneDisplay)}</span>
         </div>
       </div>
       <div class="lb-mobile-info-list">
         <div><span>Available Balance</span><b class="is-positive">${Number(balance).toFixed(2)} ETB</b></div>
         <div><span>Current Stake</span><b>${stake} ETB</b></div>
         <div><span>Cards per round</span><b>Up to ${MAX_PICK} cards</b></div>
-        <div><span>Account Status</span><b class="is-positive">Active</b></div>
+        <div><span>App Version</span><b>v2.0 (Standalone Mobile)</b></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
         <button type="button" class="lb-mobile-action-button" id="profile-deposit-btn">Deposit Funds</button>
         <button type="button" class="lb-mobile-action-button" style="background:#2a2638;color:#ddd;" id="profile-withdraw-btn">Withdraw</button>
+      </div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="lb-mobile-action-button" style="background:#0284c7;color:#fff;" id="profile-install-btn">📲 Install Mobile App</button>
+        <button type="button" class="lb-mobile-action-button lb-mobile-logout-btn" id="profile-logout-btn">🚪 Switch Account / መለያ ቀይር</button>
       </div>
     `;
     $("profile-deposit-btn")?.addEventListener("click", () => {
@@ -1022,6 +1366,16 @@ function renderMobilePanelContent(tab) {
       closeMobilePanel();
       openWallet("withdraw");
     });
+    $("profile-install-btn")?.addEventListener("click", () => {
+      handleInstallClick();
+    });
+    $("profile-logout-btn")?.addEventListener("click", () => {
+      closeMobilePanel();
+      if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.logoutMobile) {
+        LuckyBingoAPI.logoutMobile();
+      }
+      showMobileAuthModal(true);
+    });
     return;
   }
 
@@ -1029,7 +1383,7 @@ function renderMobilePanelContent(tab) {
     content.innerHTML = `
       <div class="lb-mobile-action-card">
         <div>
-          <strong style="font-size:16px;">Friendes Bingo Wallet</strong>
+          <strong style="font-size:16px;">Africa Bingo Wallet</strong>
           <p>Top up your balance instantly using mobile money (Telebirr, CBE Birr, M-Pesa).</p>
         </div>
         <div class="lb-mobile-info-list" style="margin:0;">
@@ -1100,6 +1454,14 @@ function renderMobilePanelContent(tab) {
 }
 
 function openMobilePanel(tab) {
+  const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  if (!mUser && !isTg && (tab === "history" || tab === "wallet" || tab === "deposit" || tab === "profile" || tab === "settings")) {
+    setAuthMode("login");
+    showMobileAuthModal(true);
+    toast("እባክዎ መጀመሪያ ይግቡ (Please login)", "win");
+    return;
+  }
   mobilePanelTab = tab;
   const panel = $("mobile-panel");
   const title = $("mobile-panel-title");
@@ -1143,24 +1505,842 @@ function toast(text, kind) {
 }
 
 function updateGameUserInfo() {
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser)
+    ? LuckyBingoAPI.getMobileUser()
+    : null;
   const tgUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser)
     ? LuckyBingoAPI.getTelegramUser()
     : null;
+
+  const user = mUser || tgUser;
+  const isLoggedIn = Boolean(mUser || (tgUser && !String(tgUser.id).startsWith("8")));
+  const displayName = user?.first_name || user?.name || user?.username || (user?.phone ? `09...${user.phone.slice(-4)}` : "Africa Player");
+  const phoneDisplay = user?.phone || user?.username || (user?.id ? `ID: ${user.id}` : "");
+
+  const lobbyUserName = $("lobby-user-name");
+  if (lobbyUserName) {
+    lobbyUserName.textContent = displayName;
+  }
+
   const usernameEl = $("game-username");
   const avatarImg = $("game-avatar-img");
   if (usernameEl) {
-    usernameEl.textContent = tgUser?.first_name || tgUser?.username || "sam";
+    usernameEl.textContent = displayName;
   }
-  if (avatarImg && tgUser?.photo_url) {
-    avatarImg.src = tgUser.photo_url;
+  if (avatarImg && user?.photo_url) {
+    avatarImg.src = user.photo_url;
+  }
+
+  // Update Global Header Actions
+  const ghActions = $("global-header-actions");
+  if (ghActions) {
+    if (isLoggedIn) {
+      ghActions.innerHTML = `
+        <button type="button" class="lb-gh-btn lb-gh-register" id="btn-header-profile" style="background:#2e1065;color:#fff;">
+          👤 ${escapeHTML(displayName.length > 10 ? displayName.slice(0, 8) + '..' : displayName)}
+        </button>
+      `;
+      $("btn-header-profile")?.addEventListener("click", () => openSideDrawer());
+    } else {
+      ghActions.innerHTML = `
+        <button type="button" class="lb-gh-btn lb-gh-login" id="btn-header-login">ግባ</button>
+        <button type="button" class="lb-gh-btn lb-gh-register" id="btn-header-register">ተመዝገብ</button>
+      `;
+      $("btn-header-login")?.addEventListener("click", () => {
+        setAuthMode("login");
+        showMobileAuthModal(true);
+      });
+      $("btn-header-register")?.addEventListener("click", () => {
+        setAuthMode("register");
+        showMobileAuthModal(true);
+      });
+    }
+  }
+
+  // Update Drawer Welcome Card
+  const welcomeCard = $("drawer-welcome-card");
+  if (welcomeCard) {
+    if (isLoggedIn) {
+      welcomeCard.innerHTML = `
+        <strong>👋 እንኳን ደህና መጡ፣ ${escapeHTML(displayName)}!</strong>
+        <p>ስልክ: ${escapeHTML(phoneDisplay)} · ቦርሳ: <b>${Number(balance).toFixed(2)} ETB</b></p>
+      `;
+    } else {
+      welcomeCard.innerHTML = `
+        <strong>ለመጫወት እና ካርቴላ ለመመዝገብ ግባ</strong>
+        <p>ካርቴላ ለመመዝገብ እና ቦርሳህን ለማስተዳደር መለያ ፍጠር።</p>
+      `;
+    }
+  }
+
+  // Update Drawer Bottom Actions
+  const drawerLoginBtn = $("drawer-login-btn");
+  const drawerRegisterBtn = $("drawer-register-btn");
+  if (drawerLoginBtn && drawerRegisterBtn) {
+    if (isLoggedIn) {
+      drawerLoginBtn.textContent = "ወደ ጨዋታ ክፍሎች ግባ";
+      drawerRegisterBtn.textContent = "መለያ ቀይር / ውጣ";
+    } else {
+      drawerLoginBtn.textContent = "ግባ";
+      drawerRegisterBtn.textContent = "ተመዝገብ";
+    }
+  }
+
+  // Update Drawer Admin Button
+  const drawerAdminBtn = $("drawer-admin-btn");
+  if (drawerAdminBtn) {
+    const isAdmin = localStorage.getItem("lb_admin_auth") === "true" || sessionStorage.getItem("lb_admin_auth") === "true";
+    drawerAdminBtn.style.display = isAdmin ? "flex" : "none";
   }
 }
 
-function renderBalance() {
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (w && typeof w.get === "function") {
-    balance = w.get();
+let authMode = "register"; // "register" or "login"
+
+let selectedRegAvatar = "AB";
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const loginView = $("auth-login-view");
+  const regView = $("auth-register-view");
+  const loginStatus = $("login-status-msg");
+  const regStatus = $("reg-status-msg");
+
+  if (loginStatus) loginStatus.hidden = true;
+  if (regStatus) regStatus.hidden = true;
+
+  if (mode === "login") {
+    if (loginView) loginView.style.display = "block";
+    if (regView) regView.style.display = "none";
+  } else {
+    if (loginView) loginView.style.display = "none";
+    if (regView) regView.style.display = "block";
   }
+}
+
+function showMobileAuthModal(force = false) {
+  const modal = $("mobile-auth-modal");
+  if (!modal) return;
+  const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  if (!force && (mUser || isTg)) {
+    modal.hidden = true;
+    return;
+  }
+  modal.hidden = false;
+  setAuthMode(authMode || "register");
+}
+
+function setupPasswordToggle(btnId, inputId) {
+  const btn = $(btnId);
+  const input = $(inputId);
+  if (!btn || !input) return;
+  btn.addEventListener("click", () => {
+    const isPwd = input.type === "password";
+    input.type = isPwd ? "text" : "password";
+    const openEye = btn.querySelector(".eye-open");
+    const closedEye = btn.querySelector(".eye-closed");
+    if (openEye) openEye.style.display = isPwd ? "none" : "block";
+    if (closedEye) closedEye.style.display = isPwd ? "block" : "none";
+  });
+}
+
+function setupMobileAuthEvents() {
+  // Back button
+  $("auth-back-btn")?.addEventListener("click", () => {
+    const modal = $("mobile-auth-modal");
+    if (modal) modal.hidden = true;
+  });
+
+  // Switch between Login and Register views
+  $("to-register-btn")?.addEventListener("click", () => {
+    setAuthMode("register");
+  });
+  $("to-login-btn")?.addEventListener("click", () => {
+    setAuthMode("login");
+  });
+
+  // Password visibility eye toggles
+  setupPasswordToggle("login-pwd-toggle", "login-password-input");
+  setupPasswordToggle("reg-pwd-toggle", "reg-password-input");
+  setupPasswordToggle("reg-confirm-pwd-toggle", "reg-confirm-password-input");
+
+  // Forgot password
+  $("auth-forgot-link")?.addEventListener("click", () => {
+    alert("የይለፍ ቃልዎን ለመቀየር እባክዎን የቴሌግራም አድሚን ያነጋግሩ (@Biregugsa)");
+  });
+
+  // Choose avatar popup
+  $("reg-choose-avatar-btn")?.addEventListener("click", () => {
+    const grid = $("avatar-picker-grid");
+    if (grid) grid.hidden = !grid.hidden;
+  });
+
+  document.querySelectorAll(".lb-av-opt").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const av = btn.getAttribute("data-avatar") || "AB";
+      selectedRegAvatar = av;
+      const preview = $("reg-avatar-text");
+      if (preview) preview.textContent = av;
+      const grid = $("avatar-picker-grid");
+      if (grid) grid.hidden = true;
+    });
+  });
+
+  $("reg-name-input")?.addEventListener("input", (e) => {
+    const name = e.target.value.trim();
+    if (name && (selectedRegAvatar === "AB" || selectedRegAvatar.length <= 2)) {
+      const initials = name.slice(0, 2).toUpperCase();
+      const preview = $("reg-avatar-text");
+      if (preview) preview.textContent = initials;
+      selectedRegAvatar = initials;
+    }
+  });
+
+  // 1. Mobile Login Form Submit
+  const loginForm = $("mobile-login-form");
+  loginForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const phoneInput = $("login-phone-input");
+    const pwdInput = $("login-password-input");
+    const statusMsg = $("login-status-msg");
+    const submitBtn = $("login-submit-btn");
+
+    let phone = phoneInput ? phoneInput.value.trim().replace(/[\s\-()]+/g, "") : "";
+    let password = pwdInput ? pwdInput.value.trim() : "";
+
+    if (!phone) {
+      if (statusMsg) {
+        statusMsg.textContent = "እባክዎ ስልክ ቁጥር ወይም Username ያስገቡ";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    const isAdminLogin = phone.toLowerCase() === "admin";
+
+    // Direct Admin Login Handling
+    if (isAdminLogin) {
+      if (password === "Ber343477" || password === "Ber23@ret" || password === "AF7694") {
+        if (submitBtn) submitBtn.disabled = true;
+        sessionStorage.setItem("lb_admin_auth", "true");
+        sessionStorage.setItem("lb_admin_password", password);
+        sessionStorage.setItem("lb_admin_user", "admin");
+        sessionStorage.setItem("lb_admin_token", "admin-auth-token-valid");
+        localStorage.setItem("lb_admin_auth", "true");
+        localStorage.setItem("lb_admin_password", password);
+        localStorage.setItem("lb_admin_user", "admin");
+        localStorage.setItem("lb_admin_token", "admin-auth-token-valid");
+
+        const adminUserObj = {
+          id: "admin-1",
+          username: "admin",
+          first_name: "Admin",
+          role: "admin",
+          balance: 100000,
+        };
+        localStorage.setItem("lb_mobile_user", JSON.stringify(adminUserObj));
+        localStorage.setItem("lb_tg_user", JSON.stringify(adminUserObj));
+
+        if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.adminLogin) {
+          LuckyBingoAPI.adminLogin("admin", password).catch(() => {});
+        }
+
+        if (statusMsg) {
+          statusMsg.textContent = "✅ እንኳን ደህና መጡ Admin! ወደ Admin Console በማምራት ላይ...";
+          statusMsg.className = "lb-auth-status is-success";
+          statusMsg.hidden = false;
+        }
+        toast("👑 እንኳን ደህና መጡ Admin! ወደ Admin Console በማምራት ላይ...", "win");
+        setTimeout(() => {
+          window.location.href = "admin.html";
+        }, 600);
+        return;
+      } else {
+        if (statusMsg) {
+          statusMsg.textContent = "የተሳሳተ የይለፍ ቃል። እባክዎ እንደገና ይሞክሩ።";
+          statusMsg.className = "lb-auth-status is-error";
+          statusMsg.hidden = false;
+        }
+        return;
+      }
+    }
+
+    if (phone.startsWith("+251")) phone = "0" + phone.slice(4);
+    else if (phone.startsWith("251")) phone = "0" + phone.slice(3);
+
+    if (phone.length < 9) {
+      if (statusMsg) {
+        statusMsg.textContent = "ትክክለኛ ባለ 10 ዲጂት ስልክ ቁጥር ያስገቡ (ለምሳሌ 0911000000)";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const res = await LuckyBingoAPI.mobileLogin(phone, password);
+      if (res && res.ok && (res.isAdmin || res.user?.role === "admin")) {
+        sessionStorage.setItem("lb_admin_auth", "true");
+        sessionStorage.setItem("lb_admin_password", password);
+        sessionStorage.setItem("lb_admin_user", "admin");
+        sessionStorage.setItem("lb_admin_token", "admin-auth-token-valid");
+        localStorage.setItem("lb_admin_auth", "true");
+        localStorage.setItem("lb_admin_password", password);
+        localStorage.setItem("lb_admin_user", "admin");
+        localStorage.setItem("lb_admin_token", "admin-auth-token-valid");
+        toast("👑 እንኳን ደህና መጡ Admin! ወደ Admin Console በማምራት ላይ...", "win");
+        setTimeout(() => {
+          window.location.href = "admin.html";
+        }, 600);
+        return;
+      }
+
+      if (res && res.ok && res.user) {
+        const modal = $("mobile-auth-modal");
+        if (modal) modal.hidden = true;
+
+        if (typeof res.user.balance === "number") {
+          balance = Number(res.user.balance);
+          localStorage.setItem(BALANCE_KEY, String(balance));
+        }
+
+        updateGameUserInfo();
+        renderBalance();
+        syncProfileWithServer();
+        showView("lobby");
+        toast(`👋 እንኳን ደህና ተመለሱ ${res.user.first_name || ""}!`, "win");
+      } else {
+        if (statusMsg) {
+          statusMsg.textContent = res?.message || "ስልክ ቁጥር ወይም የይለፍ ቃል አልተገኘም";
+          statusMsg.className = "lb-auth-status is-error";
+          statusMsg.hidden = false;
+        }
+      }
+    } catch (err) {
+      if (statusMsg) {
+        statusMsg.textContent = "ከሰርቨሩ ጋር መገናኘት አልተቻለም። እባክዎ ኢንተርኔትዎን ይፈትሹ።";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  // 2. Mobile Register Form Submit
+  const regForm = $("mobile-register-form");
+  regForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameInput = $("reg-name-input");
+    const phoneInput = $("reg-phone-input");
+    const pwdInput = $("reg-password-input");
+    const confirmPwdInput = $("reg-confirm-password-input");
+    const statusMsg = $("reg-status-msg");
+    const submitBtn = $("reg-submit-btn");
+
+    let name = nameInput ? nameInput.value.trim() : "";
+    let phone = phoneInput ? phoneInput.value.trim().replace(/[\s\-()]+/g, "") : "";
+    let password = pwdInput ? pwdInput.value.trim() : "";
+    let confirmPassword = confirmPwdInput ? confirmPwdInput.value.trim() : "";
+
+    // If user typed phone number in the name input by mistake, swap them!
+    const isPhonePattern = (p) => /^(?:\+251|251|0)?[97]\d{8}$/.test(p.replace(/[\s\-()]+/g, ""));
+    if (!isPhonePattern(phone) && isPhonePattern(name)) {
+      const temp = phone;
+      phone = name.replace(/[\s\-()]+/g, "");
+      name = isPhonePattern(temp) ? "" : temp;
+    }
+
+    if (!phone) {
+      if (statusMsg) {
+        statusMsg.textContent = "እባክዎ ስልክ ቁጥር ያስገቡ";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    if (!name) {
+      name = `Player ${phone.slice(-4)}`;
+    }
+
+    if (phone.startsWith("+251")) phone = "0" + phone.slice(4);
+    else if (phone.startsWith("251")) phone = "0" + phone.slice(3);
+
+    if (phone.length < 9) {
+      if (statusMsg) {
+        statusMsg.textContent = "ትክክለኛ ባለ 10 ዲጂት ስልክ ቁጥር ያስገቡ (ለምሳሌ 0911000000)";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      if (statusMsg) {
+        statusMsg.textContent = "የይለፍ ቃል ቢያንስ 6 ፊደላት ወይም ቁጥሮች መሆን አለበት";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      if (statusMsg) {
+        statusMsg.textContent = "የይለፍ ቃሎቹ አይመሳሰሉም! እባክዎ በትክክል ያረጋግጡ";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+      return;
+    }
+
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const avatar = selectedRegAvatar || "AB";
+      const res = await LuckyBingoAPI.mobileRegister(phone, name, password, avatar);
+
+      if (res && res.ok && res.user) {
+        const modal = $("mobile-auth-modal");
+        if (modal) modal.hidden = true;
+
+        if (typeof res.user.balance === "number") {
+          balance = Number(res.user.balance);
+          localStorage.setItem(BALANCE_KEY, String(balance));
+        }
+
+        updateGameUserInfo();
+        renderBalance();
+        syncProfileWithServer();
+        showView("lobby");
+
+        if (res.isNew || res.bonusGranted) {
+          toast("🎁 እንኳን ደህና መጡ! 10 ብር ቦነስ ተሰጥቶዎታል!", "win");
+        } else {
+          toast(`👋 እንኳን ደህና መጡ ${res.user.first_name || ""}!`, "win");
+        }
+      } else {
+        if (statusMsg) {
+          statusMsg.textContent = res?.message || res?.error || "ይህ ስልክ ቁጥር ቀድሞ ተመዝግቧል፤ እባክዎ ይግቡ።";
+          statusMsg.className = "lb-auth-status is-error";
+          statusMsg.hidden = false;
+        }
+      }
+    } catch (err) {
+      if (statusMsg) {
+        statusMsg.textContent = "ከሰርቨሩ ጋር መገናኘት አልተቻለም። እባክዎ ኢንተርኔትዎን ይፈትሹ።";
+        statusMsg.className = "lb-auth-status is-error";
+        statusMsg.hidden = false;
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = $("install-app-btn");
+  if (btn) btn.style.display = "inline-flex";
+});
+
+function handleInstallClick() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === "accepted") {
+        toast("አፑ በተሳካ ሁኔታ ተጭኗል!", "win");
+        const btn = $("install-app-btn");
+        if (btn) btn.style.display = "none";
+      }
+      deferredInstallPrompt = null;
+    });
+  } else {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      alert("አፑን ወደ ስልክዎ ለመጫን:\nከስር ያለውን የ Share ምልክት [⎋] ተጭነው 'Add to Home Screen' የሚለውን ይምረጡ።");
+    } else {
+      toast("የአንድሮይድ መተግበሪያ (APK) በማውረድ ላይ ነው...", "win");
+      window.location.href = "AfricaBingo.apk";
+    }
+  }
+}
+
+function openSideDrawer() {
+  const drawer = $("side-drawer");
+  const backdrop = $("drawer-backdrop");
+  if (drawer) {
+    drawer.classList.add("is-open");
+    drawer.setAttribute("aria-hidden", "false");
+  }
+  if (backdrop) backdrop.hidden = false;
+}
+
+function closeSideDrawer() {
+  const drawer = $("side-drawer");
+  const backdrop = $("drawer-backdrop");
+  if (drawer) {
+    drawer.classList.remove("is-open");
+    drawer.setAttribute("aria-hidden", "true");
+  }
+  if (backdrop) backdrop.hidden = true;
+}
+
+// --- Multi-language (Amharic default & English choice) & Night Mode System ---
+const TRANSLATIONS = {
+  am: {
+    langLabel: "AM",
+    themeLight: "☀ ቀን ገጽታ (Light mode)",
+    themeDark: "🌙 ማታ ገጽታ (Night mode)",
+    guestBadge: "የእንግዳ ሁኔታ",
+    login: "ግባ",
+    register: "ተመዝገብ",
+    logout: "ውጣ",
+    landingH2: "ቀጥታ የወጡ ቁጥሮችን ተመልከት፤ ለቀጣይ ዙር ተቀላቀል",
+    landingP: "ቁጥሮች በቅርበት ሲወጡ ተመልከት፤ ከዚያም ቀጣይ ተራ ጨዋታ ከመጀመሩ በፊት ካርቴላዎችን ለመያዝ ግባ ወይም መለያ ፍጠር።",
+    landingKicker: "ፈጣን ምዝገባ:: የቀጣይ ዙር መደለል:: የቀጥታ ቢንጎ ኃይል::",
+    landingStartCta: "🎁 በ 10 ብር ነፃ ቦነስ ጀምር (Start)",
+    landingLobbyCta: "ወደ ጨዋታ ክፍሎች ግባ (Lobby)",
+    welcomeCardTitle: "ለመጫወት እና ካርቴላ ለመመዝገብ ግባ",
+    welcomeCardDesc: "ካርቴላ ለመመዝገብ እና ቦርሳህን ለማስተዳደር መለያ ፍጠር።",
+    notifications: "Notifications",
+    sounds: "ድምፆች",
+    bigGame: "Big Game",
+    history: "ታሪክ",
+    txHistory: "የግብይት ታሪክ",
+    gameHistory: "የጨዋታ ታሪክ",
+    appVersion: "የመተግበሪያ ስሪት",
+    contactUs: "Contact us",
+    welcomeBack: "እንኳን ተመለስክ",
+    phone: "ስልክ ቁጥር",
+    password: "የይለፍ ቃል",
+    confirmPassword: "የይለፍ ቃል አረጋግጥ",
+    forgotPassword: "የይለፍ ቃል ረሳህ?",
+    createNewAccount: "አዲስ መለያ ፍጠር",
+    alreadyHaveAccount: "ቀድመው መለያ አለዎት? ግባ",
+    fullName: "ሙሉ ስም",
+    chooseAvatar: "Choose avatar",
+    optionalAvatar: "Optional for your profile",
+    continueBtn: "ቀጥል",
+  },
+  en: {
+    langLabel: "EN",
+    themeLight: "☀ Light mode",
+    themeDark: "🌙 Night mode",
+    guestBadge: "Guest Mode",
+    login: "Login",
+    register: "Register",
+    logout: "Logout",
+    landingH2: "Watch Live Numbers; Join the Next Round",
+    landingP: "Watch live called numbers; login or create an account to select your bingo cards before the next round begins.",
+    landingKicker: "Quick registration :: Instant matchmaking :: Live bingo power.",
+    landingStartCta: "🎁 Start with 10 ETB Free Bonus",
+    landingLobbyCta: "Enter Game Rooms (Lobby)",
+    welcomeCardTitle: "Login to play & select cards",
+    welcomeCardDesc: "Create an account to pick cards and manage your wallet balance.",
+    notifications: "Notifications",
+    sounds: "Sounds",
+    bigGame: "Big Game",
+    history: "History",
+    txHistory: "Transaction History",
+    gameHistory: "Game History",
+    appVersion: "App Version",
+    contactUs: "Contact us",
+    welcomeBack: "Welcome back",
+    phone: "Phone Number",
+    password: "Password",
+    confirmPassword: "Confirm Password",
+    forgotPassword: "Forgot password?",
+    createNewAccount: "Create New Account",
+    alreadyHaveAccount: "Already have an account? Login",
+    fullName: "Full Name",
+    chooseAvatar: "Choose avatar",
+    optionalAvatar: "Optional for your profile",
+    continueBtn: "Continue",
+  }
+};
+
+let currentLang = localStorage.getItem("lb_language") || "am";
+let currentTheme = localStorage.getItem("lb_theme") || "light";
+
+function applyTheme(theme) {
+  currentTheme = theme === "dark" ? "dark" : "light";
+  localStorage.setItem("lb_theme", currentTheme);
+  const isDark = currentTheme === "dark";
+  document.body.classList.toggle("is-dark-theme", isDark);
+  document.documentElement.classList.toggle("is-dark-theme", isDark);
+
+  const iconEl = $("theme-toggle-icon");
+  if (iconEl) {
+    iconEl.textContent = isDark ? "🌙" : "☀";
+  }
+  const btnEl = $("drawer-theme-toggle");
+  if (btnEl) {
+    btnEl.setAttribute("title", isDark ? "ቀን ገጽታ (Light mode)" : "ማታ ገጽታ (Night mode)");
+  }
+}
+
+function toggleTheme() {
+  const nextTheme = currentTheme === "dark" ? "light" : "dark";
+  applyTheme(nextTheme);
+  toast(nextTheme === "dark" ? "🌙 ማታ ገጽታ በርቷል (Night mode ON)" : "☀ ቀን ገጽታ በርቷል (Light mode ON)", "win");
+}
+
+function setLanguage(lang) {
+  currentLang = lang === "en" ? "en" : "am";
+  localStorage.setItem("lb_language", currentLang);
+  const t = TRANSLATIONS[currentLang];
+
+  const langText = document.querySelector("#drawer-lang-toggle .lb-dc-text");
+  if (langText) langText.textContent = t.langLabel;
+
+  const elGuestPill = document.querySelector(".lb-guest-pill");
+  if (elGuestPill) elGuestPill.textContent = t.guestBadge;
+
+  const elLandingLogin = $("landing-login-btn");
+  if (elLandingLogin) elLandingLogin.textContent = t.login;
+
+  const elLandingReg = $("landing-register-btn");
+  if (elLandingReg) elLandingReg.textContent = t.register;
+
+  const elLandingH2 = document.querySelector(".lb-landing-copy h2");
+  if (elLandingH2) elLandingH2.textContent = t.landingH2;
+
+  const elLandingP = document.querySelector(".lb-landing-copy p");
+  if (elLandingP) elLandingP.textContent = t.landingP;
+
+  const elLandingKicker = document.querySelector(".lb-landing-kicker span");
+  if (elLandingKicker) elLandingKicker.textContent = t.landingKicker;
+
+  const elLandingStartCta = document.querySelector("#btn-landing-cta-start span");
+  if (elLandingStartCta) elLandingStartCta.textContent = t.landingStartCta;
+
+  const elLandingLobbyCta = document.querySelector("#btn-landing-enter-lobby span");
+  if (elLandingLobbyCta) elLandingLobbyCta.textContent = t.landingLobbyCta;
+
+  const elWelcomeTitle = document.querySelector("#drawer-welcome-card strong");
+  if (elWelcomeTitle) elWelcomeTitle.textContent = t.welcomeCardTitle;
+
+  const elWelcomeDesc = document.querySelector("#drawer-welcome-card p");
+  if (elWelcomeDesc) elWelcomeDesc.textContent = t.welcomeCardDesc;
+
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  const elDrawerLogin = $("drawer-login-btn");
+  if (elDrawerLogin) elDrawerLogin.textContent = t.login;
+
+  const elDrawerReg = $("drawer-register-btn");
+  if (elDrawerReg) elDrawerReg.textContent = mUser ? t.logout : t.register;
+
+  const elSoundsLabel = document.querySelector("#drawer-sound-toggle")?.closest(".lb-menu-row")?.querySelector(".lb-menu-row-label span:last-child");
+  if (elSoundsLabel) elSoundsLabel.textContent = t.sounds;
+
+  const elHistTitle = document.querySelector(".lb-mg-title span:last-child");
+  if (elHistTitle) elHistTitle.textContent = t.history;
+
+  const elTxHist = document.querySelector("#drawer-tx-history-btn span:nth-child(2)");
+  if (elTxHist) elTxHist.textContent = t.txHistory;
+
+  const elGameHist = document.querySelector("#drawer-game-history-btn span:nth-child(2)");
+  if (elGameHist) elGameHist.textContent = t.gameHistory;
+
+  const elAppVer = document.querySelector("#drawer-install-app-btn strong");
+  if (elAppVer) elAppVer.textContent = t.appVersion;
+
+  const elAuthHeading = document.querySelector(".lb-auth-heading");
+  if (elAuthHeading) elAuthHeading.textContent = t.welcomeBack;
+
+  const elLoginSubmit = document.querySelector("#login-submit-btn span");
+  if (elLoginSubmit) elLoginSubmit.textContent = t.login;
+
+  const elToRegister = $("to-register-btn");
+  if (elToRegister) elToRegister.textContent = t.createNewAccount;
+
+  const elToLogin = $("to-login-btn");
+  if (elToLogin) elToLogin.textContent = t.alreadyHaveAccount;
+
+  const elRegSubmit = document.querySelector("#reg-submit-btn span");
+  if (elRegSubmit) elRegSubmit.textContent = t.continueBtn;
+
+  const elForgotLink = $("auth-forgot-link");
+  if (elForgotLink) elForgotLink.textContent = t.forgotPassword;
+
+  const elHeaderLogin = $("btn-header-login");
+  if (elHeaderLogin) elHeaderLogin.textContent = t.login;
+
+  const elHeaderReg = $("btn-header-register");
+  if (elHeaderReg) elHeaderReg.textContent = t.register;
+
+  const labelPhone = document.querySelector('label[for="login-phone-input"]');
+  if (labelPhone) labelPhone.textContent = t.phone;
+
+  const labelPwd = document.querySelector('label[for="login-password-input"]');
+  if (labelPwd) labelPwd.textContent = t.password;
+
+  const labelRegName = document.querySelector('label[for="reg-name-input"]');
+  if (labelRegName) labelRegName.textContent = t.fullName;
+
+  const labelRegPhone = document.querySelector('label[for="reg-phone-input"]');
+  if (labelRegPhone) labelRegPhone.textContent = t.phone;
+
+  const labelRegPwd = document.querySelector('label[for="reg-password-input"]');
+  if (labelRegPwd) labelRegPwd.textContent = t.password;
+
+  const labelRegConfPwd = document.querySelector('label[for="reg-confirm-password-input"]');
+  if (labelRegConfPwd) labelRegConfPwd.textContent = t.confirmPassword;
+}
+
+function toggleLanguage() {
+  const nextLang = currentLang === "am" ? "en" : "am";
+  setLanguage(nextLang);
+  toast(nextLang === "en" ? "🇬🇧 English selected" : "🇪🇹 አማርኛ ተመርጧል", "win");
+}
+
+function setupSideDrawerEvents() {
+  $("btn-open-drawer")?.addEventListener("click", openSideDrawer);
+  $("btn-close-drawer")?.addEventListener("click", closeSideDrawer);
+  $("drawer-backdrop")?.addEventListener("click", closeSideDrawer);
+  $("drawer-theme-toggle")?.addEventListener("click", toggleTheme);
+  $("drawer-lang-toggle")?.addEventListener("click", toggleLanguage);
+
+  // Top header actions
+  $("btn-header-login")?.addEventListener("click", () => {
+    setAuthMode("login");
+    showMobileAuthModal(true);
+  });
+  $("btn-header-register")?.addEventListener("click", () => {
+    setAuthMode("register");
+    showMobileAuthModal(true);
+  });
+  $("header-refresh-btn")?.addEventListener("click", () => {
+    syncProfileWithServer();
+    renderRooms();
+    toast("REFRESHED", "win");
+  });
+
+  // Landing page actions
+  $("landing-login-btn")?.addEventListener("click", () => {
+    setAuthMode("login");
+    showMobileAuthModal(true);
+  });
+  $("landing-register-btn")?.addEventListener("click", () => {
+    setAuthMode("register");
+    showMobileAuthModal(true);
+  });
+  $("llt-info-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const box = $("llt-info-box");
+    if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+  });
+  $("plt-info-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const box = $("plt-info-box");
+    if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+  });
+  $("plt-banner-toggle")?.addEventListener("click", () => {
+    const banner = $("plt-banner");
+    if (banner) banner.classList.toggle("is-collapsed");
+  });
+  $("landing-live-tracker")?.addEventListener("click", () => {
+    setAuthMode("register");
+    showMobileAuthModal(true);
+    toast("ለመጫወት እና ካርቴላ ለመምረጥ ይመዝገቡ (Register to play & get 10 ETB free)", "win");
+  });
+  $("btn-landing-cta-start")?.addEventListener("click", () => {
+    setAuthMode("register");
+    showMobileAuthModal(true);
+  });
+  $("demo-diagonal-btn")?.addEventListener("click", () => {
+    nextDemoPattern();
+    startDemoCardAnimation();
+    const current = DEMO_PATTERNS[demoPatternIndex];
+    if (current) {
+      toast(`🎯 ${current.name}`, "win");
+    }
+  });
+
+  // Drawer buttons
+  $("drawer-login-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    if (mUser) {
+      showView("lobby");
+    } else {
+      setAuthMode("login");
+      showMobileAuthModal(true);
+    }
+  });
+  $("drawer-register-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    if (mUser) {
+      if (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.logoutMobile) {
+        LuckyBingoAPI.logoutMobile();
+      }
+      updateGameUserInfo();
+      showView("landing");
+      toast("ተሰናብተዋል (Logged out)", "win");
+    } else {
+      setAuthMode("register");
+      showMobileAuthModal(true);
+    }
+  });
+  $("drawer-big-game-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+    if (!mUser && !isTg) {
+      setAuthMode("login");
+      showMobileAuthModal(true);
+      toast("እባክዎ መጀመሪያ ይግቡ (Please login)", "win");
+    } else {
+      showView("lobby");
+    }
+  });
+  $("drawer-install-app-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    handleInstallClick();
+  });
+  $("drawer-tx-history-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+    if (!mUser && !isTg) {
+      setAuthMode("login");
+      showMobileAuthModal(true);
+      toast("እባክዎ መጀመሪያ ይግቡ (Please login)", "win");
+    } else {
+      historyFilter = "deposit";
+      openMobilePanel("history");
+    }
+  });
+  $("drawer-game-history-btn")?.addEventListener("click", () => {
+    closeSideDrawer();
+    const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+    const isTg = Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user?.id);
+    if (!mUser && !isTg) {
+      setAuthMode("login");
+      showMobileAuthModal(true);
+      toast("እባክዎ መጀመሪያ ይግቡ (Please login)", "win");
+    } else {
+      historyFilter = "game";
+      openMobilePanel("history");
+    }
+  });
+  $("drawer-contact-btn")?.addEventListener("click", () => {
+    window.open("tel:0939292694");
+  });
+  $("drawer-sound-toggle")?.addEventListener("change", (e) => {
+    soundEnabled = Boolean(e.target.checked);
+    toast(soundEnabled ? "ድምፅ በርቷል" : "ድምፅ ጠፍቷል", "win");
+  });
+}
+
+function renderBalance() {
   const lobbyBalance = $("balance");
   if (lobbyBalance) lobbyBalance.textContent = fmtBal(balance);
   const pickBalance = $("pick-balance");
@@ -1230,29 +2410,29 @@ function ensureCard(id) {
 }
 
 function prizePool() {
-  const room = activeRoomId ? getLobbyRoom(activeRoomId) : null;
   const server = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
-  const count = server ? Number(server.player_count) || 0 : 0;
-  return stake * count * (1 - COMMISSION_RATE);
+  const count = server ? Number(server.total_cards || server.player_count || 0) : selected.size;
+  return calculateDerash(count || 1, stake);
 }
 
 function canAfford(roomStake) {
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (w && typeof w.get === "function") {
-    balance = w.get();
-  }
   return balance >= roomStake;
 }
 
-function calculateDerash(players, roomStake) {
-  const p = Number(players) || 0;
-  if (p <= 0) return 0;
-  return Math.floor(p * roomStake * (1 - COMMISSION_RATE));
+function calculateDerash(cards, roomStake) {
+  const p = Number(cards) || 0;
+  if (p <= 0) return roomStake;
+  const pot = p * roomStake;
+  if (p <= 5) {
+    return pot; // Up to 5 registered cards: 0% commission (minm saykinse)
+  }
+  return Math.max(roomStake, Math.round(pot * (1 - COMMISSION_RATE))); // > 5 cards: 20% commission
 }
 
 function renderPickRoomSummary() {
   const room = activeRoomId ? getLobbyRoom(activeRoomId) : null;
   const server = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
+  if (server) updatePickLiveTracker(server);
   const roomStake = room?.stake || stake;
   const playerCount = server ? Number(server.player_count) || 0 : 0;
   const available = cardNumbers.length ? Math.max(0, cardNumbers.length - takenByOthers.size - selected.size) : 0;
@@ -1273,7 +2453,8 @@ function renderPickRoomSummary() {
   const isCounting = pickTimer !== null && pickLeft !== null && pickLeft > 0;
   if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}` : (selected.size > 0 ? (pickLeft ? `${pickLeft}` : "30") : "30");
   const reservedStake = selected.size * roomStake;
-  const availableBal = Math.max(0, balance - reservedStake);
+  const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+  const availableBal = isOnline ? balance : Math.max(0, balance - reservedStake);
   if (pickBalance) pickBalance.textContent = String(Math.floor(availableBal));
   if (bannerSeconds) bannerSeconds.textContent = isCounting ? formatCountdown(pickLeft) : "Open";
 
@@ -1615,7 +2796,9 @@ function enterRoom(roomId) {
 }
 
 function updatePickInfo() {
-  const limit = Math.min(MAX_PICK, Math.floor(balance / stake));
+  const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+  const maxPossible = isOnline ? (selected.size + Math.floor(balance / stake)) : Math.floor(balance / stake);
+  const limit = Math.min(MAX_PICK, maxPossible);
   const waitingForStart = pickTimer !== null && pickLeft !== null && pickLeft > 0;
   const startButton = $("start-game");
   if ($("pick-count")) $("pick-count").textContent = String(selected.size);
@@ -1745,9 +2928,17 @@ function toggleCard(id) {
       toast(`MAXIMUM ${MAX_PICK} CARDS`, "lose");
       return;
     }
-    if (selected.size >= Math.min(MAX_PICK, Math.floor(balance / stake))) {
-      toast("NOT ENOUGH BALANCE", "lose");
-      return;
+    const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+    if (isOnline) {
+      if (balance < stake) {
+        toast("NOT ENOUGH BALANCE", "lose");
+        return;
+      }
+    } else {
+      if (selected.size >= Math.min(MAX_PICK, Math.floor(balance / stake))) {
+        toast("NOT ENOUGH BALANCE", "lose");
+        return;
+      }
     }
     selected.add(id);
     selectedPreviewId = id;
@@ -1757,19 +2948,23 @@ function toggleCard(id) {
 }
 
 function randomAvailableCard() {
-  const limit = Math.min(MAX_PICK, Math.floor(balance / stake));
+  const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+  const maxPossible = isOnline ? (selected.size + Math.floor(balance / stake)) : Math.floor(balance / stake);
+  const limit = Math.min(MAX_PICK, maxPossible);
   const available = cardNumbers.filter((id) => !takenByOthers.has(id) && !selected.has(id));
   if (selected.size >= limit || !available.length) return null;
   return available[Math.floor(Math.random() * available.length)];
 }
 
 function randomPick(amount) {
-  const limit = Math.min(MAX_PICK, Math.floor(balance / stake));
+  const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+  const maxPossible = isOnline ? (selected.size + Math.floor(balance / stake)) : Math.floor(balance / stake);
+  const limit = Math.min(MAX_PICK, maxPossible);
   if (!cardsReady) {
     toast(cardsLoadError ? "CARD DATA UNAVAILABLE" : "CARD DATA LOADING", "lose");
     return;
   }
-  if (limit <= 0) {
+  if (limit <= selected.size) {
     toast("NOT ENOUGH BALANCE", "lose");
     return;
   }
@@ -1806,7 +3001,7 @@ function setupPickWaitingState() {
   const timer = $("pick-timer");
   const banner = $("pick-banner-secs");
   const helper = $("pick-helper");
-  if (time) time.textContent = selected.size > 0 ? String(pickLeft || 30) : "30";
+  if (time) time.textContent = selected.size > 0 ? formatCountdown(pickLeft || 120) : "02:00";
   if (seconds) seconds.textContent = "Open";
   if (banner) banner.textContent = "Open";
   if (timer) timer.classList.remove("is-urgent");
@@ -1886,16 +3081,6 @@ function onCardSelectionChanged() {
           }
 
           if (res?.error === "Insufficient balance") {
-            const w = window.FriendesWallet || window.HabeshaWallet;
-            if (w && typeof w.get === "function" && w.get() >= (stake * selected.size)) {
-              const user = LuckyBingoAPI.getTelegramUser();
-              if (user?.id && typeof LuckyBingoAPI.updateAdminUser === "function") {
-                LuckyBingoAPI.updateAdminUser(user.id, { balance: w.get() }).then(() => {
-                  LuckyBingoAPI.joinRoom(activeRoomId, Array.from(requestedCards)).catch(() => {});
-                }).catch(() => {});
-                return;
-              }
-            }
             if (selectedPreviewId && selected.has(selectedPreviewId)) {
               selected.delete(selectedPreviewId);
               selectedPreviewId = selected.size ? [...selected][selected.size - 1] : null;
@@ -1951,12 +3136,7 @@ function onCardSelectionChanged() {
           return;
         }
         if (typeof res.balance === "number") {
-          const w = window.FriendesWallet || window.HabeshaWallet;
-          if (w && typeof w.get === "function") {
-            balance = w.get();
-          } else {
-            balance = Number(res.balance);
-          }
+          balance = Number(res.balance);
           renderBalance();
         }
         if (res && res.ok && activeRoomId) {
@@ -2015,12 +3195,12 @@ function updatePickCountdownDisplay() {
   const time = $("pick-time");
   const timer = $("pick-timer");
   const banner = $("pick-banner-secs");
-  const isCounting = pickTimer !== null && pickLeft !== null && pickLeft > 0;
+  const isCounting = pickLeft !== null && pickLeft > 0;
   const label = isCounting ? formatCountdown(pickLeft) : (selected.size > 0 ? "Waiting" : "Open");
   if (seconds) seconds.textContent = label;
-  if (time) time.textContent = isCounting ? `${Math.max(0, pickLeft)}` : (selected.size > 0 ? (pickLeft ? `${pickLeft}` : "30") : "30");
+  if (time) time.textContent = isCounting ? formatCountdown(pickLeft) : (selected.size > 0 ? (pickLeft ? formatCountdown(pickLeft) : "02:00") : "02:00");
   if (banner) banner.textContent = label;
-  if (timer) timer.classList.toggle("is-urgent", isCounting && pickLeft <= 5);
+  if (timer) timer.classList.toggle("is-urgent", isCounting && pickLeft <= 10);
   renderPickRoomSummary();
   updateGameWaiting();
 }
@@ -2050,15 +3230,9 @@ function startPickCountdown(roomStartsAt = null, roomRoundKey = null) {
         }
         if (!entryCharged) {
           const cost = stake * selected.size;
-          const w = window.FriendesWallet || window.HabeshaWallet;
           if (balance >= cost) {
-            if (w && typeof w.modify === "function") {
-              w.modify(-cost);
-              balance = w.get();
-            } else {
-              balance -= cost;
-              saveBalance();
-            }
+            balance -= cost;
+            saveBalance();
             renderBalance();
             entryCharged = true;
           } else {
@@ -2421,12 +3595,12 @@ function showWinnerOverlay(outcome, winnerName, prize = null, cardId = null, kin
   renderWinnerConfetti();
   renderWinnerCard(finalCardId, new Set(called), kind);
 
-  let remaining = 7;
+  let remaining = 12; // 12 seconds winner celebration
   const hint = $("winner-overlay-hint");
   const updateCountdownDisplay = () => {
     if (seconds) seconds.textContent = String(Math.max(0, remaining));
     if (hint) {
-      if (remaining > 2) {
+      if (remaining > 3) {
         hint.innerHTML = `<span>Returning to selection in <b id="winner-overlay-seconds">${Math.max(0, remaining)}</b>s</span>`;
       } else {
         hint.innerHTML = `<span>Returning to selection in <b id="winner-overlay-seconds">${Math.max(0, remaining)}</b>s · Tap to return</span>`;
@@ -2439,8 +3613,8 @@ function showWinnerOverlay(outcome, winnerName, prize = null, cardId = null, kin
   overlay.hidden = false;
 
   overlay.onclick = () => {
-    // Only allow manual dismissal when countdown is almost done (<= 2s) to prevent accidental immediate clicks
-    if (remaining <= 2) {
+    // Allow manual dismissal only when countdown is near finish (<= 3s)
+    if (remaining <= 3) {
       clearInterval(winnerTimer);
       winnerTimer = null;
       returnToCardSelection();
@@ -3052,30 +4226,19 @@ function claimBingo() {
   playing = false;
   $("bingo-btn").disabled = true;
 
-  const mult = kind === "FULL HOUSE" ? 1 : 0.22;
-  const sRoom = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
-  const realPlayers = Array.isArray(sRoom?.players) ? sRoom.players : [];
-  const realCards = realPlayers.reduce((sum, p) => sum + (p.card_ids?.length || 0), 0);
+  const isOnline = Boolean(activeRoomId && typeof LuckyBingoAPI !== "undefined");
+  const server = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
+  const serverCards = server ? Number(server.total_cards || 0) : 0;
+  const totalCards = Math.max(serverCards, selected.size + takenByOthers.size);
+  const win = (server && Number(server.derash) > 0)
+    ? Math.round(Number(server.derash))
+    : calculateDerash(Math.max(1, totalCards), stake);
 
-  let pool = 0;
-  if (activeRoomId && realCards > 1) {
-    // Multiplayer round with 2+ real human players
-    pool = calculateDerash(realCards, stake);
-  } else {
-    // Solo / Practice / Simulated bots: house NEVER awards uncollected bot money!
-    // Maximum win is strictly capped at player's own stake (refund)
-    pool = selected.size * stake;
-  }
-  const win = Math.max(stake, Math.round(pool * mult));
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (w && typeof w.modify === "function") {
-    w.modify(win);
-    balance = w.get();
-  } else {
+  if (!isOnline) {
     balance += win;
     saveBalance();
+    renderBalance();
   }
-  renderBalance();
   recordPlayerTransaction({
     type: "win",
     method: "Derash Prize Win",
@@ -3103,6 +4266,7 @@ function claimBingo() {
 }
 
 function botWins() {
+  if (activeRoomId) return; // In multiplayer, server determines winner!
   if (claimed || !playing) return;
   claimed = true;
   playing = false;
@@ -3114,8 +4278,12 @@ function botWins() {
   ];
   const winnerName = BOT_WINNER_NAMES[Math.floor(Math.random() * BOT_WINNER_NAMES.length)] || "Dawit K.";
   const botCardId = [...takenByOthers][0] || Math.floor(Math.random() * 900) + 1;
-  const totalPlayers = Math.max(2, selected.size + (botPlayers || 3));
-  const botPrize = calculateDerash(totalPlayers, stake);
+  const server = activeRoomId ? serverRoomStates[String(activeRoomId)] : null;
+  const serverCards = server ? Number(server.total_cards || 0) : 0;
+  const totalCards = Math.max(serverCards, selected.size + takenByOthers.size);
+  const botPrize = (server && Number(server.derash) > 0)
+    ? Math.round(Number(server.derash))
+    : calculateDerash(Math.max(1, totalCards), stake);
   roundOutcome = "lose";
   roundWinnerName = winnerName;
   roundWinCardId = botCardId;
@@ -3214,28 +4382,37 @@ function showWalletFeedback(action, message, isError = false) {
 function getDepositPaymentAccount(method) {
   try {
     const adminSettings = JSON.parse(localStorage.getItem(ADMIN_SETTINGS_KEY) || "{}");
+    if (adminSettings.depositTelebirrPhone === "0981247219") adminSettings.depositTelebirrPhone = "0918182355";
+    if (adminSettings.depositTelebirrName === "Africa Bingo") adminSettings.depositTelebirrName = "Berihun";
+    if (adminSettings.depositCbeBirrPhone === "0981247219") adminSettings.depositCbeBirrPhone = "1000076108653";
+    if (adminSettings.depositCbeBirrName === "Africa Bingo CBE Birr") adminSettings.depositCbeBirrName = "Berihun";
+
     if (method === "Telebirr") {
       return {
-        accountName: adminSettings.depositTelebirrName || "Abirham",
-        accountNumber: adminSettings.depositTelebirrPhone || "0928233032",
+        accountName: adminSettings.depositTelebirrName || "Berihun",
+        accountNumber: adminSettings.depositTelebirrPhone || "0918182355",
       };
     }
     if (method === "CBE Birr") {
       return {
-        accountName: adminSettings.depositCbeBirrName || "Abirham",
-        accountNumber: adminSettings.depositCbeBirrPhone || "0928233032",
+        accountName: adminSettings.depositCbeBirrName || "Berihun",
+        accountNumber: adminSettings.depositCbeBirrPhone || "1000076108653",
       };
     }
-    if (method === "M-Pesa") {
+    if (method === "M-Pesa" && adminSettings.depositMpesaPhone) {
       return {
-        accountName: adminSettings.depositMpesaName || "Abirham",
-        accountNumber: adminSettings.depositMpesaPhone || "+251717482251",
+        accountName: adminSettings.depositMpesaName || "Africa Bingo M-Pesa",
+        accountNumber: adminSettings.depositMpesaPhone || "0700 000 000",
       };
     }
   } catch (e) {}
 
   if (window.LUCKY_BINGO_PAYMENT_METHODS && window.LUCKY_BINGO_PAYMENT_METHODS[method]) {
-    return window.LUCKY_BINGO_PAYMENT_METHODS[method];
+    const pm = window.LUCKY_BINGO_PAYMENT_METHODS[method];
+    return {
+      accountName: pm.account_name || pm.accountName || "Berihun",
+      accountNumber: pm.account_number || pm.accountNumber || (method === "Telebirr" ? "0918182355" : "1000076108653"),
+    };
   }
 
   return PAYMENT_METHODS[method] || PAYMENT_METHODS.Telebirr;
@@ -3303,16 +4480,20 @@ function getActivePlayerProfile() {
 
 function saveWalletRequest(request) {
   const profile = getActivePlayerProfile();
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  const tgUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getTelegramUser) ? LuckyBingoAPI.getTelegramUser() : null;
+  const user = mUser || tgUser;
   const transaction = {
     id: makeTransactionId(),
     playerId: profile.id,
     player: profile.name,
+    phone: request.phone || (user ? (user.phone || user.username || "") : ""),
+    user_id: user ? (user.id || "") : "",
     type: request.type,
     method: request.method,
     amount: request.amount,
     requested: "just now",
     status: "pending",
-    phone: request.phone || "",
     reference: request.reference || "",
     accountName: request.accountName || "",
     accountNumber: request.accountNumber || "",
@@ -3410,31 +4591,24 @@ function handleWithdrawSubmit(event) {
 }
 
 function syncPlayerWalletFromStorage() {
-  const w = window.FriendesWallet || window.HabeshaWallet;
-  if (w && typeof w.get === "function") {
-    balance = w.get();
-    renderBalance();
-  } else {
-    syncProfileWithServer();
-  }
+  // localStorage is not an account ledger. Refresh the signed server profile
+  // whenever the tab regains focus instead of copying another tab's cache.
+  syncProfileWithServer();
 }
 
 window.addEventListener("storage", (event) => {
   if (event.key === BALANCE_KEY || event.key === "habesha_balance" || event.key === ADMIN_STATE_KEY) {
-    const w = window.FriendesWallet || window.HabeshaWallet;
-    if (typeof w !== "undefined" && typeof w.get === "function") {
-      balance = w.get();
+    if (typeof window.HabeshaWallet !== "undefined") {
+      balance = window.HabeshaWallet.get();
       renderBalance();
       updatePickInfo();
-    } else {
-      syncPlayerWalletFromStorage();
     }
+    syncPlayerWalletFromStorage();
   }
 });
 
-const bWallet = window.FriendesWallet || window.HabeshaWallet;
-if (typeof bWallet !== "undefined" && typeof bWallet.subscribe === "function") {
-  bWallet.subscribe((newBal) => {
+if (typeof window.HabeshaWallet !== "undefined") {
+  window.HabeshaWallet.subscribe((newBal) => {
     balance = newBal;
     renderBalance();
     updatePickInfo();
@@ -3550,6 +4724,9 @@ function bind() {
   $("game-leave-btn")?.addEventListener("click", () => {
     leaveGame();
   });
+  $("empty-pick-action-btn")?.addEventListener("click", () => {
+    returnToCardSelection();
+  });
   $("game-refresh-btn")?.addEventListener("click", () => {
     syncProfileWithServer();
     renderMineCards();
@@ -3563,11 +4740,16 @@ function bind() {
   });
   $("game-wallet-trigger")?.addEventListener("click", () => openWallet("deposit"));
   $("game-user-trigger")?.addEventListener("click", () => openMobilePanel("profile"));
+  $("lobby-user-chip")?.addEventListener("click", () => openMobilePanel("profile"));
+  $("install-app-btn")?.addEventListener("click", handleInstallClick);
+  setupMobileAuthEvents();
+  setupSideDrawerEvents();
   updateDepositAccount();
   updateProviderButtons("deposit");
   updateProviderButtons("withdraw");
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !$("wallet-panel").hidden) closeWallet();
+    if (event.key === "Escape" && $("side-drawer")?.classList.contains("is-open")) closeSideDrawer();
   });
 }
 
@@ -3612,8 +4794,6 @@ if (window.location.hash === "#game" || window.location.search.includes("view=ga
   if ($("pick-stake")) $("pick-stake").textContent = String(stake);
   $("pick-cost").textContent = String(stake);
   selected.clear();
-  selected.add(97);
-  selected.add(99);
   updatePickInfo();
   buildCardGrid();
   renderCartelaPreview();
@@ -3621,11 +4801,22 @@ if (window.location.hash === "#game" || window.location.search.includes("view=ga
   showView("game");
   showWinnerOverlay("win", "RAS", 3800, 440, "LINE");
 } else {
-  showView("lobby");
+  const mUser = (typeof LuckyBingoAPI !== "undefined" && LuckyBingoAPI.getMobileUser) ? LuckyBingoAPI.getMobileUser() : null;
+  if (mUser) {
+    showView("lobby");
+  } else {
+    showView("landing");
+  }
 }
 
 checkAdminAccess();
-window.addEventListener("DOMContentLoaded", checkAdminAccess);
+applyTheme(currentTheme);
+setLanguage(currentLang);
+window.addEventListener("DOMContentLoaded", () => {
+  checkAdminAccess();
+  applyTheme(currentTheme);
+  setLanguage(currentLang);
+});
 window.addEventListener("load", checkAdminAccess);
 window.addEventListener("beforeunload", () => {
   // Do not mutate server membership during unload. A refresh or second device
@@ -3636,8 +4827,4 @@ window.addEventListener("storage", (event) => {
     if (views.lobby && views.lobby.classList.contains("is-on")) renderRooms();
   }
 });
-
-if (window.hideGameLoader) {
-  window.hideGameLoader(300);
-}
 

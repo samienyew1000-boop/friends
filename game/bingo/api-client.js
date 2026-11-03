@@ -10,11 +10,13 @@ const LuckyBingoAPI = (() => {
   let _baseUrl = "";
 
   function getBaseUrl() {
-    if (_baseUrl) return _baseUrl;
+    if (window.location.pathname.startsWith("/bingo")) {
+      return window.location.origin + "/bingo";
+    }
     try {
       const params = new URLSearchParams(window.location.search);
       const apiParam = params.get("api");
-      if (apiParam) {
+      if (apiParam && !apiParam.includes(":3005")) {
         _baseUrl = apiParam.replace(/\/+$/, "");
         localStorage.setItem("lb_api_url", _baseUrl);
         return _baseUrl;
@@ -22,18 +24,21 @@ const LuckyBingoAPI = (() => {
     } catch (e) {}
 
     const configuredUrl = window.LUCKY_BINGO_API_URL || localStorage.getItem("lb_api_url");
-    if (configuredUrl) {
+    if (configuredUrl && !configuredUrl.includes(":3005") && !configuredUrl.includes("trycloudflare.com")) {
       _baseUrl = configuredUrl.replace(/\/+$/, "");
       return _baseUrl;
     }
 
-    const currentHost = window.location.hostname;
-    if (currentHost === "localhost" || currentHost === "127.0.0.1") {
-      _baseUrl = "";
-    } else {
-      _baseUrl = "";
+    if (window.location.origin && window.location.origin.includes("ethiodeploy.com")) {
+      return window.location.origin;
     }
-    return _baseUrl;
+
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (isLocal) {
+      return window.location.origin || "http://localhost:3000";
+    }
+
+    return "https://africa-bingo.ethiodeploy.com";
   }
 
   function getInitData() {
@@ -44,16 +49,78 @@ const LuckyBingoAPI = (() => {
     }
   }
 
+  function getMobileUser() {
+    try {
+      const raw = localStorage.getItem("lb_mobile_user");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.id || parsed.phone)) return parsed;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function logoutMobile() {
+    localStorage.removeItem("lb_mobile_user");
+    localStorage.removeItem("lb_tg_user");
+    localStorage.removeItem("lb_device_player_id");
+  }
+
+  async function mobileRegister(phone, fullName = "", password = "", avatar = "") {
+    const res = await apiRequest("/api/auth/register-mobile", {
+      method: "POST",
+      body: JSON.stringify({ phone, name: fullName, nickname: fullName, password, avatar }),
+    });
+    if (res && res.ok && res.user) {
+      localStorage.setItem("lb_mobile_user", JSON.stringify(res.user));
+      localStorage.setItem("lb_tg_user", JSON.stringify(res.user));
+    }
+    return res;
+  }
+
+  async function mobileLogin(phone, password = "") {
+    const res = await apiRequest("/api/auth/login-mobile", {
+      method: "POST",
+      body: JSON.stringify({ phone, password }),
+    });
+    if (res && res.ok && res.user) {
+      localStorage.setItem("lb_mobile_user", JSON.stringify(res.user));
+      localStorage.setItem("lb_tg_user", JSON.stringify(res.user));
+    }
+    return res;
+  }
+
   function getTelegramUser() {
     try {
+      const mobileUser = getMobileUser();
+      if (mobileUser && mobileUser.id) {
+        return mobileUser;
+      }
+
       const webAppUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
       if (webAppUser?.id) {
         localStorage.setItem("lb_tg_user", JSON.stringify(webAppUser));
         return webAppUser;
       }
 
+      if (typeof window.HabeshaWallet !== "undefined") {
+        const hu = window.HabeshaWallet.getUser();
+        if (hu && hu.id && /^\d+$/.test(String(hu.id).replace(/^TG-/i, "").replace(/^tg_/i, ""))) {
+          const cleanId = String(hu.id).replace(/^TG-/i, "").replace(/^tg_/i, "");
+          const u = {
+            id: Number(cleanId),
+            username: hu.username || `Player_${cleanId.slice(-4)}`,
+            first_name: hu.name || "Player",
+            phone: hu.phone || ""
+          };
+          localStorage.setItem("lb_tg_user", JSON.stringify(u));
+          return u;
+        }
+      }
+
       const params = new URLSearchParams(window.location.search);
-      const uid = params.get("u") || params.get("user_id") || params.get("tg_user_id");
+      const rawUid = params.get("uid") || params.get("u") || params.get("user_id") || params.get("tg_user_id");
+      const uid = rawUid;
       if (uid && /^\d+$/.test(uid)) {
         const u = { id: Number(uid), username: params.get("username") || `Player_${uid.slice(-4)}`, first_name: "Player" };
         localStorage.setItem("lb_tg_user", JSON.stringify(u));
@@ -98,7 +165,7 @@ const LuckyBingoAPI = (() => {
     if (adminToken) {
       headers["X-Admin-Token"] = adminToken;
     }
-    const adminPwd = sessionStorage.getItem("lb_admin_password") || localStorage.getItem("lb_admin_password") || "AF7694";
+    const adminPwd = sessionStorage.getItem("lb_admin_password") || localStorage.getItem("lb_admin_password") || "Ber343477";
     if (adminPwd) {
       headers["X-Admin-Password"] = adminPwd;
     }
@@ -106,8 +173,10 @@ const LuckyBingoAPI = (() => {
     const user = getTelegramUser();
     if (user?.id) {
       headers["X-Telegram-User-Id"] = String(user.id);
-      if (user.username) {
-        headers["X-Telegram-User-Name"] = String(user.username);
+      headers["X-Mobile-User-Id"] = String(user.id);
+      if (user.username || user.phone) {
+        headers["X-Telegram-User-Name"] = String(user.username || user.phone);
+        headers["X-Mobile-Phone"] = String(user.phone || user.username);
       }
     }
 
@@ -141,7 +210,7 @@ const LuckyBingoAPI = (() => {
       // Self-healing: if fetch failed, check if Vercel has an updated tunnel URL and retry
       if (!options._retried) {
         try {
-          const configRes = await fetch("https://lucky-bingo-iota.vercel.app/app-config.js?_t=" + Date.now(), { cache: "no-store" });
+          const configRes = await fetch("/app-config.js?_t=" + Date.now(), { cache: "no-store" });
           if (configRes.ok) {
             const configText = await configRes.text();
             const match = configText.match(/DEFAULT_BACKEND_URL\s*=\s*["']([^"']+)["']/);
@@ -332,7 +401,7 @@ const LuckyBingoAPI = (() => {
   async function updateAdminUser(userId, updates = {}) {
     return apiRequest("/api/admin/user/update", {
       method: "POST",
-      body: JSON.stringify({ user_id: Number(userId), ...updates }),
+      body: JSON.stringify({ user_id: String(userId), ...updates }),
     });
   }
 
@@ -359,7 +428,7 @@ const LuckyBingoAPI = (() => {
       let data = await getAdminOverview();
       if (data && (data._status === 401 || (data.error && String(data.error).toLowerCase().includes("unauthorized")))) {
         const adminUser = (sessionStorage.getItem("lb_admin_user") || localStorage.getItem("lb_admin_user") || "su121316").replace(/^@/, "").toLowerCase();
-        const adminPass = sessionStorage.getItem("lb_admin_password") || localStorage.getItem("lb_admin_password") || "AF7694";
+        const adminPass = sessionStorage.getItem("lb_admin_password") || localStorage.getItem("lb_admin_password") || "Ber343477";
         const loginRes = await adminLogin(adminUser, adminPass);
         if (loginRes && loginRes.ok) {
           data = await getAdminOverview();
@@ -416,5 +485,9 @@ const LuckyBingoAPI = (() => {
     updateAdminSettings,
     startAdminPoll,
     stopAdminPoll,
+    mobileRegister,
+    mobileLogin,
+    getMobileUser,
+    logoutMobile,
   };
 })();

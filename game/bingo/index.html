@@ -3,13 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#bfa2d0" />
-    <title>Friendes Bingo</title>
-    <link rel="stylesheet" href="style.css?v=20261006_09" />
+    <meta name="theme-color" content="#193866" />
+    <title>Africa Bingo</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Africa Bingo" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
     <link rel="stylesheet" href="../../assets/game-loader.css" />
     <script src="../../assets/game-loader.js"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="players-data.js?v=20261006_09"></script>
+    <link rel="stylesheet" href="style.css?v=20261102_05" />
+    <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+    <script src="players-data.js?v=20261102_05"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
+        });
+      }
+    </script>
   </head>
   <body class="is-lobby-active">
     <!-- InOut Global Game Loading Screen -->
@@ -25,9 +39,174 @@
 
     <div class="lb-root">
       <div class="lb-frame">
+        <!-- GLOBAL TOP NAVIGATION BAR (Exact Match to Screenshot 1) -->
+        <header class="lb-global-header" id="global-header">
+          <div class="lb-gh-left">
+            <button type="button" class="lb-hamburger-btn" id="btn-open-drawer" aria-label="Open menu">
+              <span class="lb-bar"></span>
+              <span class="lb-bar"></span>
+              <span class="lb-bar"></span>
+            </button>
+            <div class="lb-brand-title">
+              <span class="lb-brand-short">Africa</span><span class="lb-brand-dot">...</span>
+            </div>
+            <a href="../../index.html" class="lb-header-lobby-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#fff;padding:4px 9px;border-radius:8px;background:rgba(255,255,255,0.15);margin-left:6px;" title="ወደ ዋና ማውጫ">&larr; Lobby</a>
+            <button type="button" class="lb-header-icon-btn" id="header-refresh-btn" title="Refresh">↻</button>
+          </div>
+          <div class="lb-gh-center">
+            <span class="lb-header-status-badge" id="header-status-badge">ቀጥታ</span>
+          </div>
+          <div class="lb-gh-right" id="global-header-actions">
+            <button type="button" class="lb-gh-btn lb-gh-login" id="btn-header-login">ግባ</button>
+            <button type="button" class="lb-gh-btn lb-gh-register" id="btn-header-register">ተመዝገብ</button>
+          </div>
+        </header>
+
         <main class="lb-main">
+          <!-- 0. LANDING / GUEST DEMONSTRATION VIEW (Exact Screenshot 1 Match) -->
+          <section class="lb-view lb-landing-view is-on" id="view-landing">
+            <!-- Top Live Tracker Card (Matches Screenshot 1 & 2) -->
+            <div class="lb-landing-live-tracker" id="landing-live-tracker" style="display: none;">
+              <div class="lb-llt-top-row">
+                <h3 class="lb-llt-title" id="llt-card-title">ለመጫወት ተመዝገብ</h3>
+                <button type="button" class="lb-llt-info-btn" id="llt-info-btn">
+                  <span>info</span>
+                  <svg viewBox="0 0 20 20" width="13" height="13" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Collapsible info explanation -->
+              <div class="lb-llt-info-box" id="llt-info-box" style="display: none;">
+                <p>ቀጥታ የወጡ ቁጥሮችን ይመልከቱ፤ በጨዋታው ለመሳተፍ እና ለማሸነፍ በስልክ ቁጥርዎ ይመዝገቡ (የ 10 ብር ነፃ ቦነስ ያገኛሉ)!</p>
+              </div>
+
+              <div class="lb-llt-inner-card" id="llt-click-target" title="ለመመዝገብ ይጫኑ">
+                <div class="lb-llt-meta-row">
+                  <span class="lb-llt-pattern" id="llt-pattern">4 ስክሪ የማያገናኙ (የቀጥታ ጨዋታ)</span>
+                  <span class="lb-llt-badge is-live" id="llt-badge"><i class="lb-llt-pulse"></i> ቀጥታ</span>
+                </div>
+
+                <!-- Horizontal scroll balls stream -->
+                <div class="lb-llt-balls-row" id="llt-balls-row" aria-label="Called balls stream">
+                  <!-- Dynamically populated from live game -->
+                </div>
+
+                <div class="lb-llt-footer" id="llt-footer">
+                  የቀሩ 33 ኳሶች
+                </div>
+              </div>
+            </div>
+
+            <div class="lb-landing-container">
+              <div class="lb-landing-top-bar">
+                <span class="lb-guest-pill">የእንግዳ ሁኔታ</span>
+                <div class="lb-landing-top-actions">
+                  <button type="button" class="lb-pill-btn lb-pill-login" id="landing-login-btn">ግባ</button>
+                  <button type="button" class="lb-pill-btn lb-pill-register" id="landing-register-btn">ተመዝገብ</button>
+                </div>
+              </div>
+
+              <div class="lb-landing-copy">
+                <h2>ቀጥታ የወጡ ቁጥሮችን ተመልከት፤ ለቀጣይ ዙር ተቀላቀል</h2>
+                <p>ቁጥሮች በቅርበት ሲወጡ ተመልከት፤ ከዚያም ቀጣይ ተራ ጨዋታ ከመጀመሩ በፊት ካርቴላዎችን ለመያዝ ግባ ወይም መለያ ፍጠር።</p>
+              </div>
+
+              <!-- Demonstration 5x5 Bingo Card with Intersecting Red Winning Lines -->
+              <div class="lb-demo-card-wrap">
+                <div class="lb-demo-card" id="demo-bingo-card">
+                  <div class="lb-demo-col-headers">
+                    <span class="c-b">B</span>
+                    <span class="c-i">I</span>
+                    <span class="c-n">N</span>
+                    <span class="c-g">G</span>
+                    <span class="c-o">O</span>
+                  </div>
+                  
+                  <div class="lb-demo-grid" id="demo-grid">
+                    <!-- Row 1 -->
+                    <div class="lb-demo-cell is-called" data-cell="0">7</div>
+                    <div class="lb-demo-cell is-called" data-cell="1">18</div>
+                    <div class="lb-demo-cell is-called" data-cell="2">34</div>
+                    <div class="lb-demo-cell is-called" data-cell="3">48</div>
+                    <div class="lb-demo-cell is-called" data-cell="4">67</div>
+
+                    <!-- Row 2 -->
+                    <div class="lb-demo-cell" data-cell="5">11</div>
+                    <div class="lb-demo-cell is-called" data-cell="6">20</div>
+                    <div class="lb-demo-cell is-called" data-cell="7">39</div>
+                    <div class="lb-demo-cell is-called" data-cell="8">57</div>
+                    <div class="lb-demo-cell" data-cell="9">71</div>
+
+                    <!-- Row 3 -->
+                    <div class="lb-demo-cell is-called" data-cell="10">13</div>
+                    <div class="lb-demo-cell is-called" data-cell="11">23</div>
+                    <div class="lb-demo-cell is-free" data-cell="12">★</div>
+                    <div class="lb-demo-cell is-called" data-cell="13">66</div>
+                    <div class="lb-demo-cell is-called" data-cell="14">73</div>
+
+                    <!-- Row 4 -->
+                    <div class="lb-demo-cell" data-cell="15">14</div>
+                    <div class="lb-demo-cell" data-cell="16">25</div>
+                    <div class="lb-demo-cell is-called" data-cell="17">42</div>
+                    <div class="lb-demo-cell" data-cell="18">53</div>
+                    <div class="lb-demo-cell" data-cell="19">74</div>
+
+                    <!-- Row 5 -->
+                    <div class="lb-demo-cell is-called" data-cell="20">15</div>
+                    <div class="lb-demo-cell is-called" data-cell="21">30</div>
+                    <div class="lb-demo-cell is-called" data-cell="22">45</div>
+                    <div class="lb-demo-cell" data-cell="23">58</div>
+                    <div class="lb-demo-cell" data-cell="24">75</div>
+
+                    <!-- SVG Winning Lines Overlay: Perfectly aligned inside grid -->
+                    <svg class="lb-win-lines-svg" id="demo-win-lines-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <line x1="10" y1="10" x2="90" y2="90" class="lb-red-win-line" />
+                    </svg>
+                  </div>
+
+                  <div class="lb-demo-card-footer">
+                    <span id="demo-pattern-desc">በመጨረሻ ዲያጎናል ሲሆን ይጠናቀቃል::</span>
+                    <button type="button" class="lb-demo-tag" id="demo-diagonal-btn">ዲያጎናል ቢንጎ</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lb-landing-kicker">
+                <span>ፈጣን ምዝገባ:: የቀጣይ ዙር መደለል:: የቀጥታ ቢንጎ ኃይል::</span>
+              </div>
+
+              <div class="lb-landing-cta-wrap">
+                <button type="button" class="lb-landing-main-cta" id="btn-landing-cta-start">
+                  <span>🎁 በ 10 ብር ነፃ ቦነስ ጀምር (Start)</span>
+                  <span class="lb-cta-arrow">→</span>
+                </button>
+              </div>
+                          <!-- Developer / System Sales Promo Banner -->
+              <div class="lb-dev-promo-box" id="landing-dev-promo-box">
+                <a href="tel:+251939292694" class="lb-dev-promo-link" title="ይደውሉ: +251939292694">
+                  <span class="lb-dev-promo-icon">📞</span>
+                  <span class="lb-dev-promo-text">እንደዚህ ዓይነት የቢንጎ ወይም የቤቲንግ ሲስተም ማሰራት ከፈለጉ ይደውሉ፡</span>
+                  <strong class="lb-dev-promo-phone">+251939292694</strong>
+                </a>
+              </div>
+            </div>
+          </section>
+
           <!-- LOBBY: stake rooms -->
-          <section class="lb-view lb-lobby is-on" id="view-lobby">
+          <section class="lb-view lb-lobby" id="view-lobby">
+            <!-- Mobile App Top Bar: User Chip + Install App Button -->
+            <div class="lb-mobile-bar" id="mobile-lobby-bar">
+              <button type="button" class="lb-user-chip" id="lobby-user-chip" aria-label="Player profile">
+                <span class="lb-chip-icon">👤</span>
+                <span class="lb-chip-name" id="lobby-user-name">Africa Player</span>
+              </button>
+              <button type="button" class="lb-app-install-btn" id="install-app-btn">
+                <span>📲 አፑን ይጫኑ</span>
+              </button>
+            </div>
+
             <div class="lb-lobby-toolbar">
               <a href="../../index.html" class="lb-lobby-back-link" style="text-decoration:none;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:10px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.18);display:inline-flex;align-items:center;gap:4px;" title="Back to Lobby">&larr; Lobby</a>
               <button
@@ -61,7 +240,7 @@
             </div>
 
             <section class="lb-room-list" aria-labelledby="rooms-heading">
-              <h1 id="rooms-heading" class="lb-sr-only">Friendes Bingo game rooms</h1>
+              <h1 id="rooms-heading" class="lb-sr-only">Africa Bingo game rooms</h1>
               <div class="lb-room-head" aria-hidden="true">
                 <span>Stake</span>
                 <span>Active</span>
@@ -72,7 +251,16 @@
               <div class="lb-rooms" id="rooms"></div>
             </section>
 
-            <footer class="lb-footer">© Friendes Bingo 2026</footer>
+                        <!-- Developer / System Sales Promo Banner -->
+            <div class="lb-dev-promo-box" id="lobby-dev-promo-box">
+              <a href="tel:+251939292694" class="lb-dev-promo-link" title="ይደውሉ: +251939292694">
+                <span class="lb-dev-promo-icon">📞</span>
+                <span class="lb-dev-promo-text">እንደዚህ ዓይነት የቢንጎ ወይም የቤቲንግ ሲስተም ማሰራት ከፈለጉ ይደውሉ፡</span>
+                <strong class="lb-dev-promo-phone">+251939292694</strong>
+              </a>
+            </div>
+
+            <footer class="lb-footer">© Africa Bingo 2025</footer>
           </section>
 
           <!-- PICK CARDS -->
@@ -114,6 +302,62 @@
                 <span class="lb-pick-pill-label">Refresh</span>
               </button>
             </header>
+
+            <!-- Embedded Live & Next Round Tracker matching live game state -->
+            <div class="lb-pick-live-tracker" id="pick-live-tracker">
+              <!-- Top row: Title and info button -->
+              <div class="lb-plt-top-row">
+                <div class="lb-plt-title-wrap">
+                  <h3 class="lb-plt-title" id="plt-card-title">ቀጣይ ጨዋታ</h3>
+                  <span class="lb-plt-title-pill" id="plt-title-pill">ቀጣይ ጨዋታ</span>
+                </div>
+                <button type="button" class="lb-plt-info-btn" id="plt-info-btn" aria-label="Room info">
+                  <span>info</span>
+                  <svg viewBox="0 0 20 20" width="13" height="13" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Collapsible info explanation -->
+              <div class="lb-plt-info-box" id="plt-info-box" style="display: none;">
+                <p id="plt-info-text">በዚህ ዙር ካርቴላዎችዎን ይምረጡ፤ 3 ወይም ከዚያ በላይ መስመሮች ሲዘጉ Bingo ያገኛሉ!</p>
+              </div>
+
+              <!-- Middle section: Active or Previous Game Ball Stream -->
+              <div class="lb-plt-middle-box" id="plt-middle-box">
+                <div class="lb-plt-meta-row">
+                  <span class="lb-plt-pattern" id="plt-pattern">3 መስመር (ያለፈ ጨዋታ)</span>
+                  <span class="lb-plt-badge" id="plt-badge">ቀጥታ</span>
+                </div>
+
+                <!-- Called balls horizontal row -->
+                <div class="lb-plt-balls-row" id="plt-balls-row" aria-label="Called balls">
+                  <!-- Dynamically populated from active room state -->
+                </div>
+
+                <div class="lb-plt-footer" id="plt-footer">
+                  ያለፈውን ጨዋታ የቀሩ 44 ኳሶች
+                </div>
+              </div>
+
+              <!-- Bottom banner: Expandable live & next round pattern display -->
+              <div class="lb-plt-banner" id="plt-banner">
+                <div class="lb-plt-banner-header" id="plt-banner-toggle">
+                  <div class="lb-plt-banner-header-left">
+                    <span class="lb-plt-banner-symbol">☲</span>
+                    <span class="lb-plt-banner-title">ቀጥታ እና ቀጣይ ዙር</span>
+                  </div>
+                  <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" class="lb-plt-banner-chevron" id="plt-banner-chevron">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="lb-plt-banner-content" id="plt-banner-content">
+                  <div class="lb-plt-banner-line1" id="plt-line-current">ያለፊት ጨዋታ · 3 መስመር</div>
+                  <div class="lb-plt-banner-line2" id="plt-line-next">ቀጣይ ዝግጁ · 3 መስመር ዝግ · አሁን ለቀጣይ ጨዋታ መመዝገብ ይቻላል</div>
+                </div>
+              </div>
+            </div>
 
             <!-- 2. SUB-HEADER BAR: Boards counter, Stake & Room #, Deselect All -->
             <div class="lb-pick-subheader">
@@ -292,7 +536,8 @@
 
           <div class="lb-empty-cartela-overlay" id="empty-cartela-notice">
             <p class="lb-empty-notice-title">ካርቴላ አልመረጡም!</p>
-            <p class="lb-empty-notice-desc">ለቀጣይ ዙር ይምረጡ</p>
+            <p class="lb-empty-notice-desc">ለቀጣይ ዙር ካርቴላ ይምረጡ</p>
+            <button type="button" class="lb-empty-pick-btn" id="empty-pick-action-btn">ካርቴላ ይምረጡ (Select Board)</button>
           </div>
         </div>
       </div>
@@ -394,7 +639,7 @@
           <section class="lb-mobile-panel-surface" role="dialog" aria-modal="true" aria-labelledby="mobile-panel-title">
             <header class="lb-mobile-panel-head">
               <div>
-                <span class="lb-mobile-panel-kicker">FRIENDES BINGO</span>
+                <span class="lb-mobile-panel-kicker">AFRICA BINGO</span>
                 <h2 id="mobile-panel-title">Player</h2>
               </div>
               <button type="button" class="lb-panel-close" id="close-mobile-panel" aria-label="Close panel">×</button>
@@ -467,7 +712,7 @@
               <div class="lb-winner-card-grid" id="winner-card-grid"></div>
             </div>
             <div class="lb-winner-timer-hint" id="winner-overlay-hint">
-              <span>Returning to selection in <b id="winner-overlay-seconds">5</b>s · Tap to return</span>
+              <span>Returning to selection in <b id="winner-overlay-seconds">12</b>s · Tap to return</span>
             </div>
             <p class="lb-winner-message" id="winner-overlay-message" hidden></p>
           </div>
@@ -478,7 +723,7 @@
           <section class="lb-wallet-panel" role="dialog" aria-modal="true" aria-labelledby="wallet-title">
             <div class="lb-wallet-panel-head">
               <div>
-                <div class="lb-eyebrow">FRIENDES BINGO WALLET</div>
+                <div class="lb-eyebrow">AFRICA BINGO WALLET</div>
                 <h2 id="wallet-title">Deposit &amp; withdraw</h2>
                 <p class="lb-wallet-subtitle">Manage your balance with a secure manual request.</p>
               </div>
@@ -515,12 +760,12 @@
                   <span class="lb-provider-copy"><strong>Telebirr</strong><small>Mobile money</small></span>
                   <span class="lb-provider-check" aria-hidden="true">✓</span>
                 </button>
-                <button type="button" class="lb-provider" data-provider-action="deposit" data-method="CBE Birr" aria-pressed="false" style="display: none !important;">
+                <button type="button" class="lb-provider" data-provider-action="deposit" data-method="CBE Birr" aria-pressed="false">
                   <span class="lb-provider-logo"><img src="assets/cbebirr.png" alt="" /></span>
                   <span class="lb-provider-copy"><strong>CBE Birr</strong><small>Mobile money</small></span>
                   <span class="lb-provider-check" aria-hidden="true">✓</span>
                 </button>
-                <button type="button" class="lb-provider" data-provider-action="deposit" data-method="M-Pesa" aria-pressed="false">
+                <button type="button" class="lb-provider" data-provider-action="deposit" data-method="M-Pesa" aria-pressed="false" style="display: none !important;">
                   <span class="lb-provider-logo"><img src="assets/m-pesa.jpg" alt="" /></span>
                   <span class="lb-provider-copy"><strong>M-Pesa</strong><small>Mobile money</small></span>
                   <span class="lb-provider-check" aria-hidden="true">✓</span>
@@ -529,8 +774,8 @@
 
               <div class="lb-payment-account" id="deposit-account-card">
                 <div class="lb-payment-account-top"><span>Send payment to</span><b id="deposit-selected-method">Telebirr</b></div>
-                <strong id="deposit-account-name">Abirham</strong>
-                <div class="lb-account-number-row"><b id="deposit-account-number">0928233032</b><button type="button" id="copy-deposit-account"><span aria-hidden="true">▣</span> Copy number</button></div>
+                <strong id="deposit-account-name">Berihun</strong>
+                <div class="lb-account-number-row"><b id="deposit-account-number">0918182355</b><button type="button" id="copy-deposit-account"><span aria-hidden="true">▣</span> Copy number</button></div>
               </div>
 
               <div class="lb-wallet-section-head">
@@ -549,7 +794,7 @@
             </div>
 
             <div class="lb-wallet-view" id="wallet-withdraw-view" data-wallet-view="withdraw" hidden>
-              <div class="lb-wallet-alert"><span class="lb-alert-icon" aria-hidden="true">!</span><div><strong>Withdrawals are reviewed manually.</strong><span>Use the phone number registered to your Friendes Bingo account.</span></div></div>
+              <div class="lb-wallet-alert"><span class="lb-alert-icon" aria-hidden="true">!</span><div><strong>Withdrawals are reviewed manually.</strong><span>Use the phone number registered to your Africa Bingo account.</span></div></div>
 
               <div class="lb-wallet-section-head">
                 <span class="lb-step-index">1</span>
@@ -591,13 +836,422 @@
           </section>
         </div>
 
+        <!-- MOBILE AUTH MODAL: Register / Login Screens (Exact Match to Screenshots) -->
+        <div class="lb-overlay lb-auth-overlay" id="mobile-auth-modal" hidden>
+          <div class="lb-auth-screen-container">
+            <!-- Top Bar with Back Arrow -->
+            <div class="lb-auth-top-bar">
+              <button type="button" class="lb-auth-back-btn" id="auth-back-btn" aria-label="ተመለስ">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Top Banner: AFRICA BINGO-ONLINE with B-I-N-G-O circle chips -->
+            <div class="lb-auth-banner-card">
+              <div class="lb-auth-banner-title">AFRICA BINGO-ONLINE</div>
+              <div class="lb-auth-bingo-chips">
+                <span class="lb-bingo-chip chip-b">B</span>
+                <span class="lb-bingo-chip chip-i">I</span>
+                <span class="lb-bingo-chip chip-n">N</span>
+                <span class="lb-bingo-chip chip-g">G</span>
+                <span class="lb-bingo-chip chip-o">O</span>
+              </div>
+            </div>
+
+            <!-- 1. LOGIN VIEW (Exact Match to media_1793216162291.png) -->
+            <div class="lb-auth-view-content" id="auth-login-view">
+              <h2 class="lb-auth-heading">እንኳን ተመለስክ</h2>
+
+              <div class="lb-auth-card-box">
+                <form id="mobile-login-form" novalidate>
+                  <!-- Phone Number -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="login-phone-input">ስልክ ቁጥር</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.24 1.02l-2.21 2.2z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        id="login-phone-input"
+                        name="phone"
+                        placeholder="091******* ወይም admin"
+                        autocomplete="username"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Password -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="login-password-input">የይለፍ ቃል</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="password"
+                        id="login-password-input"
+                        name="password"
+                        placeholder="የይለፍ ቃልህን አስገባ"
+                        autocomplete="current-password"
+                        required
+                      />
+                      <button type="button" class="lb-pwd-toggle-btn" id="login-pwd-toggle" aria-label="የይለፍ ቃል አሳይ/ደብቅ">
+                        <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Forgot Password Link -->
+                  <div class="lb-forgot-wrap">
+                    <button type="button" class="lb-forgot-link" id="auth-forgot-link">የይለፍ ቃል ረሳህ?</button>
+                  </div>
+
+                  <div class="lb-auth-status" id="login-status-msg" hidden></div>
+
+                  <!-- Login Button -->
+                  <button type="submit" class="lb-auth-btn-primary" id="login-submit-btn">
+                    <span>ግባ</span>
+                  </button>
+                </form>
+              </div>
+
+              <!-- Switch to Register Link -->
+              <div class="lb-auth-footer-switch">
+                <button type="button" class="lb-switch-view-btn" id="to-register-btn">አዲስ መለያ ፍጠር</button>
+              </div>
+            </div>
+
+            <!-- 2. REGISTER VIEW (Exact Match to media_1793216164575.png) -->
+            <div class="lb-auth-view-content" id="auth-register-view" style="display:none;">
+              <div class="lb-auth-card-box">
+                <!-- Avatar Section -->
+                <div class="lb-reg-avatar-sec">
+                  <div class="lb-reg-avatar-circle" id="reg-avatar-preview">
+                    <span id="reg-avatar-text">AB</span>
+                  </div>
+                  <div class="lb-reg-avatar-title">Choose avatar</div>
+                  <div class="lb-reg-avatar-desc">Optional for your profile</div>
+                  <button type="button" class="lb-choose-avatar-btn" id="reg-choose-avatar-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>Choose avatar</span>
+                  </button>
+                  <!-- Avatar Picker Popup Grid -->
+                  <div class="lb-avatar-picker-grid" id="avatar-picker-grid" hidden>
+                    <button type="button" class="lb-av-opt" data-avatar="🦁">🦁</button>
+                    <button type="button" class="lb-av-opt" data-avatar="👑">👑</button>
+                    <button type="button" class="lb-av-opt" data-avatar="🎯">🎯</button>
+                    <button type="button" class="lb-av-opt" data-avatar="⭐">⭐</button>
+                    <button type="button" class="lb-av-opt" data-avatar="🦅">🦅</button>
+                    <button type="button" class="lb-av-opt" data-avatar="💎">💎</button>
+                    <button type="button" class="lb-av-opt" data-avatar="🎲">🎲</button>
+                    <button type="button" class="lb-av-opt" data-avatar="🔥">🔥</button>
+                  </div>
+                </div>
+
+                <form id="mobile-register-form" novalidate>
+                  <!-- Phone Number (First & Primary) -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="reg-phone-input">ስልክ ቁጥር</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.24 1.02l-2.21 2.2z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="tel"
+                        id="reg-phone-input"
+                        name="phone"
+                        placeholder="091******* ወይም 07********"
+                        inputmode="tel"
+                        autocomplete="tel"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Full Name (Optional / Secondary) -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="reg-name-input">ሙሉ ስም (የተጫዋች ስም)</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        id="reg-name-input"
+                        name="name"
+                        placeholder="ሙሉ ስምዎን ያስገቡ"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Password -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="reg-password-input">የይለፍ ቃል</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="password"
+                        id="reg-password-input"
+                        name="password"
+                        placeholder="ቢያንስ 6 ቁምፊዎች"
+                        autocomplete="new-password"
+                        required
+                      />
+                      <button type="button" class="lb-pwd-toggle-btn" id="reg-pwd-toggle" aria-label="የይለፍ ቃል አሳይ/ደብቅ">
+                        <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Confirm Password -->
+                  <div class="lb-form-field">
+                    <label class="lb-field-label" for="reg-confirm-password-input">የይለፍ ቃል አረጋግጥ</label>
+                    <div class="lb-input-wrap">
+                      <span class="lb-input-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                        </svg>
+                      </span>
+                      <input
+                        type="password"
+                        id="reg-confirm-password-input"
+                        name="confirm_password"
+                        placeholder="የይለፍ ቃልህን ደግሞ አስገባ"
+                        autocomplete="new-password"
+                        required
+                      />
+                      <button type="button" class="lb-pwd-toggle-btn" id="reg-confirm-pwd-toggle" aria-label="የይለፍ ቃል አሳይ/ደብቅ">
+                        <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="lb-auth-status" id="reg-status-msg" hidden></div>
+
+                  <!-- Register Button -->
+                  <button type="submit" class="lb-auth-btn-primary" id="reg-submit-btn">
+                    <span>ቀጥል</span>
+                  </button>
+                </form>
+              </div>
+
+              <!-- Switch to Login Link -->
+              <div class="lb-auth-footer-switch">
+                <button type="button" class="lb-switch-view-btn" id="to-login-btn">ቀድመው መለያ አለዎት? ግባ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIDE DRAWER OVERLAY (Exact Match to Screenshot 2) -->
+        <div class="lb-drawer-backdrop" id="drawer-backdrop" hidden></div>
+        <aside class="lb-side-drawer" id="side-drawer" aria-hidden="true">
+          <div class="lb-drawer-inner">
+            <!-- 1. Header Banner: AFRICA BINGO-ONLINE (Replaced from FRIENDS) -->
+            <div class="lb-drawer-banner">
+              <div class="lb-db-text">
+                <h3 class="lb-db-title">AFRICA BINGO-ONLINE</h3>
+                <p class="lb-db-subtitle">ቀጥታ ጨዋታ</p>
+              </div>
+              <div class="lb-db-dice" aria-hidden="true">
+                <svg viewBox="0 0 44 44" width="42" height="42">
+                  <rect x="2" y="2" width="40" height="40" rx="10" fill="#ffffff" />
+                  <circle cx="13" cy="13" r="3.5" fill="#2d1463" />
+                  <circle cx="31" cy="13" r="3.5" fill="#2d1463" />
+                  <circle cx="22" cy="22" r="4" fill="#f45b0a" />
+                  <circle cx="13" cy="31" r="3.5" fill="#2d1463" />
+                  <circle cx="31" cy="31" r="3.5" fill="#2d1463" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Dots indicator below banner -->
+            <div class="lb-drawer-dots" aria-hidden="true">
+              <span class="lb-dot is-active"></span>
+              <span class="lb-dot"></span>
+              <span class="lb-dot"></span>
+            </div>
+
+            <!-- 2. Controls: Theme Toggle & Language Toggle -->
+            <div class="lb-drawer-controls">
+              <button type="button" class="lb-dc-btn" id="drawer-theme-toggle" title="ገጽታ ቀይር">
+                <span class="lb-dc-icon" id="theme-toggle-icon">☀</span>
+              </button>
+              <button type="button" class="lb-dc-btn" id="drawer-lang-toggle" title="ቋንቋ">
+                <span class="lb-dc-icon">🌐</span>
+                <span class="lb-dc-text">AM</span>
+              </button>
+              <button type="button" class="lb-dc-close" id="btn-close-drawer" aria-label="Close menu">✕</button>
+            </div>
+
+            <!-- 3. Welcome / Guest Box -->
+            <div class="lb-drawer-card lb-welcome-card" id="drawer-welcome-card">
+              <strong>ለመጫወት እና ካርቴላ ለመመዝገብ ግባ</strong>
+              <p>ካርቴላ ለመመዝገብ እና ቦርሳህን ለማስተዳደር መለያ ፍጠር።</p>
+            </div>
+
+            <!-- 4. Settings & Menu List -->
+            <div class="lb-drawer-menu">
+              <a href="../../index.html" class="lb-menu-item" style="text-decoration:none;color:inherit;">
+                <div class="lb-mi-left">
+                  <span class="lb-mi-icon">🏠</span>
+                  <div class="lb-mi-text">
+                    <strong>ወደ ዋና ማውጫ (Friends Lobby)</strong>
+                    <small>Return to Main Game Lobby</small>
+                  </div>
+                </div>
+                <span class="lb-mi-arrow">›</span>
+              </a>
+              <div class="lb-menu-row">
+                <div class="lb-menu-row-label">
+                  <span class="lb-mr-icon">🔔</span>
+                  <span>Notifications</span>
+                </div>
+                <label class="lb-switch">
+                  <input type="checkbox" id="drawer-notif-toggle" checked />
+                  <span class="lb-slider"></span>
+                </label>
+              </div>
+
+              <div class="lb-menu-row">
+                <div class="lb-menu-row-label">
+                  <span class="lb-mr-icon">🔊</span>
+                  <span>ድምፆች</span>
+                </div>
+                <label class="lb-switch">
+                  <input type="checkbox" id="drawer-sound-toggle" checked />
+                  <span class="lb-slider"></span>
+                </label>
+              </div>
+
+              <button type="button" class="lb-menu-item" id="drawer-big-game-btn">
+                <div class="lb-mi-left">
+                  <span class="lb-mi-icon">🏆</span>
+                  <div class="lb-mi-text">
+                    <strong>Big Game</strong>
+                    <small>Big Game</small>
+                  </div>
+                </div>
+                <span class="lb-mi-arrow">›</span>
+              </button>
+
+              <a href="admin.html" class="lb-menu-item" id="drawer-admin-btn" style="display:none; color: #ff9800; font-weight: bold; text-decoration: none;">
+                <div class="lb-mi-left">
+                  <span class="lb-mi-icon">⚙️</span>
+                  <div class="lb-mi-text">
+                    <strong>Admin Console</strong>
+                    <small>መቆጣጠሪያ ሰሌዳ</small>
+                  </div>
+                </div>
+                <span class="lb-mi-arrow">›</span>
+              </a>
+
+              <div class="lb-menu-group">
+                <div class="lb-mg-title">
+                  <span class="lb-mg-icon">🕒</span>
+                  <span>ታሪክ</span>
+                </div>
+                <button type="button" class="lb-menu-subitem" id="drawer-tx-history-btn">
+                  <span class="lb-msi-icon">🧾</span>
+                  <span>የግብይት ታሪክ</span>
+                  <span class="lb-mi-arrow">›</span>
+                </button>
+                <button type="button" class="lb-menu-subitem" id="drawer-game-history-btn">
+                  <span class="lb-msi-icon">🎮</span>
+                  <span>የጨዋታ ታሪክ</span>
+                  <span class="lb-mi-arrow">›</span>
+                </button>
+              </div>
+
+              <button type="button" class="lb-menu-item" id="drawer-install-app-btn">
+                <div class="lb-mi-left">
+                  <span class="lb-mi-icon">📥</span>
+                  <div class="lb-mi-text">
+                    <strong>የመተግበሪያ ስሪት</strong>
+                    <small>1.0.4 (5) · ዘምኗል</small>
+                  </div>
+                </div>
+                <span class="lb-mi-arrow">›</span>
+              </button>
+
+              <button type="button" class="lb-menu-item" id="drawer-contact-btn">
+                <div class="lb-mi-left">
+                  <span class="lb-mi-icon">🎧</span>
+                  <div class="lb-mi-text">
+                    <strong>Contact us</strong>
+                    <small>📞 0939292694</small>
+                  </div>
+                </div>
+                <span class="lb-mi-arrow">›</span>
+              </button>
+            </div>
+
+            <!-- 5. Bottom Action Buttons: Login / Register -->
+            <div class="lb-drawer-bottom-actions">
+              <button type="button" class="lb-drawer-btn lb-drawer-login-btn" id="drawer-login-btn">
+                ግባ
+              </button>
+              <button type="button" class="lb-drawer-btn lb-drawer-register-btn" id="drawer-register-btn">
+                ተመዝገብ
+              </button>
+            </div>
+
+            <div class="lb-drawer-footer">
+              <span>© 2ms developers</span>
+              <a href="https://t.me/Africabingooo" target="_blank" rel="noopener">@Africabingooo click here</a>
+            </div>
+          </div>
+        </aside>
+
         <div class="lb-toast" id="toast" hidden></div>
       </div>
     </div>
-    <script src="card-data.js?v=20261024_01"></script>
-    <script src="app-config.js?v=20261024_01"></script>
-    <script src="api-client.js?v=20261024_01"></script>
-    <script src="../shared-balance.js?v=20261024_01"></script>
-    <script src="game.js?v=20261024_01"></script>
+    <script src="card-data.js?v=20261102_05"></script>
+    <script src="app-config.js?v=20261102_05"></script>
+    <script src="api-client.js?v=20261102_05"></script>
+    <script src="../shared-balance.js?v=20261009_02"></script>
+    <script src="game.js?v=20261102_05"></script>
   </body>
 </html>

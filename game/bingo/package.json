@@ -1,7 +1,7 @@
 {
-  "name": "friendes-bingo",
+  "name": "africa-bingo",
   "version": "1.0.0",
-  "description": "Friendes Bingo Web App",
+  "description": "Africa Bingo Web App",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

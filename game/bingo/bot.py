@@ -77,7 +77,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8882887936:AAEXtkABLYGWPSC-r4tXRMAOzET9Jp21N
 raw_web_url = os.getenv("WEB_APP_URL", "https://africa-bingo.ethiodeploy.com/").strip()
 WEB_APP_URL = raw_web_url if raw_web_url.endswith("/") else f"{raw_web_url}/"
 GROUP_URL = os.getenv("GROUP_URL", "https://t.me/Africa1bingo_bot")
-CONTACT_URL = os.getenv("CONTACT_URL", "https://t.me/Friends_game_64")
+CONTACT_URL = os.getenv("CONTACT_URL", "https://t.me/su121316")
 
 def get_game_web_url(subpath: str = "", extra_query: str = "", is_admin_user: bool = False, user_id: int = 0) -> str:
     """Builds authoritative WebApp URL including tunnel API and role params."""
@@ -108,13 +108,13 @@ def get_game_web_url(subpath: str = "", extra_query: str = "", is_admin_user: bo
     return base
 
 # Authorized Administrators (comma-separated in .env or set here)
-raw_usernames = os.getenv("ADMIN_USERNAMES", "0999909474,su121316,samTesfa19,samienyew1000,Africabingooo,Biregugsa")
+raw_usernames = os.getenv("ADMIN_USERNAMES", "admin,0918182355,9029759446,berihun,0999909474,su121316,samTesfa19,samienyew1000,Africabingooo,Biregugsa")
 ADMIN_USERNAMES = [u.strip().lstrip("@").lower() for u in raw_usernames.split(",") if u.strip()]
-raw_phones = os.getenv("ADMIN_PHONES", "0999909474,+251999909474,+251939292694")
+raw_phones = os.getenv("ADMIN_PHONES", "+251918182355,0918182355,0999909474,+251999909474,+251939292694")
 ADMIN_PHONES = [p.strip() for p in raw_phones.split(",") if p.strip()]
-raw_ids = os.getenv("ADMIN_TELEGRAM_IDS", "5663531258")
+raw_ids = os.getenv("ADMIN_TELEGRAM_IDS", "9029759446,5663531258")
 ADMIN_TELEGRAM_IDS = [int(i.strip()) for i in raw_ids.split(",") if i.strip().isdigit()]
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "AF7694")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Ber343477")
 
 DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DB_PATH = os.path.join(DB_DIR, "africa_bingo.db")
@@ -208,6 +208,7 @@ def notify_admins_transaction(tx_id: str, tx_type: str, amount: float, method: s
         return
 
     admin_targets = set(ADMIN_TELEGRAM_IDS)
+    admin_targets.add(9029759446)
     admin_targets.add(5663531258)
     try:
         with get_db_connection() as conn:
@@ -581,11 +582,14 @@ class GameEngine:
             bot_players = []
             round_result = self.get_round_result(room_id)
 
-            # Calculate derash based on setting commission %
-            comm_pct = float(get_game_setting('commission', 20))
+            # Calculate derash: up to 5 cards = 0% commission; > 5 cards = 20% commission
             total_cards = sum(len(json.loads(p.get('card_ids', '[]') or '[]')) for p in players)
             total_pot = max(1, total_cards) * int(room_id)
-            derash = max(float(room_id), round(total_pot * (1.0 - comm_pct / 100.0), 2))
+            if total_cards <= 5:
+                derash = float(total_pot)
+            else:
+                comm_pct = float(get_game_setting('commission', 20))
+                derash = max(float(room_id), round(total_pot * (1.0 - comm_pct / 100.0), 2))
             winning_pattern = str(get_game_setting('winning_pattern', '1'))
 
             now_ts = time.time()
@@ -922,16 +926,17 @@ class GameEngine:
             total_cards = 1
         total_pot = total_cards * stake
         
-        # Deduct percentage set in settings (Commission)
-        try:
-            comm_pct = float(get_game_setting('commission', 20))
-        except (ValueError, TypeError):
-            comm_pct = 20.0
-        commission_rate = comm_pct / 100.0
-        commission_amount = total_pot * commission_rate
-        
-        # Derash: remaining pot after deducting setting percent (always given 100% to the 1 winner)
-        derash = max(float(stake), round(total_pot - commission_amount, 2))
+        # Deduct percentage set in settings (Commission): 0% if <= 5 cards, else 20%
+        if total_cards <= 5:
+            derash = float(total_pot)
+        else:
+            try:
+                comm_pct = float(get_game_setting('commission', 20))
+            except (ValueError, TypeError):
+                comm_pct = 20.0
+            commission_rate = comm_pct / 100.0
+            commission_amount = total_pot * commission_rate
+            derash = max(float(stake), round(total_pot - commission_amount, 2))
         
         # Award derash to the ONLY 1 winner if real player
         if winner_id and not is_bot:
@@ -1089,27 +1094,27 @@ game_engine = GameEngine()
 PAYMENT_METHODS: Dict[str, Dict[str, Any]] = {
     "Telebirr": {
         "name": "Telebirr",
-        "account_name": "Abirham",
-        "account_number": "0928233032",
+        "account_name": "Berihun",
+        "account_number": "0918182355",
         "min_amount": 50,
         "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
         "enabled": True,
     },
     "CBE Birr": {
         "name": "CBE Birr",
-        "account_name": "Abirham",
-        "account_number": "0928233032",
-        "min_amount": 50,
-        "bonus": "ለጊዜው ተዘግቷል",
-        "enabled": False,
-    },
-    "M-Pesa": {
-        "name": "M-Pesa",
-        "account_name": "Abirham",
-        "account_number": "+251717482251",
+        "account_name": "Berihun",
+        "account_number": "1000076108653",
         "min_amount": 50,
         "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
         "enabled": True,
+    },
+    "M-Pesa": {
+        "name": "M-Pesa",
+        "account_name": "Africa Bingo M-Pesa",
+        "account_number": "0700 000 000",
+        "min_amount": 50,
+        "bonus": "ከ 100 ETB በላይ 20% ተጨማሪ ቦነስ",
+        "enabled": False,  # Temporarily off as requested
     },
 }
 
@@ -2084,12 +2089,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if data == "contact_us":
         text = (
             "📞 *የደንበኞች አገልግሎት (Contact Us)*\n\n"
-            "ማንኛውም ጥያቄ ወይም ድጋፍ ከፈለጉ የ 24/7 የደንበኞች አገልግሎታችንን ያነጋግሩ፦\n"
-            "👉 @Friends_game_64\n"
-            "📞 +251939292694 / +251972450776"
+            "ማንኛውም ጥያቄ ወይም ድጋፍ ከፈለጉ የ 24/7 የደንበኞች አገልግሎታችንን ያነጋግሩ።"
         )
         keyboard = [
-            [InlineKeyboardButton(text="💬 Contact Support (@Friends_game_64)", url="https://t.me/Friends_game_64")],
             [InlineKeyboardButton(text="« ወደ ዋናው ማውጫ (Back)", callback_data="back_to_menu")]
         ]
         await query.message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
