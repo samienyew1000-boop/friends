@@ -2476,11 +2476,6 @@ def main():
                                 cloud_bal = round(float(data["balance"]), 2)
                                 cur_bal = round(float(udata.get("balance", 0.0)), 2)
                                 if abs(cloud_bal - cur_bal) >= 0.01:
-                                    # If bot has positive balance and cloud reports 0.0, do NOT overwrite with 0; re-push to cloud
-                                    if cur_bal > 0 and cloud_bal == 0:
-                                        logging.warning(f"[LiveSync] Cloud has 0.0 but bot has {cur_bal} for {uid}. Re-pushing to cloud!")
-                                        push_balance_to_cloud(int(uid), cur_bal, udata.get("username", ""))
-                                        continue
                                     logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
                                     users_all = load_known_users()
                                     if str(uid) in users_all:
