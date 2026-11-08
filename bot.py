@@ -530,9 +530,10 @@ def fetch_live_cloud_balance(chat_id, user):
     try:
         last_bal_update = float(user.get("balance_updated") or user.get("updated") or 0)
         now = time.time()
-        # If balance was set recently by bot admin, deposit, or withdrawal, don't let stale cloud data overwrite it
-        if now - last_bal_update < 90:
-            return float(user.get("balance", 0.0))
+        cur_bal = round(float(user.get("balance", 0.0)), 2)
+        # If balance was set or modified recently (within 120s), protect against stale cloud overwrites
+        if now - last_bal_update < 120:
+            return cur_bal
 
         req = urllib.request.Request(
             "https://africa-bingo.ethiodeploy.com/api/me",
@@ -547,6 +548,10 @@ def fetch_live_cloud_balance(chat_id, user):
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
                 cur_bal = round(float(user.get("balance", 0.0)), 2)
+                # If cloud balance is higher than local balance and local was modified recently, preserve local loss!
+                if cloud_bal > cur_bal and (now - last_bal_update < 120):
+                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
+                    return cur_bal
                 if abs(cloud_bal - cur_bal) >= 0.01:
                     users_all = load_known_users()
                     uid_str = str(chat_id)
@@ -2193,6 +2198,7 @@ def handle_single_update(update):
                         users[uid_str]["updated"] = time.time()
                         save_all_users(users)
                         user = users[uid_str]
+                    push_balance_to_cloud(chat_id, s_real, user.get("username", ""))
                     send_welcome(chat_id, user)
                     return
                 elif action in ("broadcast", "send"):

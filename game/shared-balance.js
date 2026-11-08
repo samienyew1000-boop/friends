@@ -455,6 +455,11 @@
       localStorage.setItem(STORAGE_KEY_REAL, realBal.toFixed(2));
       localStorage.setItem(STORAGE_KEY_BONUS, bonusBal.toFixed(2));
       localStorage.setItem('habesha_balance_ts', String(Date.now()));
+      localStorage.setItem('habesha_balance_mod_ts', String(Date.now()));
+      localStorage.setItem('habesha_balance_pending_sync', 'true');
+      if (numDelta < 0) {
+        localStorage.setItem('habesha_balance_last_loss_ts', String(Date.now()));
+      }
       if (window.Telegram?.WebApp?.CloudStorage) {
         window.Telegram.WebApp.CloudStorage.setItem('habesha_balance', realBal.toFixed(2), () => {});
         window.Telegram.WebApp.CloudStorage.setItem('habesha_bonus_balance', bonusBal.toFixed(2), () => {});
@@ -467,7 +472,11 @@
     syncLegacyStorages(newTotal);
     notifyAll(newTotal);
     hasUnsyncedChanges = true;
-    syncLiveBalanceToCloud(false);
+    if (numDelta < 0) {
+      syncLiveBalanceToCloud(true);
+    } else {
+      syncLiveBalanceToCloud(false);
+    }
     return newTotal;
   }
 
@@ -514,21 +523,31 @@
           const localReal = getRealBalance();
           const localBonus = getBonusBalance();
 
-          // CRITICAL PROTECTION:
-          // If the player currently has active un-synced local gameplay changes (e.g. bet just placed)
-          // and the server returned a higher balance because the network call hasn't finished,
-          // push our local deducted balance to cloud.
-          if (hasUnsyncedChanges && cloudBal > localReal) {
-            console.log('[HabeshaWallet] Preserving local gameplay changes. Local:', localReal, 'Cloud (stale):', cloudBal);
+          const isPending = localStorage.getItem('habesha_balance_pending_sync') === 'true';
+          const modTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
+          const lastLossTs = parseInt(localStorage.getItem('habesha_balance_last_loss_ts') || '0', 10);
+          const timeSinceMod = Date.now() - modTs;
+          const timeSinceLoss = Date.now() - lastLossTs;
+
+          // CRITICAL PROTECTION AGAINST WIPING OUT GAMEPLAY LOSSES:
+          // If the local balance was deducted or modified recently (within 2 minutes) OR has pending sync,
+          // and the server returned a higher balance because the cloud update hasn't finished propagating,
+          // NEVER overwrite our lower deducted balance with the higher stale cloud balance!
+          // Instead, preserve local balance and immediately re-push it to the cloud.
+          if ((hasUnsyncedChanges || isPending || timeSinceMod < 120000 || timeSinceLoss < 120000) && cloudBal > localReal) {
+            console.log('[HabeshaWallet] Preserving local deducted balance. Local:', localReal, 'Cloud (stale):', cloudBal);
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
           }
 
-          // Otherwise, server is authoritative (approved deposits, winnings, bot balance)!
+          // Otherwise, server is authoritative (approved deposits, admin top-up, or true updates)
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
           hasUnsyncedChanges = false;
+          try {
+            localStorage.removeItem('habesha_balance_pending_sync');
+          } catch(e) {}
           syncLegacyStorages(get());
           notifyAll(get());
           if (typeof callback === 'function') callback(cloudBal);
@@ -579,6 +598,9 @@
             }).then(r => {
               if (r.ok) {
                 hasUnsyncedChanges = false;
+                try {
+                  localStorage.removeItem('habesha_balance_pending_sync');
+                } catch(e) {}
               }
             }).catch(() => {});
           }
@@ -594,6 +616,16 @@
   }
 
   if (typeof document !== 'undefined') {
+    // Intercept clicks on Lobby and navigation links to synchronously commit wallet state
+    document.addEventListener('click', function(e) {
+      try {
+        const link = e.target && e.target.closest ? e.target.closest('a') : null;
+        if (link && link.getAttribute('href') && (link.getAttribute('href').includes('index.html') || link.getAttribute('href').includes('../'))) {
+          syncLiveBalanceToCloud(true);
+        }
+      } catch(ex) {}
+    }, { capture: true });
+
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         if (hasUnsyncedChanges) syncLiveBalanceToCloud(true);
