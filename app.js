@@ -949,16 +949,6 @@
       likes: '4.3k',
       desc: 'Dive into the ocean reef! Dodge the sharks and collect underwater treasure chests.'
     },
-    'bingo': {
-      title: 'Friendes Bingo',
-      provider: 'Friendes Games',
-      multiplier: 'Live Rooms',
-      category: 'Bingo 90',
-      image: 'assets/game_bingo.jpg',
-      url: 'game/bingo/index.html',
-      likes: '3.9k',
-      desc: 'Authentic Ethiopian community bingo room with automated voice and quick payouts.'
-    },
     'bingo_star': {
       title: 'Bingo Star',
       provider: 'Star Gaming',
