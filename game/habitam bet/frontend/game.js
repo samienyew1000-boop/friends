@@ -709,8 +709,13 @@ function load(user) {
     const key = getUserStorageKey(user);
     raw = JSON.parse(localStorage.getItem(key) || "{}");
   } catch (_) {}
-  if (raw.balance != null) state.balance = raw.balance;
-  else state.balance = START_BALANCE;
+  if (window.HabeshaWallet && typeof window.HabeshaWallet.getRealBalance === "function") {
+    state.balance = window.HabeshaWallet.getRealBalance();
+  } else if (raw.balance != null) {
+    state.balance = raw.balance;
+  } else {
+    state.balance = START_BALANCE;
+  }
   state.history = Array.isArray(raw.history) ? raw.history : [];
   if (raw.ticketSeq) state.ticketSeq = raw.ticketSeq;
   if (raw.stake) state.stake = raw.stake;
@@ -6973,7 +6978,7 @@ function isTicketCashoutLocked(t) {
 
 window.unlockCashout = function () {
   state.cashoutLocked = false;
-  if ((window.HABTAM_BET_CONFIG || window.HOPE_BET_CONFIG)) (window.HABTAM_BET_CONFIG || window.HOPE_BET_CONFIG).CASHOUT_LOCKED = false;
+  if (window.HABTAM_BET_CONFIG) window.HABTAM_BET_CONFIG.CASHOUT_LOCKED = false; if (window.HOPE_BET_CONFIG) window.HOPE_BET_CONFIG.CASHOUT_LOCKED = false;
   try { localStorage.setItem("hope_bet_cashout_locked", "false"); } catch (_) {}
   renderMyBetsPage();
   toast("Cashout has been unlocked", "ok");
@@ -6981,7 +6986,7 @@ window.unlockCashout = function () {
 
 window.lockCashout = function () {
   state.cashoutLocked = true;
-  if ((window.HABTAM_BET_CONFIG || window.HOPE_BET_CONFIG)) (window.HABTAM_BET_CONFIG || window.HOPE_BET_CONFIG).CASHOUT_LOCKED = true;
+  if (window.HABTAM_BET_CONFIG) window.HABTAM_BET_CONFIG.CASHOUT_LOCKED = true; if (window.HOPE_BET_CONFIG) window.HOPE_BET_CONFIG.CASHOUT_LOCKED = true;
   try { localStorage.setItem("hope_bet_cashout_locked", "true"); } catch (_) {}
   renderMyBetsPage();
   toast("Cashout has been locked", "err");
@@ -16724,11 +16729,13 @@ function getDepositSettings() {
 function saveDepositSettings(settings) {
   const current = getDepositSettings();
   const updated = { ...current, ...settings };
-  if (!(window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS)) (window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS) = {};
-  if (settings.telebirrReceiver) (window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS).telebirr_receiver = settings.telebirrReceiver;
-  if (settings.cbeReceiver) (window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS).cbe_receiver = settings.cbeReceiver;
-  if (settings.minDeposit) (window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS).min_deposit = settings.minDeposit;
-  if (settings.maxDeposit) (window.HABTAM_BET_LIVE_SETTINGS || window.HOPE_BET_LIVE_SETTINGS).max_deposit = settings.maxDeposit;
+  if (!window.HABTAM_BET_LIVE_SETTINGS) window.HABTAM_BET_LIVE_SETTINGS = {};
+  const live = window.HABTAM_BET_LIVE_SETTINGS;
+  window.HOPE_BET_LIVE_SETTINGS = live;
+  if (settings.telebirrReceiver) live.telebirr_receiver = settings.telebirrReceiver;
+  if (settings.cbeReceiver) live.cbe_receiver = settings.cbeReceiver;
+  if (settings.minDeposit) live.min_deposit = settings.minDeposit;
+  if (settings.maxDeposit) live.max_deposit = settings.maxDeposit;
   localStorage.setItem(DEPOSIT_SETTINGS_KEY, JSON.stringify(updated));
   return updated;
 }
@@ -21679,29 +21686,62 @@ function simulateLiveOddsFluctuations() {
 function init() {
   try {
     try { localStorage.removeItem("sport-betting-v1"); } catch (_) {}
-    // Restore saved session from localStorage only if authenticated token exists
+    // Restore or auto-initialize session from Telegram, HabeshaWallet, or localStorage
     try {
-      const savedToken = localStorage.getItem("hope-bet-token");
-      const savedUser = JSON.parse(localStorage.getItem("hope-bet-user") || "null");
-      if (savedToken && savedUser && !state.sessionUser) {
-        state.sessionUser = savedUser;
-      } else if (!savedToken) {
-        localStorage.removeItem("hope-bet-user");
-        state.sessionUser = null;
+      const urlParams = new URLSearchParams(window.location.search);
+      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      const walletUser = (window.HabeshaWallet && typeof window.HabeshaWallet.getUser === 'function') ? window.HabeshaWallet.getUser() : null;
+      const paramUsername = urlParams.get("username") || (tgUser && tgUser.username) || (walletUser && walletUser.username);
+
+      if (urlParams.get("admin") === "1" || urlParams.get("mode") === "admin") {
+        state.sessionUser = {
+          id: 6,
+          username: "admin",
+          displayName: "Admin",
+          role: "admin",
+          email: "admin@bestbet.bet",
+        };
+      } else if (paramUsername && paramUsername !== "null" && paramUsername !== "undefined") {
+        const cleanUname = String(paramUsername).replace(/^@/, '');
+        const dispName = paramUsername.startsWith('@') ? paramUsername : '@' + cleanUname;
+        const uid = urlParams.get("uid") || (tgUser && tgUser.id) || (walletUser && walletUser.id) || 1001;
+        const phone = urlParams.get("phone") || (walletUser && walletUser.phone) || "";
+        const uObj = {
+          id: uid,
+          username: cleanUname,
+          displayName: dispName,
+          role: "player",
+          email: `${cleanUname}@friendsgame.et`,
+          phone: phone
+        };
+        state.sessionUser = uObj;
+        try {
+          localStorage.setItem("hope-bet-user", JSON.stringify(uObj));
+          localStorage.setItem("habtam-bet-user", JSON.stringify(uObj));
+          localStorage.setItem("hope-bet-token", "tg_token_" + uid);
+          localStorage.setItem("habtam-bet-token", "tg_token_" + uid);
+        } catch (_) {}
+      } else {
+        const savedToken = localStorage.getItem("hope-bet-token") || localStorage.getItem("habtam-bet-token");
+        const savedUser = JSON.parse(localStorage.getItem("hope-bet-user") || localStorage.getItem("habtam-bet-user") || "null");
+        if (savedToken && savedUser && !state.sessionUser) {
+          state.sessionUser = savedUser;
+        }
       }
     } catch (_) {}
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("admin") === "1" || urlParams.get("mode") === "admin") {
-      state.sessionUser = {
-        id: 6,
-        username: "admin",
-        displayName: "Admin",
-        role: "admin",
-        email: "admin@bestbet.bet",
-      };
-    }
 
     load(state.sessionUser);
+
+    // Sync real wallet balance
+    if (window.HabeshaWallet) {
+      try {
+        window.HabeshaWallet.setMode('real');
+        const rBal = window.HabeshaWallet.getRealBalance();
+        if (typeof rBal === 'number' && !isNaN(rBal)) {
+          state.balance = rBal;
+        }
+      } catch (_) {}
+    }
 
     state.isFixturesLoading = true;
     try {
@@ -21740,7 +21780,7 @@ function init() {
           if (res && res.ok) {
             if (!state.settings) state.settings = {};
             state.settings.max_win = Number(res.max_win) || 500000;
-            (window.HABTAM_MAX_WIN || window.HOPE_MAX_WIN) = state.settings.max_win;
+            window.HABTAM_MAX_WIN = window.HOPE_MAX_WIN = state.settings.max_win;
             if (typeof renderSlip === "function") renderSlip();
           }
         }).catch(() => {});
@@ -23188,7 +23228,7 @@ async function handleSuperAdminSaveSettings(e) {
     };
     if (!state.settings) state.settings = {};
     state.settings.max_win = max_win;
-    (window.HABTAM_MAX_WIN || window.HOPE_MAX_WIN) = max_win;
+    window.HABTAM_MAX_WIN = window.HOPE_MAX_WIN = max_win;
     saState.bonusEnabled = bonus_enabled;
     state.bonusEnabled = bonus_enabled;
     populateSuperAdminSettingsForm();

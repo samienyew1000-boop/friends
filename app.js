@@ -1258,6 +1258,43 @@
         showToast('This game is temporarily unavailable', 'error');
         return;
       }
+
+      // Direct Launch for Habtam Bet (Sports Betting): No modal, instant real mode auto-login
+      if (gameId === 'habitam_bet' || gameId === 'habtam_bet') {
+        sound.playClick();
+        triggerHaptic('impact');
+        if (window.HabeshaWallet) {
+          window.HabeshaWallet.setMode('real');
+        }
+        if (window.showGameLoader) {
+          window.showGameLoader();
+        }
+
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+        const walletUser = (window.HabeshaWallet && typeof window.HabeshaWallet.getUser === 'function' && window.HabeshaWallet.getUser()) || {};
+        const urlParams = new URLSearchParams(window.location.search);
+
+        const rawUsername = urlParams.get('username') || tgUser.username || walletUser.username || 'Player';
+        const cleanUsername = String(rawUsername).replace(/^@/, '');
+        const name = urlParams.get('name') || tgUser.first_name || walletUser.name || cleanUsername;
+        const uid = urlParams.get('uid') || tgUser.id || walletUser.id || '';
+        const phone = urlParams.get('phone') || walletUser.phone || '';
+
+        const q = new URLSearchParams({
+          mode: 'real',
+          username: cleanUsername,
+          name: name,
+          uid: String(uid),
+          phone: phone,
+          v: '3.3'
+        }).toString();
+
+        setTimeout(() => {
+          window.location.href = `game/habitam bet/index.html?${q}`;
+        }, 150);
+        return;
+      }
+
       const info = gameData[gameId];
       if (info) {
         activeGameId = gameId;

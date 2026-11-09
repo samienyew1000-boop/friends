@@ -6,8 +6,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="habtam-bet-api" content="http://127.0.0.1:8787" />
   <title>Habtam Bet — Sportsbook</title>
+  <!-- Instant First-Frame Dark Theme Style (Prevents White Screen) -->
+  <style>
+    html, body {
+      background-color: #0b0f19 !important;
+      color: #f1f5f9 !important;
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+
+  <!-- Telegram WebApp Early Init & Auto-Login Initialization -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     (function () {
+      try {
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.ready();
+          window.Telegram.WebApp.expand();
+          window.Telegram.WebApp.setHeaderColor('#111827');
+          window.Telegram.WebApp.setBackgroundColor('#0b0f19');
+          if (window.Telegram.WebApp.BackButton) {
+            window.Telegram.WebApp.BackButton.show();
+            window.Telegram.WebApp.BackButton.onClick(function () {
+              window.location.href = '../../index.html';
+            });
+          }
+        }
+      } catch (e) {}
+
+      // Instant Theme
       try {
         localStorage.removeItem("hope-bet-night-mode");
         document.documentElement.removeAttribute("data-night");
@@ -16,8 +43,33 @@
         document.documentElement.setAttribute("data-theme", savedTheme);
         document.documentElement.setAttribute("data-color", savedTheme);
       } catch (e) {}
-    })();
-    (function () {
+
+      // Early Auto-Auth Session Setup from URL / Telegram / HabeshaWallet
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var tgUser = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
+        var rawUname = params.get('username') || (tgUser && tgUser.username) || localStorage.getItem('habesha_user_name') || 'Player';
+        if (rawUname && rawUname !== 'null' && rawUname !== 'undefined') {
+          var clean = String(rawUname).replace(/^@/, '');
+          var disp = rawUname.startsWith('@') ? rawUname : '@' + clean;
+          var uid = params.get('uid') || (tgUser && tgUser.id) || '1001';
+          var phone = params.get('phone') || '';
+          var authObj = {
+            id: uid,
+            username: clean,
+            displayName: disp,
+            role: 'player',
+            email: clean + '@friendsgame.et',
+            phone: phone
+          };
+          localStorage.setItem('hope-bet-user', JSON.stringify(authObj));
+          localStorage.setItem('habtam-bet-user', JSON.stringify(authObj));
+          localStorage.setItem('hope-bet-token', 'tg_token_' + uid);
+          localStorage.setItem('habtam-bet-token', 'tg_token_' + uid);
+          localStorage.setItem('habesha_wallet_mode', 'real');
+        }
+      } catch (e) {}
+
       var path = location.pathname || "";
       if (!path.endsWith("/") && !/\.html?$/i.test(path)) {
         location.replace(path + "/" + location.search + location.hash);
@@ -4220,7 +4272,7 @@
   <script src="./qrcode.min.js?v=20260918_v4"></script>
   <script src="./anti-theft.js?v=20261022"></script>
   <script src="../shared-balance.js?v=2.7"></script>
-  <script src="./game.js?v=20261021_min_v2"></script>
+  <script src="./game.js?v=20261109_v3"></script>
 </body>
 
 </html>

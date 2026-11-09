@@ -249,9 +249,11 @@ def get_user_webapp_url(chat_id, user=None):
         user = users.get(str(chat_id), {})
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
+    username = user.get("username", "")
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}"
+    clean_uname = urllib.parse.quote(username)
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=3.3"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """

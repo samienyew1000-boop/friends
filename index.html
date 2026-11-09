@@ -84,9 +84,19 @@
   </script>
 
   <!-- Custom App Styles -->
-  <link rel="stylesheet" href="app.css" />
-  <link rel="stylesheet" href="assets/game-loader.css" />
-  <script src="assets/game-loader.js"></script>
+  <link rel="stylesheet" href="app.css?v=3.3" />
+  <link rel="stylesheet" href="assets/game-loader.css?v=3.3" />
+  <script src="assets/game-loader.js?v=3.3"></script>
+  <script>
+    // Fail-safe loader dismissal
+    setTimeout(function() {
+      var l = document.getElementById('inoutLoader');
+      if (l) {
+        l.classList.add('fade-out');
+        setTimeout(function() { l.style.display = 'none'; }, 350);
+      }
+    }, 1200);
+  </script>
 </head>
 <body class="bg-[#070a0f] text-slate-100 min-h-screen flex justify-center selection:bg-teal-500 selection:text-white" style="background-color: #070a0f; color: #f1f5f9; margin: 0; padding: 0;">
 
@@ -1050,9 +1060,9 @@
   </div>
 
   <!-- Unified Shared Balance Engine -->
-  <script src="game/shared-balance.js?v=2.7"></script>
+  <script src="game/shared-balance.js?v=3.3"></script>
 
   <!-- App JavaScript Engine -->
-  <script src="app.js?v=2.7"></script>
+  <script src="app.js?v=3.3"></script>
 </body>
 </html>
