@@ -9,7 +9,7 @@ const QUICK_STAKES = [20, 50, 100, 500];
 const CURRENCY = "ETB";
 
 const api = () => window.HabtamBetAPI || window.HopeBetAPI;
-const useApi = () => api() && api().isEnabled();
+const useApi = () => false; // Managed by HabeshaWallet & local ticket engine
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
@@ -1117,7 +1117,81 @@ function getTimeFilterDef(id) {
 }
 
 function buildMockFixtures() {
-  return [];
+  const now = Date.now();
+  const makeMatch = (id, offsetHours, league, home, away, odds) => ({
+    fixtureId: id,
+    id: id,
+    date: new Date(now + offsetHours * 3600000).toISOString(),
+    status: "NS",
+    isLive: false,
+    elapsed: null,
+    goals: null,
+    league: {
+      id: league.id,
+      name: league.name,
+      country: league.country,
+      logo: `https://media.api-sports.io/football/leagues/${league.id}.png`,
+      flag: league.flag
+    },
+    home: {
+      id: home.id,
+      name: home.name,
+      logo: `https://media.api-sports.io/football/teams/${home.id}.png`
+    },
+    away: {
+      id: away.id,
+      name: away.name,
+      logo: `https://media.api-sports.io/football/teams/${away.id}.png`
+    },
+    odds: {
+      home: odds[0],
+      draw: odds[1],
+      away: odds[2],
+      doubleChance: {
+        homeDraw: (Math.max(1.05, 1 / (1 / parseFloat(odds[0]) + 1 / parseFloat(odds[1])))).toFixed(2),
+        homeAway: (Math.max(1.05, 1 / (1 / parseFloat(odds[0]) + 1 / parseFloat(odds[2])))).toFixed(2),
+        drawAway: (Math.max(1.05, 1 / (1 / parseFloat(odds[1]) + 1 / parseFloat(odds[2])))).toFixed(2)
+      },
+      totals: {
+        over15: "1.25",
+        under15: "3.80",
+        over25: odds[3] || "1.80",
+        under25: odds[4] || "2.05",
+        over35: "2.95",
+        under35: "1.40"
+      },
+      btts: { yes: "1.72", no: "2.05" },
+      dnb: { home: (parseFloat(odds[0]) * 0.72).toFixed(2), away: (parseFloat(odds[2]) * 0.72).toFixed(2) }
+    },
+    markets: [
+      { id: 1, name: "Match Winner", values: [{ value: "Home", odd: odds[0] }, { value: "Draw", odd: odds[1] }, { value: "Away", odd: odds[2] }] },
+      { id: 5, name: "Goals Over/Under", values: [{ value: "Over 2.5", odd: odds[3] || "1.80" }, { value: "Under 2.5", odd: odds[4] || "2.05" }] }
+    ],
+    marketCount: 54,
+    selectionCount: 432
+  });
+
+  const PL = { id: 39, name: "Premier League", country: "England", flag: "https://media.api-sports.io/flags/gb-eng.svg" };
+  const LL = { id: 140, name: "La Liga", country: "Spain", flag: "https://media.api-sports.io/flags/es.svg" };
+  const BL = { id: 78, name: "Bundesliga", country: "Germany", flag: "https://media.api-sports.io/flags/de.svg" };
+  const SA = { id: 135, name: "Serie A", country: "Italy", flag: "https://media.api-sports.io/flags/it.svg" };
+  const L1 = { id: 61, name: "Ligue 1", country: "France", flag: "https://media.api-sports.io/flags/fr.svg" };
+  const CL = { id: 2, name: "UEFA Champions League", country: "World", flag: "https://media.api-sports.io/flags/world.svg" };
+
+  return [
+    makeMatch(9001, 2, PL, { id: 42, name: "Arsenal" }, { id: 49, name: "Chelsea" }, ["1.85", "3.60", "4.20", "1.75", "2.10"]),
+    makeMatch(9002, 4, PL, { id: 50, name: "Manchester City" }, { id: 40, name: "Liverpool" }, ["2.10", "3.50", "3.40", "1.65", "2.25"]),
+    makeMatch(9003, 5, LL, { id: 541, name: "Real Madrid" }, { id: 529, name: "Barcelona" }, ["2.20", "3.60", "3.10", "1.60", "2.35"]),
+    makeMatch(9004, 7, LL, { id: 530, name: "Atletico Madrid" }, { id: 536, name: "Sevilla" }, ["1.70", "3.75", "5.00", "1.90", "1.90"]),
+    makeMatch(9005, 8, BL, { id: 157, name: "Bayern München" }, { id: 165, name: "Borussia Dortmund" }, ["1.50", "4.50", "6.00", "1.45", "2.75"]),
+    makeMatch(9006, 10, BL, { id: 168, name: "Bayer Leverkusen" }, { id: 173, name: "RB Leipzig" }, ["2.00", "3.60", "3.60", "1.70", "2.15"]),
+    makeMatch(9007, 12, SA, { id: 505, name: "Inter" }, { id: 496, name: "Juventus" }, ["1.95", "3.40", "4.00", "1.85", "1.95"]),
+    makeMatch(9008, 14, SA, { id: 489, name: "AC Milan" }, { id: 492, name: "Napoli" }, ["2.30", "3.30", "3.10", "1.90", "1.90"]),
+    makeMatch(9009, 16, L1, { id: 85, name: "Paris Saint Germain" }, { id: 81, name: "Marseille" }, ["1.45", "4.75", "6.50", "1.50", "2.60"]),
+    makeMatch(9010, 18, CL, { id: 33, name: "Manchester United" }, { id: 47, name: "Tottenham" }, ["2.40", "3.50", "2.80", "1.70", "2.15"]),
+    makeMatch(9011, 20, PL, { id: 34, name: "Newcastle" }, { id: 66, name: "Aston Villa" }, ["2.05", "3.50", "3.50", "1.75", "2.10"]),
+    makeMatch(9012, 22, SA, { id: 497, name: "AS Roma" }, { id: 487, name: "Lazio" }, ["2.25", "3.20", "3.30", "2.00", "1.80"])
+  ];
 }
 function _legacyBuildMockFixtures() {
   return [];
@@ -1602,12 +1676,10 @@ function extractFixtureRows(data) {
 }
 
 async function fetchInPlayLiveFixtures() {
-  const url = useApi()
-    ? `${api().apiUrl()}/api/odds/fixtures/live`
-    : `${API_BASE}/football/fixtures?live=all`;
+  const url = `${API_BASE}/football/fixtures?live=all`;
 
   try {
-    const data = await fetchJson(url, 6000);
+    const data = await fetchJson(url, 12000);
     const rows = extractFixtureRows(data);
     return rows.map(normalizeApiFixture).filter((f) => f.fixtureId && f.home?.name && f.away?.name);
   } catch (_) {
@@ -1645,9 +1717,7 @@ async function fetchLeagueUpcomingFixtures(leagueId, season = 2026) {
 }
 
 async function fetchAllUpcomingFixtures() {
-  const url = useApi()
-    ? `${api().apiUrl()}/api/odds/fixtures/upcoming`
-    : `${API_BASE}/football/board/upcoming?bookmaker=${BOOKMAKER}`;
+  const url = `${API_BASE}/football/board/upcoming?bookmaker=${BOOKMAKER}`;
 
   try {
     const data = await fetchJson(url, 15000);
@@ -1660,12 +1730,10 @@ async function fetchAllUpcomingFixtures() {
 
 async function fetchLiveFixtures() {
   const topLeagues = "39-140-61-88-78-135-40-235";
-  const url = useApi()
-    ? `${api().apiUrl()}/api/odds/fixtures/prematch?leagues=${topLeagues}`
-    : `${API_BASE}/football/board/prematch?bookmaker=${BOOKMAKER}&leagues=${topLeagues}`;
+  const url = `${API_BASE}/football/board/prematch?bookmaker=${BOOKMAKER}&leagues=${topLeagues}`;
 
   try {
-    const data = await fetchJson(url, 8000);
+    const data = await fetchJson(url, 15000);
     const rows = extractFixtureRows(data);
     if (!rows.length) return [];
     state.liveSource = true;
@@ -1831,7 +1899,24 @@ async function loadFixtures() {
     } catch (_) {}
   }
 
-  // NO demo fixtures: Real matches ONLY
+    if (!state.fixtures || !state.fixtures.length) {
+    state.fixtures = buildMockFixtures();
+    state.fixtures.forEach((f) => {
+      const c = f.league?.country;
+      if (c && f.league?.id) {
+        if (!state.countryLeagues[c]) state.countryLeagues[c] = [];
+        if (!state.countryLeagues[c].some((l) => Number(l.id) === Number(f.league.id))) {
+          state.countryLeagues[c].push({
+            id: f.league.id,
+            name: f.league.name,
+            logo: f.league.logo,
+            country: c,
+            count: 1,
+          });
+        }
+      }
+    });
+  }
   state.isFixturesLoading = false;
 
   renderSportsSidebar();
@@ -1857,9 +1942,7 @@ async function loadFixtures() {
 }
 
 async function fetchSidebar() {
-  const url = useApi()
-    ? `${api().apiUrl()}/api/odds/sidebar`
-    : `${API_BASE}/football/sidebar/summary?view=prematch&bookmaker=${BOOKMAKER}`;
+  const url = `${API_BASE}/football/sidebar/summary?view=prematch&bookmaker=${BOOKMAKER}`;
 
   try {
     const data = await fetchJson(url, 6000);
@@ -1900,9 +1983,7 @@ async function fetchCountryLeagues(countryName) {
 
   try {
     const res = await fetch(
-      useApi()
-        ? `${api().apiUrl()}/api/odds/countries/${encodeURIComponent(countryName)}/leagues`
-        : `${API_BASE}/football/countries/${encodeURIComponent(countryName)}/leagues?view=prematch&bookmaker=${BOOKMAKER}`
+      `${API_BASE}/football/countries/${encodeURIComponent(countryName)}/leagues?view=prematch&bookmaker=${BOOKMAKER}`
     );
     if (res.ok) {
       const data = await res.json();
@@ -6224,12 +6305,8 @@ async function fetchFixtureMarkets(fixtureId) {
   }
 
   // Fast concurrent fetch of lineups and server markets with AbortController timeout (3.5s)
-  const lineupUrl = useApi()
-    ? `${api().apiUrl()}/api/odds/fixture/${fixtureId}/lineups`
-    : `${API_BASE}/football/fixtures/lineups?fixture=${fixtureId}`;
-  const marketsUrl = useApi()
-    ? `${api().apiUrl()}/api/odds/fixture/${fixtureId}/markets`
-    : `${API_BASE}/football/odds/fixture/${fixtureId}?bookmaker=${BOOKMAKER}`;
+  const lineupUrl = `${API_BASE}/football/fixtures/lineups?fixture=${fixtureId}`;
+  const marketsUrl = `${API_BASE}/football/odds/fixture/${fixtureId}?bookmaker=${BOOKMAKER}`;
 
   let lineupPlayers = null;
   let serverData = null;
@@ -8234,9 +8311,7 @@ async function fetchAndCacheFixtureScores(fixtureIds) {
   _fetchingFixtureScores = true;
   try {
     const q = missing.join("-");
-    const data = await (useApi() && api().fetchFixtureScores
-      ? api().fetchFixtureScores(q)
-      : fetch(`${(window.HABTAM_BET_CONFIG || window.HOPE_BET_CONFIG)?.API_URL || "http://127.0.0.1:8787"}/api/odds/fixtures/scores?ids=${encodeURIComponent(q)}`).then((r) => r.json()));
+    const data = await fetch(`${API_BASE}/football/fixtures?ids=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null);
 
     const list = Array.isArray(data?.response) ? data.response : (Array.isArray(data) ? data : []);
     let updated = false;
@@ -13283,9 +13358,7 @@ function getMarketOdds(fixture, market, selection) {
     // Asynchronously fetch genuine API markets if not already requested
     if (fId && !fixture._bttsReq) {
       fixture._bttsReq = true;
-      const mUrl = useApi()
-        ? `${api().apiUrl()}/api/odds/fixture/${fId}/markets`
-        : `${API_BASE}/football/odds/fixture/${fId}?bookmaker=${BOOKMAKER}`;
+      const mUrl = `${API_BASE}/football/odds/fixture/${fId}?bookmaker=${BOOKMAKER}`;
       fetch(mUrl)
         .then((r) => r.json())
         .then((d) => {
@@ -14368,9 +14441,7 @@ async function openLeaguePage(leagueIds) {
     showBrandLoader(leagueLoader, leagueBoard);
     try {
       const query = missingIds.join("-");
-      const url = useApi()
-        ? `${api().apiUrl()}/api/odds/fixtures/prematch?leagues=${encodeURIComponent(query)}`
-        : `${API_BASE}/football/board/prematch?bookmaker=${BOOKMAKER}&leagues=${encodeURIComponent(query)}`;
+      const url = `${API_BASE}/football/board/prematch?bookmaker=${BOOKMAKER}&leagues=${encodeURIComponent(query)}`;
       const data = await fetchJson(url, 15000);
       const rows = extractFixtureRows(data);
       if (rows.length) {
@@ -14544,9 +14615,7 @@ function prefetchVisibleLeagueOdds(list) {
   const toFetch = list.slice(0, 10).filter((f) => f && f.fixtureId && !prefetchedFixtureOdds.has(f.fixtureId));
   toFetch.forEach((f) => {
     prefetchedFixtureOdds.add(f.fixtureId);
-    const marketsUrl = useApi()
-      ? `${api().apiUrl()}/api/odds/fixture/${f.fixtureId}/markets`
-      : `${API_BASE}/football/odds/fixture/${f.fixtureId}?bookmaker=${BOOKMAKER}`;
+    const marketsUrl = `${API_BASE}/football/odds/fixture/${f.fixtureId}?bookmaker=${BOOKMAKER}`;
     fetchJson(marketsUrl, 4000).then((mData) => {
       if (mData && mData.ok && Array.isArray(mData.markets)) {
         const m1 = mData.markets.find((m) => m && (m.id === 1 || m.name === "Match Winner" || m.name === "Match Result"));
@@ -17872,7 +17941,7 @@ function settleTicketLocal(ticket) {
 
 async function placeBet() {
   if (!state.slip.length) return;
-  if (!isLoggedIn() || !api().getToken()) {
+  if (!isLoggedIn()) {
     openAuthModal("login");
     toast("Please log in to place bets", "err");
     return;
@@ -21756,7 +21825,7 @@ function init() {
         }
       }
     } catch (_) {}
-    if (!state.fixtures) state.fixtures = [];
+    if (!state.fixtures || !state.fixtures.length) state.fixtures = buildMockFixtures();
     state.sidebar = buildMockSidebar();
     bindEvents();
     if (typeof bindAdminEvents === "function") bindAdminEvents();

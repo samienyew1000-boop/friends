@@ -3,7 +3,6 @@
   const fromMeta = (meta && meta.getAttribute("content") || "").trim();
   const host = window.location.hostname;
   const isLocal = host === "localhost" || host === "127.0.0.1";
-  const metaIsLocal = Boolean(fromMeta && (fromMeta.includes("127.0.0.1") || fromMeta.includes("localhost")));
 
   let storageApi = "";
   try {
@@ -13,16 +12,12 @@
   let apiUrl = "";
   if (storageApi) {
     apiUrl = storageApi;
-  } else if (window.location.protocol === "file:") {
-    apiUrl = "";
-  } else if (fromMeta && !metaIsLocal) {
-    // Explicit remote backend endpoint specified in meta tag
+  } else if (fromMeta && !fromMeta.includes("127.0.0.1") && !fromMeta.includes("localhost")) {
     apiUrl = fromMeta;
   } else if (isLocal) {
     apiUrl = fromMeta || "http://127.0.0.1:8787";
   } else {
-    // Deployed web server: default to current origin so /api is reached directly
-    apiUrl = window.location.origin;
+    apiUrl = "https://multi-shop-games-2.onrender.com/api/games/sportsbook";
   }
 
   const appConfig = {
