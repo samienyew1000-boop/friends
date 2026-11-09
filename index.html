@@ -8,39 +8,78 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   
-  <!-- Telegram WebApp Script -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Instant First-Frame Dark Theme Style (Prevents White Screen) -->
+  <style id="instant-theme-styles">
+    html, body {
+      background-color: #070a0f !important;
+      color: #f1f5f9 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      min-height: 100vh !important;
+      overflow-x: hidden !important;
+      -webkit-font-smoothing: antialiased;
+    }
+    #inoutLoader {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999999 !important;
+      background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: opacity 0.38s ease, visibility 0.38s ease !important;
+    }
+    #inoutLoader.fade-out {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+  </style>
+
+  <!-- Telegram WebApp Script with Early Instant Init -->
   <script>
-    if (window.Telegram && window.Telegram.WebApp) {
+    function initTelegramEarly() {
       try {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-        window.Telegram.WebApp.setHeaderColor('#070a0f');
-        window.Telegram.WebApp.setBackgroundColor('#070a0f');
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.ready();
+          window.Telegram.WebApp.expand();
+          window.Telegram.WebApp.setHeaderColor('#070a0f');
+          window.Telegram.WebApp.setBackgroundColor('#070a0f');
+          if (window.Telegram.WebApp.BackButton) {
+            window.Telegram.WebApp.BackButton.hide();
+          }
+        }
       } catch (e) {}
     }
   </script>
+  <script src="https://telegram.org/js/telegram-web-app.js" onload="initTelegramEarly()"></script>
+  <script>initTelegramEarly();</script>
 
-  <!-- Tailwind CSS via CDN -->
+  <!-- Tailwind CSS via CDN with Fallback Guard -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              teal: '#00bfa5',
-              darkteal: '#00897b',
-              emerald: '#00c29a',
-              bg: '#0c1017',
-              card: '#141a24',
-              surface: '#1b2230',
-              gold: '#f59e0b'
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                teal: '#00bfa5',
+                darkteal: '#00897b',
+                emerald: '#00c29a',
+                bg: '#0c1017',
+                card: '#141a24',
+                surface: '#1b2230',
+                gold: '#f59e0b'
+              }
             }
           }
         }
-      }
+      };
     }
   </script>
 
@@ -52,7 +91,7 @@
 <body class="bg-[#070a0f] text-slate-100 min-h-screen flex justify-center selection:bg-teal-500 selection:text-white" style="background-color: #070a0f; color: #f1f5f9; margin: 0; padding: 0;">
 
   <!-- InOut Global Loading Screen (Instant Frame 1 Render) -->
-  <div id="inoutLoader" class="inout-loader-screen" aria-label="Loading Friendes Game...">
+  <div id="inoutLoader" class="inout-loader-screen" style="position: fixed; inset: 0; z-index: 9999999; background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%); display: flex; align-items: center; justify-content: center;" aria-label="Loading Friendes Game...">
     <div class="inout-loader-content">
       <img src="assets/inout_logo.png" alt="IN OUT" class="inout-loader-logo" />
       <div class="inout-loader-spinner-row">
@@ -211,13 +250,14 @@
             </div>
             <h2 class="text-base font-bold text-[#00c29a] tracking-wide">Featured Games</h2>
           </div>
-          <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">7 Games</span>
+          <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/50">12 Games</span>
         </div>
         <p class="text-xs text-slate-400 mt-0.5 font-normal">Explore our handpicked selection of top-rated games.</p>
 
         <!-- Category Filter Pills -->
         <div class="flex items-center space-x-1.5 overflow-x-auto py-2 no-scrollbar text-xs">
           <button class="category-tab px-3 py-1 rounded-full bg-teal-500 text-white font-semibold shadow-md shadow-teal-500/20 whitespace-nowrap active:scale-95 transition-all" data-category="all">All</button>
+          <button class="category-tab px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 whitespace-nowrap active:scale-95 transition-all" data-category="sports">Sports</button>
           <button class="category-tab px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 whitespace-nowrap active:scale-95 transition-all" data-category="crash">Crash</button>
           <button class="category-tab px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 whitespace-nowrap active:scale-95 transition-all" data-category="instant">Instant</button>
           <button class="category-tab px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 whitespace-nowrap active:scale-95 transition-all" data-category="favorites">⭐ Favorites</button>
@@ -226,7 +266,26 @@
         <!-- 3-Column Games Grid -->
         <div class="grid grid-cols-3 gap-2.5 mt-1">
 
-          <!-- Card 1: Aviator (folder: game/aviator) -->
+          <!-- Card 1: Habtam Bet (folder: game/habitam bet) -->
+          <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="habitam_bet" data-category="sports">
+            <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18] flex items-center justify-center p-2">
+              <img src="assets/game_habtam_bet.png" alt="Habtam Bet" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
+              <!-- Favorite Star Badge (Top-Left) -->
+              <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                </svg>
+              </button>
+              <!-- HOT Badge (Top-Right) -->
+              <span class="absolute top-1.5 right-1.5 bg-[#e11d48] text-white font-black text-[9px] px-1.5 py-0.5 rounded-md uppercase tracking-wider shadow-md leading-none z-10">HOT</span>
+            </div>
+            <!-- Bottom Game Title -->
+            <div class="w-full py-1.5 px-1 bg-[#070b12] border-t border-slate-800/70 flex items-center justify-center">
+              <span class="text-[#facc15] font-black italic tracking-wide text-[11px] sm:text-xs uppercase truncate">HABTAM BET</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Aviator (folder: game/aviator) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="aviator" data-category="crash">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18]">
               <img src="assets/game_aviator.jpg" alt="Aviator" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -991,9 +1050,9 @@
   </div>
 
   <!-- Unified Shared Balance Engine -->
-  <script src="game/shared-balance.js?v=2.6"></script>
+  <script src="game/shared-balance.js?v=2.7"></script>
 
   <!-- App JavaScript Engine -->
-  <script src="app.js?v=2.6"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>

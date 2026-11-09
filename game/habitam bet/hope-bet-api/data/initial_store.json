@@ -1,0 +1,141 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "super",
+      "email": "super@habtam.bet.local",
+      "password_hash": "$2b$10$PK48ueT9vtvPyREAZlcy7e6RGpkjCJjhTes1QWjNr7fg4NEhfHnXC",
+      "display_name": "Super Admin",
+      "role": "super_admin",
+      "created_at": "2026-09-07T09:29:03.638Z"
+    },
+    {
+      "id": 10,
+      "username": "sys",
+      "email": "sys@habtambet.local",
+      "password_hash": "$2b$10$3rMZJ1vVIzXI2mrnC2BsNOQ1gBjKqkzqzGehGojMuLAghjdXBb0fO",
+      "display_name": "System",
+      "role": "sys_core",
+      "created_at": "2026-09-12T18:34:46.747Z"
+    }
+  ],
+  "wallets": {
+    "1": {
+      "user_id": 1,
+      "balance": 0.0,
+      "currency": "ETB",
+      "updated_at": "2026-10-05T06:03:49Z"
+    },
+    "10": {
+      "user_id": 10,
+      "balance": 0.0,
+      "currency": "ETB",
+      "updated_at": "2026-10-05T06:03:49Z"
+    }
+  },
+  "bets": [],
+  "deposits": [],
+  "transactions": [],
+  "auditLogs": [
+    {
+      "id": 1,
+      "actor_id": 1,
+      "actor_username": "super",
+      "actor_role": "super_admin",
+      "action": "system_reset",
+      "target": "platform",
+      "meta": {
+        "note": "Platform cleaned of test shop admins and players for live production start"
+      },
+      "created_at": "2026-10-05T06:03:49Z"
+    }
+  ],
+  "settings": {
+    "telebirr_receiver": "0981782814",
+    "cbe_receiver": "1000212154121",
+    "min_deposit": 200,
+    "max_deposit": 100000,
+    "bonus_enabled": true,
+    "bonus_min_odd_per_leg": 1.15,
+    "bonus_rules": [
+      {
+        "id": "rule_cut1_10",
+        "name": "10-14 Teams (Cut 1)",
+        "failedCount": 1,
+        "minTeams": 10,
+        "maxTeams": 30,
+        "multiplier": 2,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut1_15",
+        "name": "15-19 Teams (Cut 1)",
+        "failedCount": 1,
+        "minTeams": 15,
+        "maxTeams": 19,
+        "multiplier": 5,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut1_20",
+        "name": "20+ Teams (Cut 1)",
+        "failedCount": 1,
+        "minTeams": 20,
+        "maxTeams": null,
+        "multiplier": 10,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut2_15",
+        "name": "15-19 Teams (Cut 2)",
+        "failedCount": 2,
+        "minTeams": 15,
+        "maxTeams": 19,
+        "multiplier": 2,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut2_20",
+        "name": "20+ Teams (Cut 2)",
+        "failedCount": 2,
+        "minTeams": 20,
+        "maxTeams": null,
+        "multiplier": 5,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut3_25",
+        "name": "25+ Teams (Cut 3)",
+        "failedCount": 3,
+        "minTeams": 25,
+        "maxTeams": null,
+        "multiplier": 5,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      },
+      {
+        "id": "rule_cut4_30",
+        "name": "30+ Teams (Cut 4)",
+        "failedCount": 4,
+        "minTeams": 30,
+        "maxTeams": null,
+        "multiplier": 5,
+        "minOddPerLeg": 1.15,
+        "enabled": true
+      }
+    ]
+  },
+  "counters": {
+    "user": 10,
+    "bet": 0,
+    "tx": 0,
+    "deposit": 0,
+    "audit": 1,
+    "cashier": 999
+  }
+}

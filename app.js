@@ -909,6 +909,16 @@
   // --- Featured Game Click & Simulator Modal ---
   // Exactly corresponds to folders in game/ (7 games total)
   const gameData = {
+    'habitam_bet': {
+      title: 'Habtam Bet',
+      provider: 'Habtam Gaming',
+      multiplier: 'Sports & Live',
+      category: 'Sports Betting',
+      image: 'assets/game_habtam_bet.png',
+      url: 'game/habitam bet/index.html',
+      likes: '24.5k',
+      desc: 'Ethiopia\'s premier sportsbook! Bet on live football, premier leagues, international matches, and instant virtual games!'
+    },
     'aviator': {
       title: 'Aviator',
       provider: 'SPRIBE',
@@ -1022,6 +1032,12 @@
   };
 
   // Support folder aliases (spaces, legacy IDs)
+  gameData['habtam_bet'] = gameData['habitam_bet'];
+  gameData['habtam bet'] = gameData['habitam_bet'];
+  gameData['habitam bet'] = gameData['habitam_bet'];
+  gameData['habtam'] = gameData['habitam_bet'];
+  gameData['habitam'] = gameData['habitam_bet'];
+
   gameData['fast keno'] = gameData['fast_keno'];
   gameData['chicken road'] = gameData['chicken_road'];
   gameData['chicken crash'] = gameData['chicken_crash'];

@@ -680,26 +680,25 @@
     }
   }
 
-  // Hook Telegram's native BackButton across all pages
+    // Hook Telegram's native BackButton across all pages
   if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
     try {
       if (window.Telegram.WebApp.BackButton) {
-        window.Telegram.WebApp.BackButton.show();
-        window.Telegram.WebApp.BackButton.onClick(function () {
-          const path = (window.location.pathname || '').toLowerCase();
-          const inGame = path.includes('/game/');
-          if (inGame) {
+        const path = (window.location.pathname || '').toLowerCase();
+        const inGame = path.includes('/game/');
+        if (inGame) {
+          window.Telegram.WebApp.BackButton.show();
+          window.Telegram.WebApp.BackButton.onClick(function () {
             syncLiveBalanceToCloud(true);
             window.location.href = '../../index.html';
-          } else {
-            exitAndSave();
-          }
-        });
+          });
+        } else {
+          window.Telegram.WebApp.BackButton.hide();
+        }
       }
     } catch (e) {}
   }
 
-  // Check if player has at least specified amount
   function has(amount) {
     return get() >= round2(amount);
   }

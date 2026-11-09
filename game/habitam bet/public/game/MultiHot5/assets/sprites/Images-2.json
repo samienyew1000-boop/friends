@@ -1,0 +1,21 @@
+{"frames": {
+
+"Start/LineIcons":
+{
+	"frame": {"x":1,"y":1,"w":1043,"h":707},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":1043,"h":707},
+	"sourceSize": {"w":1043,"h":707}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "Images-2.png",
+	"format": "RGBA8888",
+	"size": {"w":1045,"h":709},
+	"scale": "1",
+	"related_multi_packs": [ "Images-0.json", "Images-1.json" ],
+	"smartupdate": "$TexturePacker:SmartUpdate:ff26e1dbb04ced08ccb6e9437064c6e5:b330796daa2b358662287f09993f84d1:73bceabd45b072120788189c0e56b3a4$"
+}
+}

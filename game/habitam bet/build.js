@@ -1,0 +1,73 @@
+const fs = require('fs');
+const path = require('path');
+
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+const frontendPublicDir = path.join(publicDir, 'frontend');
+if (!fs.existsSync(frontendPublicDir)) {
+  fs.mkdirSync(frontendPublicDir, { recursive: true });
+}
+
+const frontendDir = path.join(__dirname, 'frontend');
+
+// 1. Run frontend's own build if present
+const frontendBuildScript = path.join(frontendDir, 'build.js');
+if (fs.existsSync(frontendBuildScript)) {
+  try {
+    require(frontendBuildScript);
+  } catch (e) {
+    console.warn('Frontend build script error:', e);
+  }
+}
+
+// 2. Files to populate into root, public/, public/frontend/, and hope-bet-api/public/
+const apiPublicDir = path.join(__dirname, 'hope-bet-api', 'public');
+if (!fs.existsSync(apiPublicDir)) {
+  fs.mkdirSync(apiPublicDir, { recursive: true });
+}
+
+const filesToCopy = ['index.html', 'style.css', 'game.js', 'api-client.js', 'config.js', 'qrcode.min.js', 'manifest.json', 'sw.js', 'anti-theft.js'];
+for (const file of filesToCopy) {
+  const src = fs.existsSync(path.join(frontendDir, file))
+    ? path.join(frontendDir, file)
+    : path.join(__dirname, file);
+
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, path.join(publicDir, file));
+    fs.copyFileSync(src, path.join(frontendPublicDir, file));
+    fs.copyFileSync(src, path.join(apiPublicDir, file));
+    if (src !== path.join(__dirname, file)) {
+      fs.copyFileSync(src, path.join(__dirname, file));
+    }
+  }
+}
+
+// Assets
+const srcAssets = fs.existsSync(path.join(frontendDir, 'assets'))
+  ? path.join(frontendDir, 'assets')
+  : path.join(__dirname, 'assets');
+
+if (fs.existsSync(srcAssets)) {
+  fs.cpSync(srcAssets, path.join(publicDir, 'assets'), { recursive: true, force: true });
+  fs.cpSync(srcAssets, path.join(frontendPublicDir, 'assets'), { recursive: true, force: true });
+  fs.cpSync(srcAssets, path.join(apiPublicDir, 'assets'), { recursive: true, force: true });
+}
+
+// Games
+const rootGames = path.join(__dirname, 'game');
+const frontendGames = path.join(frontendDir, 'game');
+
+if (fs.existsSync(rootGames)) {
+  fs.cpSync(rootGames, frontendGames, { recursive: true, force: true });
+}
+if (fs.existsSync(frontendGames)) {
+  fs.cpSync(frontendGames, path.join(publicDir, 'game'), { recursive: true, force: true });
+  fs.cpSync(frontendGames, path.join(frontendPublicDir, 'game'), { recursive: true, force: true });
+  fs.cpSync(frontendGames, path.join(apiPublicDir, 'game'), { recursive: true, force: true });
+}
+
+console.log('Build completed: Root public directory and frontend subdirectories prepared.');
+
