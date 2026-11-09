@@ -40,6 +40,11 @@
 </head>
 
 <body>
+  <!-- Floating Back to Friends Game Lobby Button -->
+  <a href="../../index.html" id="friends-lobby-return-btn" style="position: fixed; top: 12px; left: 12px; z-index: 999999; background: rgba(7, 10, 15, 0.94); color: #facc15; border: 1.5px solid rgba(250, 204, 21, 0.6); padding: 7px 15px; border-radius: 9999px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 18px rgba(0,0,0,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; transition: transform 0.15s ease, background-color 0.15s ease;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span>Friends Lobby</span>
+  </a>
     <!-- ===== ADMIN HEADER ===== -->
     <header class="admin-header" id="admin-header" hidden>
       <!-- Admin Top Bar -->
@@ -185,17 +190,6 @@
           <button type="button" class="top-link" data-nav="upcoming">Upcoming</button>
           <button type="button" class="top-link" data-nav="live">Live</button>
           <button type="button" class="top-link" data-coming-soon>Tournament</button>
-          <button type="button" class="top-link" data-game-key="jet-x" data-game-link="game/jet-x/index.html">JetX</button>
-          <button type="button" class="top-link" data-game-key="multihot5" data-game-link="game/MultiHot5/index.html">Multi Hot 5</button>
-          <button type="button" class="top-link" data-game-key="aviator" data-game-link="game/aviator/index.html">Aviator</button>
-          <button type="button" class="top-link" data-game-key="chicken road" data-game-link="game/chicken%20road/index.html">Chicken Road</button>
-          <button type="button" class="top-link" data-game-key="fast keno" data-game-link="game/fast%20keno/index.html">Fast Keno</button>
-          <button type="button" class="top-link" data-game-key="bingo" data-game-link="game/bingo/index.html">Bingo</button>
-          <button type="button" class="top-link" data-game-key="bingo star" data-game-link="game/bingo%20star/index.html">Bingo Star</button>
-          <button type="button" class="top-link" data-game-key="fish" data-game-link="game/fish/index.html">Fish</button>
-          <button type="button" class="top-link" data-game-key="infinity" data-game-link="game/infinity/index.html">Infinity</button>
-          <button type="button" class="top-link" data-coming-soon>Virtual</button>
-          <button type="button" class="top-link" data-coming-soon>Special Games</button>
           <button type="button" class="top-link" data-coming-soon>Promo</button>
         </div>
         <div class="top-nav-right">
@@ -230,120 +224,6 @@
           <button type="button" class="main-nav-tab" data-nav="upcoming"><span class="tab-badge-new">NEW</span>UPCOMING</button>
           <button type="button" class="main-nav-tab" data-nav="live">LIVE</button>
           <button type="button" class="main-nav-tab" data-nav="tournament" data-coming-soon><span class="tab-badge-new">NEW</span>TOURNAMENT</button>
-          <button type="button" class="main-nav-tab" data-game-key="jet-x" data-game-link="game/jet-x/index.html"><span class="tab-badge-new">NEW</span>JETX</button>
-          <button type="button" class="main-nav-tab" data-game-key="multihot5" data-game-link="game/MultiHot5/index.html"><span class="tab-badge-new">NEW</span>MULTI HOT 5</button>
-          <button type="button" class="main-nav-tab" data-game-key="aviator" data-game-link="game/aviator/index.html"><span class="tab-badge-new">NEW</span>AVIATOR</button>
-          <button type="button" class="main-nav-tab" data-game-key="chicken road" data-game-link="game/chicken%20road/index.html"><span class="tab-badge-new">NEW</span>CHICKEN ROAD</button>
-          <button type="button" class="main-nav-tab" data-game-key="fast keno" data-game-link="game/fast%20keno/index.html"><span class="tab-badge-new">NEW</span>FAST KENO</button>
-          <button type="button" class="main-nav-tab" data-game-key="bingo" data-game-link="game/bingo/index.html"><span class="tab-badge-new">NEW</span>BINGO</button>
-          <button type="button" class="main-nav-tab" data-game-key="bingo star" data-game-link="game/bingo%20star/index.html"><span class="tab-badge-new">NEW</span>BINGO STAR</button>
-          <button type="button" class="main-nav-tab" data-game-key="fish" data-game-link="game/fish/index.html"><span class="tab-badge-new">NEW</span>FISH</button>
-          <button type="button" class="main-nav-tab" data-game-key="infinity" data-game-link="game/infinity/index.html"><span class="tab-badge-new">NEW</span>INFINITY</button>
-          <div class="nav-games-dropdown-wrap">
-            <button type="button" class="main-nav-tab nav-games-dropdown-btn" id="nav-games-toggle" aria-label="Games Menu">
-              <span>GAMES</span>
-              <span class="nav-arrow-down">▾</span>
-            </button>
-            <div class="nav-games-menu" id="nav-games-menu">
-              <div class="nav-game-menu-item" data-game-key="jet-x" data-game-link="game/jet-x/index.html">
-                <img src="assets/game_jetx.png" alt="JetX" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>JetX</strong>
-                  <span class="badge-sub">Crash Rocket • SmartSoft</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="jet-x">Play Real</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="multihot5" data-game-link="game/MultiHot5/index.html">
-                <img src="assets/game_multihot5.jpg" alt="Multi Hot 5" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Multi Hot 5</strong>
-                  <span class="badge-sub">Classic Slot • SmartSoft</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="multihot5">Play Real</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="aviator" data-game-link="game/aviator/index.html">
-                <img src="assets/game_aviator.gif" alt="Aviator" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Aviator</strong>
-                  <span class="badge-sub">Crash Game • Spribe</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="aviator">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="aviator">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="chicken road" data-game-link="game/chicken%20road/index.html">
-                <img src="assets/game_chicken_road.png" alt="Chicken Road" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Chicken Road</strong>
-                  <span class="badge-sub">Instant Multiplier</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="chicken road">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="chicken road">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="fast keno" data-game-link="game/fast%20keno/index.html">
-                <img src="assets/game_fast_keno.gif" alt="Fast Keno" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Fast Keno</strong>
-                  <span class="badge-sub">Instant Lottery</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="fast keno">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="fast keno">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="bingo" data-game-link="game/bingo/index.html">
-                <img src="assets/game_bingo.png" alt="Bingo" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Bingo</strong>
-                  <span class="badge-sub">Community Bingo</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="bingo">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="bingo">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="bingo star" data-game-link="game/bingo%20star/index.html">
-                <img src="assets/game_bingo_star.png" alt="Bingo Star" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Bingo Star</strong>
-                  <span class="badge-sub">90-Ball Auto Daub</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="bingo star">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="bingo star">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="fish" data-game-link="game/fish/index.html">
-                <img src="assets/game_fish.png" alt="Fish" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Fish</strong>
-                  <span class="badge-sub">Ocean Reef Action</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="fish">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="fish">Demo</button>
-                </div>
-              </div>
-              <div class="nav-game-menu-item" data-game-key="infinity" data-game-link="game/infinity/index.html">
-                <img src="assets/game_infinity.png" alt="Infinity" class="nav-game-menu-img" />
-                <div class="nav-game-menu-info">
-                  <strong>Infinity</strong>
-                  <span class="badge-sub">1s Candlestick Crash</span>
-                </div>
-                <div class="nav-game-menu-chips">
-                  <button type="button" class="nav-chip-play" data-game-action="real" data-game-key="infinity">Play</button>
-                  <button type="button" class="nav-chip-demo" data-game-action="demo" data-game-key="infinity">Demo</button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
         <div class="main-nav-right">
           <span class="nav-action-icon" title="Leaderboard" data-coming-soon>
@@ -457,42 +337,6 @@
       <button type="button" class="mobile-nav-tab has-badge" data-mobile-nav="tournament">
         <span class="mobile-tab-badge">NEW</span>
         TOURNAMENT
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-key="jet-x" data-game-link="game/jet-x/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        JETX
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-key="multihot5" data-game-link="game/MultiHot5/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        MULTI HOT 5
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-key="aviator" data-game-link="game/aviator/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        AVIATOR
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/chicken%20road/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        CHICKEN ROAD
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/fast%20keno/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        FAST KENO
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/bingo/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        BINGO
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/bingo%20star/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        BINGO STAR
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/fish/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        FISH
-      </button>
-      <button type="button" class="mobile-nav-tab has-badge" data-game-link="game/infinity/index.html">
-        <span class="mobile-tab-badge">NEW</span>
-        INFINITY
       </button>
     </nav>
 
@@ -846,103 +690,6 @@
             <strong class="mmenu-card-title">Tournament</strong>
             <span class="mmenu-card-sub">Race on spinss!!</span>
           </div>
-        </button>
-
-        <!-- 5. Games & Casino -->
-        <button type="button" class="mmenu-nav-card" id="mmenu-games-toggle" data-mmenu="games">
-          <div class="mmenu-card-icon" style="background:#e41b23;color:#fff;">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S20.17 9 21 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-            </svg>
-          </div>
-          <div class="mmenu-card-text">
-            <strong class="mmenu-card-title">Games & Aviator</strong>
-            <span class="mmenu-card-sub">Aviator, Chicken Road, Fast Keno, Bingo...</span>
-          </div>
-          <span class="mmenu-card-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-          </span>
-        </button>
-        <div class="mmenu-games-sublist" id="mmenu-games-sublist" hidden>
-          <a href="game/jet-x/index.html" class="mmenu-game-item" data-game-key="jet-x">
-            <img src="assets/game_jetx.png" alt="JetX" class="mmenu-game-img" />
-            <div>
-              <strong>JetX</strong>
-              <small>SmartSoft Crash</small>
-            </div>
-          </a>
-          <a href="game/MultiHot5/index.html" class="mmenu-game-item" data-game-key="multihot5">
-            <img src="assets/game_multihot5.jpg" alt="Multi Hot 5" class="mmenu-game-img" />
-            <div>
-              <strong>Multi Hot 5</strong>
-              <small>SmartSoft Slot</small>
-            </div>
-          </a>
-          <a href="game/aviator/index.html" class="mmenu-game-item">
-            <img src="assets/game_aviator.gif" alt="Aviator" class="mmenu-game-img" />
-            <div>
-              <strong>Aviator</strong>
-              <small>Spribe Crash</small>
-            </div>
-          </a>
-          <a href="game/chicken%20road/index.html" class="mmenu-game-item">
-            <img src="assets/game_chicken_road.png" alt="Chicken Road" class="mmenu-game-img" />
-            <div>
-              <strong>Chicken Road</strong>
-              <small>InOut Instant</small>
-            </div>
-          </a>
-          <a href="game/fast%20keno/index.html" class="mmenu-game-item">
-            <img src="assets/game_fast_keno.gif" alt="Fast Keno" class="mmenu-game-img" />
-            <div>
-              <strong>Fast Keno</strong>
-              <small>Instant Lottery</small>
-            </div>
-          </a>
-          <a href="game/bingo/index.html" class="mmenu-game-item">
-            <img src="assets/game_bingo.png" alt="Bingo" class="mmenu-game-img" />
-            <div>
-              <strong>Bingo</strong>
-              <small>Dallol Games</small>
-            </div>
-          </a>
-          <a href="game/bingo%20star/index.html" class="mmenu-game-item">
-            <img src="assets/game_bingo_star.png" alt="Bingo Star" class="mmenu-game-img" />
-            <div>
-              <strong>Bingo Star</strong>
-              <small>90-Ball Auto Daub</small>
-            </div>
-          </a>
-          <a href="game/fish/index.html" class="mmenu-game-item">
-            <img src="assets/game_fish.png" alt="Fish" class="mmenu-game-img" />
-            <div>
-              <strong>Fish</strong>
-              <small>Ocean Action</small>
-            </div>
-          </a>
-          <a href="game/infinity/index.html" class="mmenu-game-item">
-            <img src="assets/game_infinity.png" alt="Infinity" class="mmenu-game-img" />
-            <div>
-              <strong>Infinity</strong>
-              <small>1s Candlestick</small>
-            </div>
-          </a>
-        </div>
-
-        <!-- 6. Special Games -->
-        <button type="button" class="mmenu-nav-card" data-mmenu="special-games">
-          <div class="mmenu-card-icon">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-              <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S20.17 9 21 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-            </svg>
-          </div>
-          <div class="mmenu-card-text">
-            <strong class="mmenu-card-title">Special Games</strong>
-            <span class="mmenu-card-sub">Unlock Special Games and Beyond</span>
-          </div>
-          <span class="mmenu-card-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
-          </span>
         </button>
 
         <!-- 7. Promo -->
@@ -4473,7 +4220,7 @@
   <script src="./api-client.js?v=20260918_v4"></script>
   <script src="./qrcode.min.js?v=20260918_v4"></script>
   <script src="./anti-theft.js?v=20261022"></script>
-  <script src="./game/shared-balance.js"></script>
+  <script src="../shared-balance.js?v=2.7"></script>
   <script src="./game.js?v=20261021_min_v2"></script>
 </body>
 
