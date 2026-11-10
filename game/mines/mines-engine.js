@@ -4,6 +4,8 @@
  * Synchronized with window.HabeshaWallet
  */
 (function() {
+  "use strict";
+
   function combinations(n, k) {
     if (k < 0 || k > n) return 0;
     if (k === 0 || k === n) return 1;
@@ -20,17 +22,6 @@
       return Math.max(0.60, Math.min(0.99, 1 - (margin / 100)));
     }
     return 0.95;
-  }
-
-  function calculateMultiplier(minesCount, hits, rtp = null) {
-    if (hits <= 0) return 1;
-    const currentRtp = rtp !== null ? rtp : getMinesRTP();
-    const totalCells = 25;
-    const safeCells = totalCells - minesCount;
-    if (hits > safeCells) return 0;
-    const fair = combinations(totalCells, hits) / combinations(safeCells, hits);
-    const mult = currentRtp * fair;
-    return Math.min(50, Number(mult.toFixed(2)));
   }
 
   const VERIFIED_COEFFICIENTS = {
@@ -60,6 +51,21 @@
     "24": ["1.00", "23.75"]
   };
 
+  function calculateMultiplier(minesCount, hits) {
+    if (hits <= 0) return 1;
+    const key = String(minesCount);
+    if (VERIFIED_COEFFICIENTS[key] && VERIFIED_COEFFICIENTS[key][hits] !== undefined) {
+      const parsed = parseFloat(VERIFIED_COEFFICIENTS[key][hits]);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+    const totalCells = 25;
+    const safeCells = totalCells - minesCount;
+    if (hits > safeCells) return 0;
+    const fair = combinations(totalCells, hits) / combinations(safeCells, hits);
+    const rtp = getMinesRTP();
+    return Number((rtp * fair).toFixed(2));
+  }
+
   function getRandomMines(count) {
     const cells = Array.from({ length: 25 }, (_, i) => i + 1);
     for (let i = cells.length - 1; i > 0; i--) {
@@ -71,17 +77,19 @@
 
   function getWalletBalance() {
     if (window.HabeshaWallet && typeof window.HabeshaWallet.get === 'function') {
-      return Number(window.HabeshaWallet.get());
+      const bal = Number(window.HabeshaWallet.get());
+      return isNaN(bal) ? 0 : bal;
     }
     const saved = localStorage.getItem('mines_local_balance');
     return saved ? Number(saved) : 1000;
   }
 
   function setWalletBalance(newBal) {
+    const safe = Math.max(0, Number(newBal) || 0);
     if (window.HabeshaWallet && typeof window.HabeshaWallet.set === 'function') {
-      window.HabeshaWallet.set(newBal);
+      window.HabeshaWallet.set(safe);
     } else {
-      localStorage.setItem('mines_local_balance', newBal.toFixed(2));
+      localStorage.setItem('mines_local_balance', safe.toFixed(2));
     }
   }
 
@@ -125,17 +133,27 @@
           currency: getCurrency(),
           balance: getWalletBalance().toFixed(2)
         });
-      }, 50);
+      }, 30);
 
       // Listen for window.HabeshaWallet updates
-      window.addEventListener("balanceUpdated", (e) => {
-        const bal = e.detail?.balance ?? getWalletBalance();
-        this.session.balance = bal;
+      const onBalUpdate = (e) => {
+        const bal = e?.detail?.balance ?? getWalletBalance();
+        this.session.balance = Number(bal) || 0;
         this.emitLocal("onBalanceChange", {
           currency: getCurrency(),
           balance: Number(bal).toFixed(2)
         });
-      });
+      };
+
+      window.addEventListener("habesha_balance_updated", onBalUpdate);
+      window.addEventListener("balanceUpdated", onBalUpdate);
+      if (window.HabeshaWallet && typeof window.HabeshaWallet.subscribe === "function") {
+        try {
+          window.HabeshaWallet.subscribe((bal) => {
+            onBalUpdate({ detail: { balance: bal } });
+          });
+        } catch (_) {}
+      }
     }
 
     on(event, callback) {
@@ -171,8 +189,15 @@
         console.log(`[Embedded Engine action]:`, action, payload || "");
 
         setTimeout(() => {
-          this.handleGameService(action, payload, ack || (() => {}));
-        }, 30);
+          try {
+            this.handleGameService(action, payload, ack || (() => {}));
+          } catch (err) {
+            console.error("[Embedded Engine error in handleGameService]:", err);
+            if (typeof ack === "function") {
+              ack({ error: err?.message || "Game service error" });
+            }
+          }
+        }, 20);
       }
     }
 
@@ -208,8 +233,8 @@
         case "get-game-config": {
           return ack({
             betConfig: {
-              minBetAmount: "0.12",
-              maxBetAmount: "500.00",
+              minBetAmount: "1.00",
+              maxBetAmount: "1000.00",
               maxWinAmount: "50000.00",
               defaultBetAmount: "5.00",
               betPresets: ["2.00", "5.00", "10.00", "50.00"],
@@ -238,7 +263,8 @@
         }
 
         case "play": {
-          const amount = Number(payload?.amount) || 5;
+          const rawAmt = Number(payload?.amount);
+          const amount = (!isNaN(rawAmt) && rawAmt > 0) ? rawAmt : 5;
           const minesCount = Math.max(1, Math.min(24, Number(payload?.value?.minesCount) || 3));
           const currentBal = getWalletBalance();
 
@@ -318,8 +344,9 @@
           // Safe Star!
           s.game.openedCells.push(cellPos);
           const hits = s.game.openedCells.length;
+          const safeTotal = 25 - s.game.minesCount;
           const coeff = calculateMultiplier(s.game.minesCount, hits);
-          const maxAllowedWin = Math.min(1500, s.game.amount * 50);
+          const maxAllowedWin = Number((window.HabeshaWallet && typeof window.HabeshaWallet.getMaxWin === 'function') ? window.HabeshaWallet.getMaxWin('mines') : 50000) || 50000;
           const rawWin = s.game.amount * coeff;
           const winAmount = Math.min(rawWin, maxAllowedWin).toFixed(2);
           s.game.coeff = coeff;
