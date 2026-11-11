@@ -1,4 +1,4 @@
-// Spribe Aviator Official Mobile View Game Engine
+// Spribe Aviator Official Mobile View Game Engine - Multi-Device Synchronized Edition
 (function() {
   'use strict';
 
@@ -58,12 +58,9 @@
   }
 
   function updateFlyPitch(mult) {
-    if (state.status !== 'FLYING') return;
     if (audioClips.fly && !audioClips.fly.paused) {
-      try {
-        const rate = Math.min(1.85, Math.max(0.95, 1.0 + Math.log10(Math.max(1, mult)) * 0.42));
-        audioClips.fly.playbackRate = rate;
-      } catch(e) {}
+      const rate = Math.min(2.5, Math.max(0.85, 1.0 + (mult - 1.0) * 0.08));
+      audioClips.fly.playbackRate = rate;
     }
   }
 
@@ -77,7 +74,6 @@
   }
 
   function playCrashSound() {
-    stopFlySound();
     resumeAudioContext();
     if (audioClips.crash) {
       try {
@@ -90,31 +86,209 @@
     }
   }
 
-  function playWinSound() {}
-  function playClickSound() {}
-  function playBetPlacedSound() {}
+  function playClickSound() {
+    if (!audioCtx) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    } catch(e) {}
+  }
 
-  // --- State Management ---
+  function playBetPlacedSound() {
+    if (!audioCtx) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1040, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch(e) {}
+  }
+
+  function playWinSound() {
+    if (!audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+        gain.gain.setValueAtTime(0.15, now + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + (i + 1) * 0.06 + 0.08);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.06);
+        osc.stop(now + (i + 1) * 0.06 + 0.08);
+      });
+    } catch(e) {}
+  }
+
+  // --- Global Clock Synchronization Engine ---
+  let serverTimeOffset = 0;
+  async function syncServerTime() {
+    try {
+      const t0 = Date.now();
+      const resp = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
+      const t1 = Date.now();
+      const sDate = resp.headers.get('Date');
+      if (sDate) {
+        const serverMs = new Date(sDate).getTime();
+        const roundTrip = t1 - t0;
+        serverTimeOffset = Math.round(serverMs - (t0 + roundTrip / 2));
+      }
+    } catch(e) {
+      serverTimeOffset = 0;
+    }
+  }
+  function getSyncedNow() {
+    return Date.now() + serverTimeOffset;
+  }
+  setInterval(syncServerTime, 180000); // Re-sync every 3 minutes
+
+  // --- Seeded Deterministic Math Engine ---
+  function mulberry32(a) {
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function stringToSeed(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return hash;
+  }
+
+  function getAviatorFlightDuration(targetMult) {
+    if (targetMult <= 1.00) return 0;
+    let low = 0, high = 150;
+    for (let i = 0; i < 20; i++) {
+      const mid = (low + high) / 2;
+      const m = 1.00 + Math.pow(mid * 0.9, 1.45) * 0.12 + mid * 0.06;
+      if (m < targetMult) low = mid;
+      else high = mid;
+    }
+    return low;
+  }
+
+  function getAviatorRoundData(roundIndex) {
+    const seed = stringToSeed("aviator_sync_master_v1_" + roundIndex);
+    const rng = mulberry32(seed);
+    const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
+      ? (window.HabeshaWallet.getGameMargin('aviator', 6.0) / 100)
+      : 0.06;
+    const r1 = rng();
+    let mult;
+    if (r1 < margin) {
+      mult = 1.00;
+    } else {
+      const r2 = rng();
+      const raw = (1 - margin) / (1 - r2);
+      mult = Math.max(1.00, Math.min(250.00, Math.floor(raw * 100) / 100));
+    }
+    const flightSec = getAviatorFlightDuration(mult);
+    const flightMs = Math.round(flightSec * 1000);
+    const waitMs = 5000;
+    const cooldownMs = 3000;
+    const totalMs = waitMs + flightMs + cooldownMs;
+    return { roundIndex, mult, waitMs, flightMs, cooldownMs, totalMs };
+  }
+
+  const AVIATOR_CHECKPOINTS = [
+    [1,1794355200000],[37608,1794960032337],[75105,1795564803295],[112781,1796169603284],
+    [149928,1796774449086],[187327,1797379206071],[224539,1797984000730],[261890,1798588800952],
+    [299449,1799193600027],[336453,1799798406085],[373996,1800403202891],[411605,1801008006554],
+    [448825,1801612817979],[486040,1802217609922],[523621,1802822424350],[560790,1803427207928],
+    [598209,1804032010269],[635185,1804636931096],[672341,1805241604147],[710055,1805846417081],
+    [747323,1806451204585],[784348,1807056008703],[821645,1807660801361],[858900,1808265603594],
+    [896272,1808870404968],[933830,1809475209955],[971112,1810080079664],[1008253,1810684815793],
+    [1045955,1811289605595],[1083158,1811894442139],[1120607,1812499200839],[1157664,1813104023599],
+    [1195151,1813708810537],[1232279,1814313618739],[1269780,1814918407711],[1307423,1815523209929],
+    [1344512,1816128005832],[1382224,1816732803716],[1419140,1817337613929],[1456601,1817942420955],
+    [1493868,1818547209202],[1531020,1819152006086],[1568252,1819756805624],[1605433,1820361603136],
+    [1643073,1820966410465],[1680403,1821571209000],[1717597,1822176008264],[1755024,1822780812931],
+    [1792352,1823385621455],[1829622,1823990402459],[1866442,1824595226635],[1903854,1825200005361],
+    [1940983,1825804801363]
+  ];
+
+  function findAviatorRound(syncedNow) {
+    let cpIndex = 0;
+    for (let i = AVIATOR_CHECKPOINTS.length - 1; i >= 0; i--) {
+      if (syncedNow >= AVIATOR_CHECKPOINTS[i][1]) {
+        cpIndex = i;
+        break;
+      }
+    }
+    let roundIdx = AVIATOR_CHECKPOINTS[cpIndex][0];
+    let currTime = AVIATOR_CHECKPOINTS[cpIndex][1];
+
+    while (true) {
+      const rData = getAviatorRoundData(roundIdx);
+      if (currTime + rData.totalMs > syncedNow) {
+        const elapsedInRound = syncedNow - currTime;
+        let phase = 'WAITING';
+        let multiplier = 1.00;
+        let countdown = 0;
+
+        if (elapsedInRound < rData.waitMs) {
+          phase = 'WAITING';
+          countdown = (rData.waitMs - elapsedInRound) / 1000;
+        } else if (elapsedInRound < rData.waitMs + rData.flightMs) {
+          phase = 'FLYING';
+          const flightElapsed = (elapsedInRound - rData.waitMs) / 1000;
+          multiplier = Math.min(rData.mult, 1.00 + Math.pow(flightElapsed * 0.9, 1.45) * 0.12 + flightElapsed * 0.06);
+        } else {
+          phase = 'CRASHED';
+          multiplier = rData.mult;
+        }
+
+        return {
+          roundIndex: roundIdx,
+          roundStartTime: currTime,
+          data: rData,
+          elapsedInRound,
+          phase,
+          multiplier: Number(multiplier.toFixed(2)),
+          countdown: Number(countdown.toFixed(1))
+        };
+      }
+      currTime += rData.totalMs;
+      roundIdx++;
+    }
+  }
+
+  // --- Game State ---
   const state = {
     balance: 0.0,
     status: 'WAITING', // 'WAITING', 'FLYING', 'CRASHED'
     multiplier: 1.00,
-    crashPoint: 3.33,
+    crashPoint: 1.00,
     roundStartTime: 0,
-    waitStartTime: Date.now(),
+    waitStartTime: 0,
     waitDuration: 5000,
-    history: [
-      { mult: 1.57, color: 'pill-blue' },
-      { mult: 206.89, color: 'pill-pink' },
-      { mult: 3.54, color: 'pill-purple' },
-      { mult: 342.87, color: 'pill-pink' },
-      { mult: 1.82, color: 'pill-blue' },
-      { mult: 3.44, color: 'pill-purple' },
-      { mult: 2.94, color: 'pill-purple' },
-      { mult: 1.08, color: 'pill-blue' },
-      { mult: 2.15, color: 'pill-purple' },
-      { mult: 18.40, color: 'pill-pink' }
-    ],
+    currentRoundIndex: 0,
+    history: [],
     panel1: {
       amount: 4.00,
       state: 'IDLE', // 'IDLE', 'QUEUED', 'IN_FLIGHT', 'WON', 'LOST'
@@ -239,29 +413,36 @@
 
   // --- Mock Live Players Database ---
   const MOCK_PLAYERS = [
-    { name: 'd***2', avatar: '??', stake: 3765.75, target: 1.45 },
-    { name: 'd***2', avatar: '??', stake: 3765.75, target: 1.80 },
-    { name: 'd***7', avatar: '???', stake: 3464.66, target: 2.10 },
-    { name: 'd***0', avatar: '??', stake: 3405.49, target: 1.35 },
-    { name: 'd***0', avatar: '??', stake: 3312.74, target: 3.20 },
-    { name: 'd***0', avatar: '??', stake: 3140.47, target: 1.65 },
-    { name: 'd***9', avatar: '??', stake: 2689.94, target: 2.75 },
-    { name: 'd***2', avatar: '??', stake: 2663.44, target: 1.95 },
-    { name: 'd***1', avatar: '???', stake: 2650.19, target: 4.50 },
-    { name: 'd***6', avatar: '??', stake: 2650.19, target: 2.25 },
-    { name: 'd***9', avatar: '??', stake: 2494.06, target: 1.50 },
-    { name: 's***8', avatar: '??', stake: 1820.00, target: 2.80 },
-    { name: 'k***4', avatar: '??', stake: 1540.50, target: 1.70 },
-    { name: 'm***1', avatar: '??', stake: 980.00, target: 3.60 },
-    { name: 'b***5', avatar: '??', stake: 500.00, target: 5.10 }
+    { name: 'd***2', avatar: '😎', stake: 3765.75, target: 1.45 },
+    { name: 'd***2', avatar: '🦁', stake: 3765.75, target: 1.80 },
+    { name: 'd***7', avatar: '🚀', stake: 3464.66, target: 2.10 },
+    { name: 'd***0', avatar: '🔥', stake: 3405.49, target: 1.35 },
+    { name: 'd***0', avatar: '💰', stake: 3312.74, target: 3.20 },
+    { name: 'd***0', avatar: '⭐', stake: 3140.47, target: 1.65 },
+    { name: 'd***9', avatar: '👑', stake: 2689.94, target: 2.75 },
+    { name: 'd***2', avatar: '⚡', stake: 2663.44, target: 1.95 },
+    { name: 'd***1', avatar: '🎲', stake: 2650.19, target: 4.50 },
+    { name: 'd***6', avatar: '🏆', stake: 2650.19, target: 2.25 },
+    { name: 'd***9', avatar: '💎', stake: 2494.06, target: 1.50 },
+    { name: 's***8', avatar: '🎯', stake: 1820.00, target: 2.80 },
+    { name: 'k***4', avatar: '🔮', stake: 1540.50, target: 1.70 },
+    { name: 'm***1', avatar: '✈️', stake: 980.00, target: 3.60 },
+    { name: 'b***5', avatar: '🍀', stake: 500.00, target: 5.10 }
   ];
 
-  function resetLiveBets() {
-    state.liveBets = MOCK_PLAYERS.map(p => ({
-      ...p,
-      cashed: false,
-      win: 0
-    }));
+  function resetLiveBets(roundIndex) {
+    const rng = mulberry32(stringToSeed("aviator_players_" + roundIndex));
+    state.liveBets = MOCK_PLAYERS.map(p => {
+      const target = Number((1.15 + rng() * 4.5).toFixed(2));
+      const stakeMultiplier = [0.5, 0.8, 1.0, 1.2, 1.5, 2.0][Math.floor(rng() * 6)];
+      return {
+        ...p,
+        stake: Math.round(p.stake * stakeMultiplier * 100) / 100,
+        target,
+        cashed: false,
+        win: 0
+      };
+    });
     renderLiveBetsList();
   }
 
@@ -447,112 +628,65 @@
   }
   requestAnimationFrame(drawScene);
 
-  // --- Game Loop Engine ---
-  function generateCrashPoint() {
-    const margin = (window.HabeshaWallet && typeof window.HabeshaWallet.getGameMargin === 'function')
-      ? (window.HabeshaWallet.getGameMargin('aviator', 6.0) / 100)
-      : 0.06;
-    const rand = Math.random();
-    if (rand < margin) return 1.00; // Immediate bust scaled dynamically by house margin
-    const r = Math.random();
-    const raw = (1 - margin) / (1 - r);
-    const crash = Math.max(1.00, Math.min(250.00, Math.floor(raw * 100) / 100));
-    return Number(crash.toFixed(2));
-  }
-
-  function startWaiting() {
-    stopFlySound();
-    state.status = 'WAITING';
-    state.multiplier = 1.00;
-    state.waitStartTime = Date.now();
-    state.waitDuration = 5000;
-
-    // Reset panel states
-    ['panel1', 'panel2'].forEach(pKey => {
-      const p = state[pKey];
-      if (p.state === 'QUEUED') {
-        p.state = 'IN_FLIGHT';
-      } else if (p.state === 'WON' || p.state === 'LOST') {
-        p.state = 'IDLE';
-      }
-    });
-
-    resetLiveBets();
-    updateHUD();
-    updateBetButtons();
-    updateBetControlsLock();
-  }
-
-  function startFlight() {
-    state.status = 'FLYING';
-    state.multiplier = 1.00;
-    state.crashPoint = generateCrashPoint();
-    state.roundStartTime = Date.now();
-
-    startFlySound();
-
-    // Check if bets placed
-    ['panel1', 'panel2'].forEach(pKey => {
-      const p = state[pKey];
-      if (p.state === 'QUEUED') {
-        p.state = 'IN_FLIGHT';
-      }
-    });
-
-    updateHUD();
-    updateBetButtons();
-    updateBetControlsLock();
-  }
-
-  function crashFlight() {
-    state.status = 'CRASHED';
-    playCrashSound();
-
-    // Process player losses if in flight
-    ['panel1', 'panel2'].forEach(pKey => {
-      const p = state[pKey];
-      if (p.state === 'IN_FLIGHT') {
-        p.state = 'LOST';
-      }
-    });
-
-    // Add to history
-    const cp = state.multiplier;
-    let colorClass = 'pill-blue';
-    if (cp >= 10.0) colorClass = 'pill-pink';
-    else if (cp >= 2.0) colorClass = 'pill-purple';
-
-    state.history.unshift({ mult: cp, color: colorClass });
-    if (state.history.length > 25) state.history.pop();
-    renderHistory();
-
-    updateHUD();
-    updateBetButtons();
-    updateBetControlsLock();
-
-    // Schedule next round
-    setTimeout(() => {
-      startWaiting();
-    }, 2500);
-  }
+  // --- Realtime Continuous Synchronized Engine Loop ---
+  let lastRecordedCrashRound = 0;
 
   function gameTick() {
-    const now = Date.now();
+    const syncedNow = getSyncedNow();
+    const round = findAviatorRound(syncedNow);
 
-    if (state.status === 'WAITING') {
-      const elapsed = now - state.waitStartTime;
-      const pct = Math.min(100, Math.max(0, (elapsed / state.waitDuration) * 100));
+    // 1. Detect New Round Transition
+    if (state.currentRoundIndex !== round.roundIndex) {
+      state.currentRoundIndex = round.roundIndex;
+      state.crashPoint = round.data.mult;
+      state.roundStartTime = round.roundStartTime + round.data.waitMs;
+      state.waitStartTime = round.roundStartTime;
+      state.waitDuration = round.data.waitMs;
+
+      // Transition panels: QUEUED bets become active in new round
+      ['panel1', 'panel2'].forEach(pKey => {
+        const p = state[pKey];
+        if (p.state === 'QUEUED') {
+          p.state = 'IN_FLIGHT';
+        } else if (p.state === 'WON' || p.state === 'LOST') {
+          p.state = 'IDLE';
+        }
+      });
+
+      resetLiveBets(round.roundIndex);
+      updateBetButtons();
+      updateBetControlsLock();
+    }
+
+    // 2. Handle Current Round Phase
+    if (round.phase === 'WAITING') {
+      if (state.status !== 'WAITING') {
+        stopFlySound();
+        state.status = 'WAITING';
+        state.multiplier = 1.00;
+      }
+      const elapsed = round.elapsedInRound;
+      const pct = Math.min(100, Math.max(0, (elapsed / round.data.waitMs) * 100));
       const fill = document.getElementById('waitProgressFill');
       if (fill) fill.style.width = pct + '%';
 
-      if (elapsed >= state.waitDuration) {
-        startFlight();
+      updateHUD();
+      updateBetButtons();
+      updateBetControlsLock();
+
+    } else if (round.phase === 'FLYING') {
+      if (state.status !== 'FLYING') {
+        state.status = 'FLYING';
+        startFlySound(true);
+        ['panel1', 'panel2'].forEach(pKey => {
+          const p = state[pKey];
+          if (p.state === 'QUEUED') {
+            p.state = 'IN_FLIGHT';
+          }
+        });
       }
-    } else if (state.status === 'FLYING') {
-      const elapsed = (now - state.roundStartTime) / 1000;
-      
-      // Exponential curve: starts gentle, accelerates upwards
-      state.multiplier = 1.00 + Math.pow(elapsed * 0.9, 1.45) * 0.12 + elapsed * 0.06;
+
+      state.multiplier = round.multiplier;
       updateFlyPitch(state.multiplier);
 
       // Check simulated players cashout
@@ -574,15 +708,44 @@
         }
       });
 
-      if (state.multiplier >= state.crashPoint) {
-        state.multiplier = state.crashPoint;
-        crashFlight();
-      }
-
       updateHUD();
+      updateBetButtons();
+      updateBetControlsLock();
+
+    } else if (round.phase === 'CRASHED') {
+      if (state.status !== 'CRASHED') {
+        state.status = 'CRASHED';
+        state.multiplier = round.data.mult;
+        playCrashSound();
+        stopFlySound();
+
+        // Process player losses if in flight
+        ['panel1', 'panel2'].forEach(pKey => {
+          const p = state[pKey];
+          if (p.state === 'IN_FLIGHT') {
+            p.state = 'LOST';
+          }
+        });
+
+        // Add to history pill if not already added
+        if (lastRecordedCrashRound !== round.roundIndex) {
+          lastRecordedCrashRound = round.roundIndex;
+          const cp = round.data.mult;
+          let colorClass = 'pill-blue';
+          if (cp >= 10.0) colorClass = 'pill-pink';
+          else if (cp >= 2.0) colorClass = 'pill-purple';
+
+          state.history.unshift({ mult: cp, color: colorClass });
+          if (state.history.length > 25) state.history.pop();
+          renderHistory();
+        }
+
+        updateHUD();
+        updateBetButtons();
+        updateBetControlsLock();
+      }
     }
   }
-  setInterval(gameTick, 30);
 
   // --- UI Update Helpers ---
   function updateHUD() {
@@ -615,9 +778,7 @@
   function isPanelLocked(panelNum) {
     const pKey = `panel${panelNum}`;
     const p = state[pKey];
-    // Once the round starts (FLYING or CRASHED), bet amount cannot be edited.
-    // Also while a bet is queued or in flight, it cannot be edited.
-    return state.status === 'FLYING' || state.status === 'CRASHED' || p.state === 'QUEUED' || p.state === 'IN_FLIGHT';
+    return p.state === 'QUEUED' || p.state === 'IN_FLIGHT';
   }
 
   function updateBetControlsLock() {
@@ -665,7 +826,11 @@
       if (p.state === 'IDLE') {
         btn.classList.add('btn-bet');
         primary.textContent = 'Bet';
-        sub.textContent = `${p.amount.toFixed(2)} ETB`;
+        if (state.status === 'WAITING') {
+          sub.textContent = `${p.amount.toFixed(2)} ETB`;
+        } else {
+          sub.textContent = `(Next Round)`;
+        }
       } else if (p.state === 'QUEUED') {
         btn.classList.add('btn-waiting');
         primary.textContent = 'Waiting';
@@ -699,7 +864,6 @@
     if (p.state === 'IDLE') {
       if (deductBalance(p.amount)) {
         playBetPlacedSound();
-        startFlySound(); // Fly sound accompanies ticket cut!
         if (state.status === 'WAITING') {
           p.state = 'IN_FLIGHT';
         } else {
@@ -710,21 +874,13 @@
       }
     } else if (p.state === 'QUEUED') {
       playClickSound();
-      // Cancel queued bet
       creditBalance(p.amount);
       p.state = 'IDLE';
-      if (state.status === 'WAITING' && state.panel1.state === 'IDLE' && state.panel2.state === 'IDLE') {
-        stopFlySound();
-      }
     } else if (p.state === 'IN_FLIGHT') {
       if (state.status === 'WAITING') {
         playClickSound();
-        // Cancel bet placed during waiting
         creditBalance(p.amount);
         p.state = 'IDLE';
-        if (state.panel1.state === 'IDLE' && state.panel2.state === 'IDLE') {
-          stopFlySound();
-        }
       } else {
         // Cash out!
         const rawWin = Math.round(p.amount * state.multiplier * 100) / 100;
@@ -740,6 +896,21 @@
 
     updateBetButtons();
     updateBetControlsLock();
+  }
+
+  function initHistory(currentRoundIndex) {
+    state.history = [];
+    for (let i = 1; i <= 25; i++) {
+      const pastIdx = currentRoundIndex - i;
+      if (pastIdx > 0) {
+        const rData = getAviatorRoundData(pastIdx);
+        let colorClass = 'pill-blue';
+        if (rData.mult >= 10.0) colorClass = 'pill-pink';
+        else if (rData.mult >= 2.0) colorClass = 'pill-purple';
+        state.history.push({ mult: rData.mult, color: colorClass });
+      }
+    }
+    renderHistory();
   }
 
   function renderHistory() {
@@ -843,12 +1014,18 @@
   }
 
   // --- Initialize App ---
-  function init() {
+  async function init() {
     initWallet();
-    renderHistory();
-    resetLiveBets();
+    await syncServerTime();
+
+    const initialRound = findAviatorRound(getSyncedNow());
+    state.currentRoundIndex = initialRound.roundIndex;
+    initHistory(initialRound.roundIndex);
+
+    resetLiveBets(initialRound.roundIndex);
     setupEvents();
-    startWaiting();
+    gameTick();
+    setInterval(gameTick, 30);
     updateBetControlsLock();
 
     // Enable audio context silently upon user's first tap/click anywhere
