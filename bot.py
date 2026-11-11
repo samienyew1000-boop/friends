@@ -238,16 +238,19 @@ def _load_auto_rain_state():
     try:
         if AUTO_RAIN_STATE_FILE.exists():
             with open(AUTO_RAIN_STATE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                st = json.load(f)
+                if isinstance(st, dict) and "next_tier10" in st:
+                    return st
     except Exception:
         pass
     now = time.time()
-    # On initial boot, schedule first tier 10 drop in 60s so user can test immediately!
-    return {
-        "next_tier10": now + random.uniform(45, 90),
-        "next_tier20": now + random.uniform(200, 400),
-        "next_tier100": now + random.uniform(600, 1000)
+    st = {
+        "next_tier10": now + random.uniform(30, 60),
+        "next_tier20": now + random.uniform(150, 300),
+        "next_tier100": now + random.uniform(500, 800)
     }
+    _save_auto_rain_state(st)
+    return st
 
 def _save_auto_rain_state(state):
     try:
