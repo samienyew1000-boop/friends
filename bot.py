@@ -204,6 +204,7 @@ def broadcast_live_rain(total_amount, players_count, each_amount, min_wager, wag
             "minWager": float(min_wager),
             "wagerMinutes": int(wager_minutes),
             "wagerRuleText": f"Requirement: Wager {min_wager}+ ETB in last {wager_minutes} min",
+            "createdAt": int(time.time() * 1000),
             "uid": "bot_system"
         }
         data_bytes = json.dumps(payload).encode("utf-8")

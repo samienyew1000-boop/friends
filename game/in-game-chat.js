@@ -210,37 +210,18 @@
       `;
       document.body.appendChild(this.rainModal);
 
-      // 3b. Wager Requirement Alert Modal ("heg ena demboche")
-      this.wagerReqModal = document.createElement('div');
-      this.wagerReqModal.className = 'chat-rain-modal';
-      this.wagerReqModal.id = 'chatWagerReqModal';
-      this.wagerReqModal.innerHTML = `
-        <div class="chat-rain-modal-card" style="border: 1px solid #f59e0b; background: #131722; text-align: center;">
-          <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
-          <div class="chat-rain-modal-title" style="color: #fbbf24; font-size: 16px;">የውርርድ መስፈርት አልተሟላም</div>
-          <div style="font-size: 12px; color: #94a3b8; margin: 2px 0 10px 0;">Wager Requirement Not Met</div>
-
-          <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; text-align: left; font-size: 12px; color: #e2e8f0; line-height: 1.6; margin-bottom: 14px;">
-            <div style="margin-bottom: 4px;">
-              <b style="color: #38bdf8;">የሚወስዱት ስጦታ:</b> <span id="wagerModalClaimAmt">10.00 ETB</span>
-            </div>
-            <div style="margin-bottom: 4px;">
-              <b style="color: #fbbf24;">የሚጠበቀው ውርርድ:</b> ባለፉት <span id="wagerModalWindow">30</span> ደቂቃዎች ቢያንስ <span id="wagerModalReqWager">100.00</span> ETB መጫወት አለብዎት
-            </div>
-            <div style="margin-bottom: 4px;">
-              <b style="color: #a78bfa;">እርስዎ የተጫወቱት:</b> <span id="wagerModalCurrentWager">0.00</span> ETB
-            </div>
-            <div style="color: #f87171; font-weight: 700;">
-              <b>የሚቀሮት:</b> <span id="wagerModalRemaining">100.00</span> ETB
-            </div>
-          </div>
-
-          <button type="button" class="chat-rain-drop-submit" id="btnWagerModalGotIt" style="background: #eab308; color: #000; font-weight: 800;">
-            🎮 እሺ ተረድቻለሁ (አሁን ተጫወት)
-          </button>
+      // 3b. Spribe Red Wager Error Banner (matching user screenshot)
+      this.wagerBanner = document.createElement('div');
+      this.wagerBanner.className = 'chat-wager-error-banner';
+      this.wagerBanner.id = 'chatWagerErrorBanner';
+      this.wagerBanner.innerHTML = `
+        <div class="chat-wager-banner-row">
+          <span class="chat-wager-banner-title" id="wagerBannerTitle">Min wager in last 30 min.</span>
+          <span class="chat-wager-banner-close" id="wagerBannerClose" title="Dismiss">✕</span>
         </div>
+        <div class="chat-wager-banner-sub" id="wagerBannerSub">Should be 100 ETB</div>
       `;
-      document.body.appendChild(this.wagerReqModal);
+      document.body.appendChild(this.wagerBanner);
 
       // 4. Toast Notification
       this.toast = document.createElement('div');
@@ -312,6 +293,13 @@
             const envelope = JSON.parse(line);
             if (envelope.event === 'message' && envelope.message) {
               const payload = JSON.parse(envelope.message);
+              // Discard any rain drops older than 15 minutes ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
+              if (payload.type === 'rain_drop') {
+                const cTime = payload.createdAt || payload.timestamp || 0;
+                if (cTime && (Date.now() - cTime >= 15 * 60 * 1000)) {
+                  continue;
+                }
+              }
               this.handleIncomingPayload(payload, true);
             }
           } catch(e) {}
@@ -364,7 +352,8 @@
           time: payload.time || this.formatTime(),
           isSelf: isOwn,
           minWager: payload.minWager,
-          wagerMinutes: payload.wagerMinutes
+          wagerMinutes: payload.wagerMinutes,
+          createdAt: payload.createdAt
         });
       } else if (payload.type === 'rain_claimed') {
         const rid = payload.rainId;
@@ -373,13 +362,20 @@
           const card = this.drawer ? this.drawer.querySelector(`.chat-rain-card[data-rain-id="${rid}"]`) : null;
           if (card) {
             const btn = card.querySelector('.chat-rain-claim-btn');
-            const pill = card.querySelector(`#rainClaimPill_${rid}`);
+            const statVal = card.querySelector(`#rainStatsVal_${rid}`);
+            const pBar = card.querySelector(`#rainProgress_${rid}`);
             const maxPlayers = btn ? (parseInt(btn.dataset.players, 10) || 5) : 5;
-            if (pill) pill.textContent = `${this.cardClaimCounts[rid]}/${maxPlayers} Claimed`;
-            if (this.cardClaimCounts[rid] >= maxPlayers && btn && !btn.classList.contains('claimed')) {
+            const count = this.cardClaimCounts[rid];
+            if (statVal) {
+              statVal.textContent = `${String(count).padStart(2, '0')} / ${String(maxPlayers).padStart(2, '0')}`;
+            }
+            if (pBar) {
+              pBar.style.width = `${Math.min(100, Math.round((count / maxPlayers) * 100))}%`;
+            }
+            if (count >= maxPlayers && btn && !btn.classList.contains('claimed')) {
               btn.disabled = true;
               btn.classList.add('exhausted');
-              btn.textContent = `✖ Fully Claimed (${maxPlayers}/${maxPlayers})`;
+              btn.textContent = `Claimed Out`;
             }
           }
         }
@@ -471,17 +467,15 @@
         });
       }
 
-      // Wager requirement modal events
-      if (this.wagerReqModal) {
-        const btnGotIt = this.wagerReqModal.querySelector('#btnWagerModalGotIt');
-        if (btnGotIt) {
-          btnGotIt.addEventListener('click', () => {
-            this.closeWagerRequirementModal();
+      // Spribe red wager banner close
+      if (this.wagerBanner) {
+        const closeBtn = this.wagerBanner.querySelector('#wagerBannerClose');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.closeWagerRequirementBanner();
           });
         }
-        this.wagerReqModal.addEventListener('click', (e) => {
-          if (e.target === this.wagerReqModal) this.closeWagerRequirementModal();
-        });
       }
 
       // Rain modal options selection
@@ -721,26 +715,24 @@
       }
     }
 
-    showWagerRequirementModal({ amount, requiredWager, windowMinutes, actualWager, shortfall }) {
-      if (!this.wagerReqModal) return;
-      const elAmt = this.wagerReqModal.querySelector('#wagerModalClaimAmt');
-      const elReq = this.wagerReqModal.querySelector('#wagerModalReqWager');
-      const elWin = this.wagerReqModal.querySelector('#wagerModalWindow');
-      const elCur = this.wagerReqModal.querySelector('#wagerModalCurrentWager');
-      const elRem = this.wagerReqModal.querySelector('#wagerModalRemaining');
+    showWagerRequirementBanner({ windowMinutes, requiredWager }) {
+      if (!this.wagerBanner) return;
+      const titleEl = this.wagerBanner.querySelector('#wagerBannerTitle');
+      const subEl = this.wagerBanner.querySelector('#wagerBannerSub');
+      if (titleEl) titleEl.textContent = `Min wager in last ${windowMinutes} min.`;
+      if (subEl) subEl.textContent = `Should be ${Math.round(requiredWager)} ETB`;
 
-      if (elAmt) elAmt.textContent = `${amount.toFixed(2)} ETB`;
-      if (elReq) elReq.textContent = `${requiredWager.toFixed(2)}`;
-      if (elWin) elWin.textContent = `${windowMinutes}`;
-      if (elCur) elCur.textContent = `${actualWager.toFixed(2)}`;
-      if (elRem) elRem.textContent = `${shortfall}`;
+      this.wagerBanner.classList.add('show');
 
-      this.wagerReqModal.classList.add('open');
+      if (this.wagerBannerTimer) clearTimeout(this.wagerBannerTimer);
+      this.wagerBannerTimer = setTimeout(() => {
+        this.closeWagerRequirementBanner();
+      }, 4500);
     }
 
-    closeWagerRequirementModal() {
-      if (this.wagerReqModal) {
-        this.wagerReqModal.classList.remove('open');
+    closeWagerRequirementBanner() {
+      if (this.wagerBanner) {
+        this.wagerBanner.classList.remove('show');
       }
     }
 
@@ -753,7 +745,7 @@
         this.showToast('⚠️ ይህ Rain ሙሉ በሙሉ ተወስዷል (All claims taken)!');
         btnEl.disabled = true;
         btnEl.classList.add('exhausted');
-        btnEl.textContent = `✖ Fully Claimed (${playersCount}/${playersCount})`;
+        btnEl.textContent = `Claimed Out`;
         return;
       }
 
@@ -762,13 +754,9 @@
       const actualWager = this.getRecentWager(req.windowMinutes);
 
       if (actualWager < req.requiredWager) {
-        const shortfall = (req.requiredWager - actualWager).toFixed(2);
-        this.showWagerRequirementModal({
-          amount: amount,
-          requiredWager: req.requiredWager,
+        this.showWagerRequirementBanner({
           windowMinutes: req.windowMinutes,
-          actualWager: actualWager,
-          shortfall: shortfall
+          requiredWager: req.requiredWager
         });
         return;
       }
@@ -782,13 +770,17 @@
       }
 
       btnEl.classList.add('claimed');
-      btnEl.textContent = `✔ Claimed (+${amount.toFixed(2)} ETB)`;
+      btnEl.textContent = '✔ Claimed';
       this.showToast(`🎉 +${amount.toFixed(2)} ETB added to balance!`);
 
       this.cardClaimCounts[rainId] = curClaims + 1;
-      const pill = this.drawer ? this.drawer.querySelector(`#rainClaimPill_${rainId}`) : null;
-      if (pill) {
-        pill.textContent = `${this.cardClaimCounts[rainId]}/${playersCount} Claimed`;
+      const statVal = this.drawer ? this.drawer.querySelector(`#rainStatsVal_${rainId}`) : null;
+      const pBar = this.drawer ? this.drawer.querySelector(`#rainProgress_${rainId}`) : null;
+      if (statVal) {
+        statVal.textContent = `${String(this.cardClaimCounts[rainId]).padStart(2, '0')} / ${String(playersCount).padStart(2, '0')}`;
+      }
+      if (pBar) {
+        pBar.style.width = `${Math.min(100, Math.round((this.cardClaimCounts[rainId] / playersCount) * 100))}%`;
       }
 
       // Broadcast claim event so other players see who claimed
@@ -946,48 +938,61 @@
       this.incrementUnreadBadge();
     }
 
-    addRainCard({ id, sender, totalAmount, playersCount, eachAmount, time, isSelf = false, minWager, wagerMinutes }) {
+    addRainCard({ id, sender, totalAmount, playersCount, eachAmount, time, isSelf = false, minWager, wagerMinutes, createdAt }) {
       if (!this.msgContainer) return;
       if (id) this.seenMessageIds.add(id);
 
+      const rainCreatedAt = Number(createdAt) || Date.now();
+      const ageMs = Date.now() - rainCreatedAt;
+      const LIFESPAN_MS = 15 * 60 * 1000; // 15 minutes max lifespan ("le 15 dekika nw mekoyet yalbet keza yetefal")
+
+      if (ageMs >= LIFESPAN_MS) {
+        // Expired! Disappear completely
+        return;
+      }
+
       const row = document.createElement('div');
       row.className = 'chat-msg-row';
-      const avatar = isSelf ? { icon: '🌧️', bg: '#0284c7' } : { icon: '🌧️', bg: '#0369a1' };
+      const avatar = isSelf ? { icon: '🌧️', bg: '#163a1e' } : { icon: '🌧️', bg: '#163a1e' };
       const timeStr = time || this.formatTime();
       const req = (minWager && wagerMinutes)
-        ? { requiredWager: minWager, windowMinutes: wagerMinutes, textAm: `ባለፉት ${wagerMinutes} ደቂቃዎች ቢያንስ ${minWager} ETB መጫወት` }
+        ? { requiredWager: minWager, windowMinutes: wagerMinutes }
         : this.getWagerRequirement(eachAmount);
 
       const curClaimCount = this.cardClaimCounts[id] || 0;
       const isExhausted = curClaimCount >= playersCount;
       const isClaimedByMe = this.claimedRainIds.has(id);
+      const progressPercent = Math.min(100, Math.round((curClaimCount / playersCount) * 100));
+
+      const pad2 = (n) => String(n).padStart(2, '0');
 
       row.innerHTML = `
-        <div class="chat-avatar" style="background:${avatar.bg}">${avatar.icon}</div>
+        <div class="chat-avatar" style="background:${avatar.bg}; border: 1px solid rgba(34, 197, 94, 0.4);">${avatar.icon}</div>
         <div class="chat-msg-body">
           <div class="chat-msg-meta">
-            <span class="chat-username" style="color: #38bdf8;">
+            <span class="chat-username" style="color: #4ade80;">
               ${sender}
-              <span class="chat-verified-badge">✔</span>
+              <span class="chat-verified-badge" style="background:#22c55e;">✔</span>
             </span>
             <span class="chat-time">${timeStr}</span>
           </div>
           <div class="chat-rain-card" data-rain-id="${id}">
             <div class="chat-rain-header">
-              <span class="chat-rain-title">🌧️ Rain Dropped!</span>
-              <span class="chat-rain-claimed-pill" id="rainClaimPill_${id}">${curClaimCount}/${playersCount} Claimed</span>
+              <span class="chat-rain-title">🌧️ Rain</span>
+              <span class="chat-rain-coin-amount">🪙 ${eachAmount.toFixed(2)}ETB</span>
             </div>
-            <div class="chat-rain-subtitle">
-              ${totalAmount.toFixed(2)} ETB distributed to ${playersCount} players (${eachAmount.toFixed(2)} ETB each)
+            <div class="chat-rain-stats-row">
+              <span class="chat-rain-stats-label">Quantity:</span>
+              <span class="chat-rain-stats-val" id="rainStatsVal_${id}">${pad2(curClaimCount)} / ${pad2(playersCount)}</span>
             </div>
-            <div class="chat-rain-rule-badge">
-              <span class="rule-icon">📋</span>
-              <span class="rule-text">መስፈርት: ${req.textAm}</span>
+            <div class="chat-rain-progress-track">
+              <div class="chat-rain-progress-bar" id="rainProgress_${id}" style="width: ${progressPercent}%;"></div>
             </div>
             <button type="button" class="chat-rain-claim-btn ${isClaimedByMe ? 'claimed' : (isExhausted ? 'exhausted' : '')}"
                     data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" ${isExhausted && !isClaimedByMe ? 'disabled' : ''}>
-              ${isClaimedByMe ? `✔ Claimed (+${eachAmount.toFixed(2)} ETB)` : (isExhausted ? `✖ Fully Claimed (${playersCount}/${playersCount})` : `Claim ${eachAmount.toFixed(2)} ETB`)}
+              ${isClaimedByMe ? '✔ Claimed' : (isExhausted ? 'Claimed Out' : 'Claim')}
             </button>
+            <div class="chat-rain-total-footer">Total: ${totalAmount.toFixed(2)}ETB</div>
           </div>
         </div>
       `;
@@ -996,6 +1001,21 @@
       this.messages.push({ id, totalAmount });
       this.scrollToBottom();
       this.incrementUnreadBadge();
+
+      // Schedule exact disappearance at 15 minutes after creation
+      const remainingMs = Math.max(0, LIFESPAN_MS - ageMs);
+      setTimeout(() => {
+        row.style.transition = 'opacity 0.6s ease, transform 0.6s ease, max-height 0.6s ease, margin 0.6s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(-10px)';
+        row.style.maxHeight = '0px';
+        row.style.overflow = 'hidden';
+        row.style.margin = '0px';
+        row.style.padding = '0px';
+        setTimeout(() => {
+          try { row.remove(); } catch(e) {}
+        }, 600);
+      }, remainingMs);
     }
 
     shareWin({ multiplier, win, bet, round = null }) {
@@ -1061,11 +1081,12 @@
 
       this.addRainCard({
         id: 'seed_rain_1',
-        sender: '+***7',
-        totalAmount: 10.00,
-        playersCount: 5,
-        eachAmount: 2.00,
-        time: '09:48:25'
+        sender: '+***1',
+        totalAmount: 20.00,
+        playersCount: 2,
+        eachAmount: 10.00,
+        time: '09:40:18',
+        createdAt: Date.now() - (2 * 60 * 1000)
       });
 
       this.addTextMessage({
