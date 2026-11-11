@@ -18,6 +18,8 @@ import threading
 import http.client
 import ssl
 import concurrent.futures
+import random
+from datetime import datetime
 
 # Permanent Telegram File ID for inout_logo.png (Delivered instantly from Telegram edge RAM)
 CACHED_LOGO_FILE_ID = "AgACAgQAAxkDAAIET2rbq2sGgbMD8e1JelhtRWVaYM3GAAJZDmsbtUokUvEw05b3lpqvAQADAgADeAADPQQ" 
@@ -176,6 +178,140 @@ def is_admin(user_id=None, username=None):
                 ADMIN_USER_IDS.add(str(user_id))
             return True
     return False
+
+
+# ---------------------------------------------------------
+# Automated Server-Side Rain Dropper ("heg ena demboche")
+# Drops Rain directly into live WebSocket channel for Aviator / Chicken Road
+# ---------------------------------------------------------
+AUTO_RAIN_STATE_FILE = Path(__file__).resolve().parent / "auto_rain_state.json"
+PUB_SUB_URL = "https://ntfy.sh/friends_live_chat_master_v1"
+
+def broadcast_live_rain(total_amount, players_count, each_amount, min_wager, wager_minutes):
+    """Broadcasts a real Rain Drop payload directly to all connected players via WebSocket."""
+    try:
+        rain_id = f"rain_bot_{int(time.time()*1000)}_{random.randint(100, 999)}"
+        now_str = datetime.now().strftime("%H:%M:%S")
+        payload = {
+            "type": "rain_drop",
+            "id": rain_id,
+            "sender": "Habesha Bot 🤖",
+            "isBot": True,
+            "totalAmount": float(total_amount),
+            "playersCount": int(players_count),
+            "eachAmount": float(each_amount),
+            "time": now_str,
+            "minWager": float(min_wager),
+            "wagerMinutes": int(wager_minutes),
+            "wagerRuleText": f"Requirement: Wager {min_wager}+ ETB in last {wager_minutes} min",
+            "uid": "bot_system"
+        }
+        data_bytes = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            PUB_SUB_URL,
+            data=data_bytes,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            ok = (resp.status == 200)
+            logging.info(f"[AutoRain] Live Drop sent: {total_amount} ETB ({each_amount} ETB x {players_count} players, min wager {min_wager} ETB / {wager_minutes}m) -> HTTP {resp.status}")
+            return ok
+    except Exception as e:
+        logging.error(f"[AutoRain] Error broadcasting live rain: {e}")
+        return False
+
+def _calc_next_random_time(tier):
+    now = time.time()
+    if tier == "tier10":
+        # Bal 10: 2 times in 1 hour -> average 30 mins (1800s). Random jitter: 20 to 40 mins
+        return now + random.uniform(1200, 2400)
+    elif tier == "tier20":
+        # Bal 20: 1 time in 1 hour -> average 60 mins (3600s). Random jitter: 45 to 75 mins
+        return now + random.uniform(2700, 4500)
+    elif tier == "tier100":
+        # Bal 100: 1 time in 2 hours -> average 120 mins (7200s). Random jitter: 90 to 150 mins
+        return now + random.uniform(5400, 9000)
+    return now + 3600
+
+def _load_auto_rain_state():
+    try:
+        if AUTO_RAIN_STATE_FILE.exists():
+            with open(AUTO_RAIN_STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    now = time.time()
+    # On initial boot, schedule first tier 10 drop in 60s so user can test immediately!
+    return {
+        "next_tier10": now + random.uniform(45, 90),
+        "next_tier20": now + random.uniform(200, 400),
+        "next_tier100": now + random.uniform(600, 1000)
+    }
+
+def _save_auto_rain_state(state):
+    try:
+        with open(AUTO_RAIN_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception:
+        pass
+
+def _auto_rain_scheduler_worker():
+    """Background worker daemon running on PM2 24/7, dropping rain at unpredictable intervals."""
+    logging.info("[AutoRain] Scheduler daemon started.")
+    time.sleep(5)  # initial brief warm-up
+    while True:
+        try:
+            state = _load_auto_rain_state()
+            now = time.time()
+            changed = False
+
+            # 1. Tier 10: 500 ETB distributed to 50 players (10 ETB each), 2 times per 1 hour
+            # Rule: Wager 100 ETB in last 30 minutes
+            if now >= state.get("next_tier10", 0):
+                broadcast_live_rain(
+                    total_amount=500.0,
+                    players_count=50,
+                    each_amount=10.0,
+                    min_wager=100.0,
+                    wager_minutes=30
+                )
+                state["next_tier10"] = _calc_next_random_time("tier10")
+                changed = True
+
+            # 2. Tier 20: 500 ETB distributed to 25 players (20 ETB each), 1 time per 1 hour
+            # Rule: Wager 200 ETB in last 30 minutes
+            if now >= state.get("next_tier20", 0):
+                broadcast_live_rain(
+                    total_amount=500.0,
+                    players_count=25,
+                    each_amount=20.0,
+                    min_wager=200.0,
+                    wager_minutes=30
+                )
+                state["next_tier20"] = _calc_next_random_time("tier20")
+                changed = True
+
+            # 3. Tier 100: 1000 ETB distributed to 10 players (100 ETB each), 1 time per 2 hours
+            # Rule: Wager 500 ETB in last 10 minutes
+            if now >= state.get("next_tier100", 0):
+                broadcast_live_rain(
+                    total_amount=1000.0,
+                    players_count=10,
+                    each_amount=100.0,
+                    min_wager=500.0,
+                    wager_minutes=10
+                )
+                state["next_tier100"] = _calc_next_random_time("tier100")
+                changed = True
+
+            if changed:
+                _save_auto_rain_state(state)
+
+            time.sleep(10)
+        except Exception as e:
+            logging.error(f"[AutoRain] Scheduler loop error: {e}")
+            time.sleep(15)
 
 KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
 WITHDRAWALS_FILE = Path(__file__).resolve().parent / "withdrawals.json"
@@ -2255,6 +2391,60 @@ def handle_single_update(update):
                             save_all_users(users_all)
                             logging.info(f"User {chat_id} set referred_by={ref_id}")
 
+        # Admin Rain Testing and Status Commands ("heg ena demboche")
+        if text.startswith("/testrain"):
+            if not is_admin(chat_id, username):
+                api_call("sendMessage", {
+                    "chat_id": chat_id,
+                    "text": "❌ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!"
+                })
+                return
+            parts = text.split()
+            tier_val = parts[1] if len(parts) > 1 else "10"
+            if tier_val == "100":
+                ok = broadcast_live_rain(1000.0, 10, 100.0, 500.0, 10)
+                msg_txt = "🌧️ <b>Bal 100 Rain Drop Broadcasted!</b>\n1000.00 ETB for 10 players (100.00 ETB each)\nRule: Wager 500+ ETB in last 10 mins"
+            elif tier_val == "20":
+                ok = broadcast_live_rain(500.0, 25, 20.0, 200.0, 30)
+                msg_txt = "🌧️ <b>Bal 20 Rain Drop Broadcasted!</b>\n500.00 ETB for 25 players (20.00 ETB each)\nRule: Wager 200+ ETB in last 30 mins"
+            else:
+                ok = broadcast_live_rain(500.0, 50, 10.0, 100.0, 30)
+                msg_txt = "🌧️ <b>Bal 10 Rain Drop Broadcasted!</b>\n500.00 ETB for 50 players (10.00 ETB each)\nRule: Wager 100+ ETB in last 30 mins"
+            api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": msg_txt + f"\n\n📡 WebSockets Live: {'✅ Delivered' if ok else '⚠️ Failed'}",
+                "parse_mode": "HTML"
+            })
+            return
+
+        if text.startswith("/rainstatus"):
+            state = _load_auto_rain_state()
+            now = time.time()
+            rem10 = max(0, int(state.get("next_tier10", 0) - now))
+            rem20 = max(0, int(state.get("next_tier20", 0) - now))
+            rem100 = max(0, int(state.get("next_tier100", 0) - now))
+            status_text = (
+                "🌧️ <b>Habtam Bet - Auto Rain Drop Status</b>\n\n"
+                f"💧 <b>Bal 10 (500 ETB / 50 players, 10 ETB each):</b>\n"
+                f"• ቀጣይ ዝናብ: ከ {rem10//60} ደቂቃ {rem10%60} ሰከንድ በኋላ\n"
+                f"• ህግ: ባለፉት 30 ደቂቃ 100+ ETB መጫወት\n"
+                f"• ድግግሞሽ: በ1 ሰዓት 2 ጊዜ (ያልታወቀ ሰዓት)\n\n"
+                f"💧 <b>Bal 20 (500 ETB / 25 players, 20 ETB each):</b>\n"
+                f"• ቀጣይ ዝናብ: ከ {rem20//60} ደቂቃ {rem20%60} ሰከንድ በኋላ\n"
+                f"• ህግ: ባለፉት 30 ደቂቃ 200+ ETB መጫወት\n"
+                f"• ድግግሞሽ: በ1 ሰዓት 1 ጊዜ (ያልታወቀ ሰዓት)\n\n"
+                f"💧 <b>Bal 100 (1000 ETB / 10 players, 100 ETB each):</b>\n"
+                f"• ቀጣይ ዝናብ: ከ {rem100//60} ደቂቃ {rem100%60} ሰከንድ በኋላ\n"
+                f"• ህግ: ባለፉት 10 ደቂቃ 500+ ETB መጫወት\n"
+                f"• ድግግሞሽ: በ2 ሰዓት 1 ጊዜ (ያልታወቀ ሰዓት)\n"
+            )
+            api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": status_text,
+                "parse_mode": "HTML"
+            })
+            return
+
         # If user is not registered, force phone registration prompt on EVERY interaction (start, buttons, or text)
         if not is_user_registered(chat_id) and not text.lower().startswith("/admin"):
             request_phone_registration(chat_id)
@@ -2492,6 +2682,7 @@ def main():
                 time.sleep(3)
 
     threading.Thread(target=_live_cloud_balance_sync_worker, daemon=True).start()
+    threading.Thread(target=_auto_rain_scheduler_worker, daemon=True).start()
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="BotWorker")
     last_heartbeat = time.time()

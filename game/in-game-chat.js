@@ -64,6 +64,7 @@
       this.unreadCount = 0;
       this.onlineCount = 8;
       this.claimedRainIds = new Set();
+      this.cardClaimCounts = {};
       this.seenMessageIds = new Set();
       this.messages = [];
       this.dividerIcon = this.gameName.includes('chicken') ? '🐔' : '✈️';
@@ -209,6 +210,38 @@
       `;
       document.body.appendChild(this.rainModal);
 
+      // 3b. Wager Requirement Alert Modal ("heg ena demboche")
+      this.wagerReqModal = document.createElement('div');
+      this.wagerReqModal.className = 'chat-rain-modal';
+      this.wagerReqModal.id = 'chatWagerReqModal';
+      this.wagerReqModal.innerHTML = `
+        <div class="chat-rain-modal-card" style="border: 1px solid #f59e0b; background: #131722; text-align: center;">
+          <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
+          <div class="chat-rain-modal-title" style="color: #fbbf24; font-size: 16px;">የውርርድ መስፈርት አልተሟላም</div>
+          <div style="font-size: 12px; color: #94a3b8; margin: 2px 0 10px 0;">Wager Requirement Not Met</div>
+
+          <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px; text-align: left; font-size: 12px; color: #e2e8f0; line-height: 1.6; margin-bottom: 14px;">
+            <div style="margin-bottom: 4px;">
+              <b style="color: #38bdf8;">የሚወስዱት ስጦታ:</b> <span id="wagerModalClaimAmt">10.00 ETB</span>
+            </div>
+            <div style="margin-bottom: 4px;">
+              <b style="color: #fbbf24;">የሚጠበቀው ውርርድ:</b> ባለፉት <span id="wagerModalWindow">30</span> ደቂቃዎች ቢያንስ <span id="wagerModalReqWager">100.00</span> ETB መጫወት አለብዎት
+            </div>
+            <div style="margin-bottom: 4px;">
+              <b style="color: #a78bfa;">እርስዎ የተጫወቱት:</b> <span id="wagerModalCurrentWager">0.00</span> ETB
+            </div>
+            <div style="color: #f87171; font-weight: 700;">
+              <b>የሚቀሮት:</b> <span id="wagerModalRemaining">100.00</span> ETB
+            </div>
+          </div>
+
+          <button type="button" class="chat-rain-drop-submit" id="btnWagerModalGotIt" style="background: #eab308; color: #000; font-weight: 800;">
+            🎮 እሺ ተረድቻለሁ (አሁን ተጫወት)
+          </button>
+        </div>
+      `;
+      document.body.appendChild(this.wagerReqModal);
+
       // 4. Toast Notification
       this.toast = document.createElement('div');
       this.toast.className = 'chat-toast';
@@ -329,9 +362,27 @@
           playersCount: payload.playersCount,
           eachAmount: payload.eachAmount,
           time: payload.time || this.formatTime(),
-          isSelf: isOwn
+          isSelf: isOwn,
+          minWager: payload.minWager,
+          wagerMinutes: payload.wagerMinutes
         });
       } else if (payload.type === 'rain_claimed') {
+        const rid = payload.rainId;
+        if (rid) {
+          this.cardClaimCounts[rid] = (this.cardClaimCounts[rid] || 0) + 1;
+          const card = this.drawer ? this.drawer.querySelector(`.chat-rain-card[data-rain-id="${rid}"]`) : null;
+          if (card) {
+            const btn = card.querySelector('.chat-rain-claim-btn');
+            const pill = card.querySelector(`#rainClaimPill_${rid}`);
+            const maxPlayers = btn ? (parseInt(btn.dataset.players, 10) || 5) : 5;
+            if (pill) pill.textContent = `${this.cardClaimCounts[rid]}/${maxPlayers} Claimed`;
+            if (this.cardClaimCounts[rid] >= maxPlayers && btn && !btn.classList.contains('claimed')) {
+              btn.disabled = true;
+              btn.classList.add('exhausted');
+              btn.textContent = `✖ Fully Claimed (${maxPlayers}/${maxPlayers})`;
+            }
+          }
+        }
         if (!isHistory) {
           this.showToast(`💧 ${payload.claimer} claimed ${payload.amount.toFixed(2)} ETB from Rain!`);
         }
@@ -417,6 +468,19 @@
       if (this.rainModal) {
         this.rainModal.addEventListener('click', (e) => {
           if (e.target === this.rainModal) this.closeRainModal();
+        });
+      }
+
+      // Wager requirement modal events
+      if (this.wagerReqModal) {
+        const btnGotIt = this.wagerReqModal.querySelector('#btnWagerModalGotIt');
+        if (btnGotIt) {
+          btnGotIt.addEventListener('click', () => {
+            this.closeWagerRequirementModal();
+          });
+        }
+        this.wagerReqModal.addEventListener('click', (e) => {
+          if (e.target === this.wagerReqModal) this.closeWagerRequirementModal();
         });
       }
 
@@ -587,18 +651,145 @@
       });
     }
 
+    getWagerRequirement(eachAmount) {
+      const amt = parseFloat(eachAmount) || 10;
+      if (amt >= 50) {
+        // Bal 100 tier: 100 ETB drop -> 500 ETB wager in last 10 minutes
+        return {
+          windowMinutes: 10,
+          requiredWager: 500,
+          textAm: 'ባለፉት 10 ደቂቃዎች ቢያንስ 500 ETB መጫወት',
+          textEn: 'Wager 500+ ETB in last 10 mins'
+        };
+      } else if (amt >= 20) {
+        // Bal 20 tier: 20 ETB drop -> 200 ETB wager in last 30 minutes
+        return {
+          windowMinutes: 30,
+          requiredWager: 200,
+          textAm: 'ባለፉት 30 ደቂቃዎች ቢያንስ 200 ETB መጫወት',
+          textEn: 'Wager 200+ ETB in last 30 mins'
+        };
+      } else {
+        // Bal 10 tier: 10 ETB drop -> 100 ETB wager in last 30 minutes
+        return {
+          windowMinutes: 30,
+          requiredWager: 100,
+          textAm: 'ባለፉት 30 ደቂቃዎች ቢያንስ 100 ETB መጫወት',
+          textEn: 'Wager 100+ ETB in last 30 mins'
+        };
+      }
+    }
+
+    getRecentWager(durationMinutes) {
+      try {
+        const mins = parseFloat(durationMinutes) || 30;
+        const wallet = this.getWallet();
+        let wTotal = 0;
+        if (wallet && typeof wallet.getRecentWager === 'function') {
+          wTotal = wallet.getRecentWager(mins);
+        }
+
+        const cutoff = Date.now() - (mins * 60 * 1000);
+        let sTotal = 0;
+        try {
+          const list = JSON.parse(localStorage.getItem('habesha_wager_history_v1') || '[]');
+          if (Array.isArray(list)) {
+            for (const item of list) {
+              if (item && item.timestamp >= cutoff) {
+                sTotal += (parseFloat(item.amount) || 0);
+              }
+            }
+          }
+        } catch(e) {}
+
+        let txTotal = 0;
+        try {
+          const txs = JSON.parse(localStorage.getItem('habesha_shared_transactions_v1') || '[]');
+          if (Array.isArray(txs)) {
+            for (const tx of txs) {
+              if (tx && tx.type === 'stake' && tx.timestamp >= cutoff) {
+                txTotal += (parseFloat(tx.amount) || 0);
+              }
+            }
+          }
+        } catch(e) {}
+
+        const finalWager = Math.max(wTotal, sTotal, txTotal);
+        return Math.round(finalWager * 100) / 100;
+      } catch(e) {
+        return 0;
+      }
+    }
+
+    showWagerRequirementModal({ amount, requiredWager, windowMinutes, actualWager, shortfall }) {
+      if (!this.wagerReqModal) return;
+      const elAmt = this.wagerReqModal.querySelector('#wagerModalClaimAmt');
+      const elReq = this.wagerReqModal.querySelector('#wagerModalReqWager');
+      const elWin = this.wagerReqModal.querySelector('#wagerModalWindow');
+      const elCur = this.wagerReqModal.querySelector('#wagerModalCurrentWager');
+      const elRem = this.wagerReqModal.querySelector('#wagerModalRemaining');
+
+      if (elAmt) elAmt.textContent = `${amount.toFixed(2)} ETB`;
+      if (elReq) elReq.textContent = `${requiredWager.toFixed(2)}`;
+      if (elWin) elWin.textContent = `${windowMinutes}`;
+      if (elCur) elCur.textContent = `${actualWager.toFixed(2)}`;
+      if (elRem) elRem.textContent = `${shortfall}`;
+
+      this.wagerReqModal.classList.add('open');
+    }
+
+    closeWagerRequirementModal() {
+      if (this.wagerReqModal) {
+        this.wagerReqModal.classList.remove('open');
+      }
+    }
+
     claimRain(rainId, amount, btnEl) {
       if (this.claimedRainIds.has(rainId)) return;
+
+      const playersCount = parseInt(btnEl.dataset.players, 10) || 5;
+      const curClaims = this.cardClaimCounts[rainId] || 0;
+      if (curClaims >= playersCount) {
+        this.showToast('⚠️ ይህ Rain ሙሉ በሙሉ ተወስዷል (All claims taken)!');
+        btnEl.disabled = true;
+        btnEl.classList.add('exhausted');
+        btnEl.textContent = `✖ Fully Claimed (${playersCount}/${playersCount})`;
+        return;
+      }
+
+      // 1. Verify Wager Requirements ("heg ena demboche")
+      const req = this.getWagerRequirement(amount);
+      const actualWager = this.getRecentWager(req.windowMinutes);
+
+      if (actualWager < req.requiredWager) {
+        const shortfall = (req.requiredWager - actualWager).toFixed(2);
+        this.showWagerRequirementModal({
+          amount: amount,
+          requiredWager: req.requiredWager,
+          windowMinutes: req.windowMinutes,
+          actualWager: actualWager,
+          shortfall: shortfall
+        });
+        return;
+      }
+
+      // 2. Grant claim
       this.claimedRainIds.add(rainId);
 
       const wallet = this.getWallet();
       if (wallet) {
-        wallet.modify(amount);
+        wallet.modify(amount, 'Rain Claim', 'win');
       }
 
       btnEl.classList.add('claimed');
       btnEl.textContent = `✔ Claimed (+${amount.toFixed(2)} ETB)`;
       this.showToast(`🎉 +${amount.toFixed(2)} ETB added to balance!`);
+
+      this.cardClaimCounts[rainId] = curClaims + 1;
+      const pill = this.drawer ? this.drawer.querySelector(`#rainClaimPill_${rainId}`) : null;
+      if (pill) {
+        pill.textContent = `${this.cardClaimCounts[rainId]}/${playersCount} Claimed`;
+      }
 
       // Broadcast claim event so other players see who claimed
       this.broadcastPayload({
@@ -755,7 +946,7 @@
       this.incrementUnreadBadge();
     }
 
-    addRainCard({ id, sender, totalAmount, playersCount, eachAmount, time, isSelf = false }) {
+    addRainCard({ id, sender, totalAmount, playersCount, eachAmount, time, isSelf = false, minWager, wagerMinutes }) {
       if (!this.msgContainer) return;
       if (id) this.seenMessageIds.add(id);
 
@@ -763,6 +954,13 @@
       row.className = 'chat-msg-row';
       const avatar = isSelf ? { icon: '🌧️', bg: '#0284c7' } : { icon: '🌧️', bg: '#0369a1' };
       const timeStr = time || this.formatTime();
+      const req = (minWager && wagerMinutes)
+        ? { requiredWager: minWager, windowMinutes: wagerMinutes, textAm: `ባለፉት ${wagerMinutes} ደቂቃዎች ቢያንስ ${minWager} ETB መጫወት` }
+        : this.getWagerRequirement(eachAmount);
+
+      const curClaimCount = this.cardClaimCounts[id] || 0;
+      const isExhausted = curClaimCount >= playersCount;
+      const isClaimedByMe = this.claimedRainIds.has(id);
 
       row.innerHTML = `
         <div class="chat-avatar" style="background:${avatar.bg}">${avatar.icon}</div>
@@ -774,15 +972,21 @@
             </span>
             <span class="chat-time">${timeStr}</span>
           </div>
-          <div class="chat-rain-card">
+          <div class="chat-rain-card" data-rain-id="${id}">
             <div class="chat-rain-header">
               <span class="chat-rain-title">🌧️ Rain Dropped!</span>
+              <span class="chat-rain-claimed-pill" id="rainClaimPill_${id}">${curClaimCount}/${playersCount} Claimed</span>
             </div>
             <div class="chat-rain-subtitle">
               ${totalAmount.toFixed(2)} ETB distributed to ${playersCount} players (${eachAmount.toFixed(2)} ETB each)
             </div>
-            <button type="button" class="chat-rain-claim-btn" data-rain-id="${id}" data-amount="${eachAmount}">
-              Claim ${eachAmount.toFixed(2)} ETB
+            <div class="chat-rain-rule-badge">
+              <span class="rule-icon">📋</span>
+              <span class="rule-text">መስፈርት: ${req.textAm}</span>
+            </div>
+            <button type="button" class="chat-rain-claim-btn ${isClaimedByMe ? 'claimed' : (isExhausted ? 'exhausted' : '')}"
+                    data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" ${isExhausted && !isClaimedByMe ? 'disabled' : ''}>
+              ${isClaimedByMe ? `✔ Claimed (+${eachAmount.toFixed(2)} ETB)` : (isExhausted ? `✖ Fully Claimed (${playersCount}/${playersCount})` : `Claim ${eachAmount.toFixed(2)} ETB`)}
             </button>
           </div>
         </div>
@@ -926,25 +1130,8 @@
     }
 
     startRainScheduler() {
-      // Periodic automated rain every 3 minutes
-      const scheduleNextRain = () => {
-        const p = SIMULATED_PLAYERS[Math.floor(Math.random() * SIMULATED_PLAYERS.length)];
-        const amt = [10, 15, 20, 25][Math.floor(Math.random() * 4)];
-        const players = 5;
-        this.addRainCard({
-          id: 'auto_rain_' + Date.now(),
-          sender: p.name,
-          totalAmount: amt,
-          playersCount: players,
-          eachAmount: Number((amt / players).toFixed(2)),
-          time: this.formatTime()
-        });
-
-        const nextRainDelay = 150000 + Math.random() * 60000;
-        setTimeout(scheduleNextRain, nextRainDelay);
-      };
-
-      setTimeout(scheduleNextRain, 60000);
+      // Rain drops are coordinated live by server-side bot via WebSocket (ntfy.sh)
+      console.log('[InGameChat] Live server-coordinated rain scheduler active.');
     }
 
     escapeHTML(str) {

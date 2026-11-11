@@ -385,7 +385,7 @@
     const wallet = window.FriendesWallet || window.HabeshaWallet;
     if (wallet) {
       if (wallet.has(amt)) {
-        state.balance = wallet.modify(-amt);
+        state.balance = wallet.modify(-amt, 'Aviator', 'stake');
         updateBalanceUI();
         return true;
       }

@@ -274,8 +274,77 @@
   }
 
   const SHARED_TX_KEY = 'habesha_shared_transactions_v1';
+  const WAGER_STORAGE_KEY = 'habesha_wager_history_v1';
   let betSyncDebounceTimer = null;
   let pendingBetBatch = { stakes: 0, wins: 0, count: 0, items: [] };
+
+  function recordWagerEntry(amount, gameName, mode) {
+    try {
+      const amt = parseFloat(amount);
+      if (!amt || isNaN(amt) || amt <= 0) return;
+      const now = Date.now();
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(WAGER_STORAGE_KEY) || '[]');
+        if (!Array.isArray(list)) list = [];
+      } catch(e) { list = []; }
+
+      list.unshift({
+        timestamp: now,
+        amount: round2(amt),
+        game: gameName || detectCurrentGameName(),
+        mode: mode || getMode()
+      });
+
+      const cutoff = now - (2 * 60 * 60 * 1000);
+      list = list.filter(w => w && w.timestamp >= cutoff).slice(0, 300);
+      localStorage.setItem(WAGER_STORAGE_KEY, JSON.stringify(list));
+    } catch(e) {
+      console.warn('recordWagerEntry error:', e);
+    }
+  }
+
+  function getRecentWager(durationMinutes, gameFilter) {
+    try {
+      const mins = parseFloat(durationMinutes) || 30;
+      const cutoff = Date.now() - (mins * 60 * 1000);
+      let totalWager = 0;
+
+      // 1. Dedicated wager tracker
+      try {
+        const list = JSON.parse(localStorage.getItem(WAGER_STORAGE_KEY) || '[]');
+        if (Array.isArray(list)) {
+          for (const item of list) {
+            if (item && item.timestamp >= cutoff) {
+              if (!gameFilter || (item.game && item.game.toLowerCase().includes(gameFilter.toLowerCase()))) {
+                totalWager += (parseFloat(item.amount) || 0);
+              }
+            }
+          }
+        }
+      } catch(e) {}
+
+      // 2. Fallback to shared transactions list
+      try {
+        const txs = JSON.parse(localStorage.getItem(SHARED_TX_KEY) || '[]');
+        if (Array.isArray(txs)) {
+          let txTotal = 0;
+          for (const tx of txs) {
+            if (tx && tx.type === 'stake' && tx.timestamp >= cutoff) {
+              if (!gameFilter || (tx.method && tx.method.toLowerCase().includes(gameFilter.toLowerCase()))) {
+                txTotal += (parseFloat(tx.amount) || 0);
+              }
+            }
+          }
+          totalWager = Math.max(totalWager, txTotal);
+        }
+      } catch(e) {}
+
+      return round2(totalWager);
+    } catch(e) {
+      return 0;
+    }
+  }
 
   function recordBetTransaction(gameName, stake, win) {
     try {
@@ -405,20 +474,23 @@
     if (isNaN(numDelta) || numDelta === 0) return get();
 
     const mode = getMode();
+    const gameName = (typeof arg2 === 'string' && arg2 !== 'stake' && arg2 !== 'win') ? arg2 :
+                     (typeof arg3 === 'string' && arg3 !== 'stake' && arg3 !== 'win') ? arg3 : detectCurrentGameName();
+
     if (mode === 'demo') {
       const curDemo = getDemoBalance();
       const newDemo = Math.max(0, round2(curDemo + numDelta));
       setDemoBalance(newDemo);
       syncLegacyStorages(newDemo);
       notifyAll(newDemo);
+      if (numDelta < 0) {
+        recordWagerEntry(Math.abs(numDelta), gameName, 'demo');
+      }
       return newDemo;
     }
 
     let realBal = getRealBalance();
     let bonusBal = getBonusBalance();
-
-    const gameName = (typeof arg2 === 'string' && arg2 !== 'stake' && arg2 !== 'win') ? arg2 :
-                     (typeof arg3 === 'string' && arg3 !== 'stake' && arg3 !== 'win') ? arg3 : detectCurrentGameName();
 
     let lastBonusRatio = parseFloat(localStorage.getItem('habesha_bet_bonus_ratio') || '0');
 
@@ -439,6 +511,7 @@
       // Track bonus ratio so bets funded by bonus return winnings to bonus balance!
       lastBonusRatio = betAmt > 0 ? round2(takeBonus / betAmt) : 0;
       try { localStorage.setItem('habesha_bet_bonus_ratio', String(lastBonusRatio)); } catch (e) {}
+      recordWagerEntry(betAmt, gameName, 'real');
       recordBetTransaction(gameName, betAmt, 0);
     } else {
       // Player won! Credited proportionally to funding source (bonus wagers stay in bonus)
@@ -989,6 +1062,8 @@
     syncLegacyStorages: syncLegacyStorages,
     exitAndSave: exitAndSave,
     recordBet: recordBetTransaction,
+    recordWager: recordWagerEntry,
+    getRecentWager: getRecentWager,
     syncAdminConfigFromCloud: syncAdminConfigFromCloud,
     syncLiveBalanceToCloud: syncLiveBalanceToCloud,
     fetchBalanceFromCloud: fetchBalanceFromCloud
