@@ -929,6 +929,15 @@ class ChickenCrashGame {
     this.updateBalanceUI();
     this.playAudioSprite('win');
 
+    if (window.chickenCrashChat && winAmount > this.betAmount) {
+      window.chickenCrashChat.shareWin({
+        multiplier: this.currentMultiplier,
+        win: winAmount,
+        bet: this.betAmount,
+        round: this.currentMultiplier
+      });
+    }
+
     // Spawn win coins shower
     const targetLaneY = this.lanes[this.currentLane] ? (this.lanes[this.currentLane].y + this.laneHeight * 0.5) : 120;
     for (let i = 0; i < 28; i++) {

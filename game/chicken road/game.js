@@ -655,6 +655,16 @@
     showToast(`🎉 Cashed out +${money(win)} ETB!`, 'win');
     syncUi();
 
+    if (window.chickenChat && win > state.bet) {
+      const mult = Number((win / state.bet).toFixed(2));
+      window.chickenChat.shareWin({
+        multiplier: mult,
+        win: win,
+        bet: state.bet,
+        round: mult
+      });
+    }
+
     // After celebration pause (450ms), return smoothly back to sidewalk right before our eyes!
     clearTimeout(state.resetTimeout);
     state.resetTimeout = setTimeout(() => {
@@ -1420,6 +1430,18 @@
 
     // Try starting continuous background sound right away
     ensureMainSound();
+
+    // Initialize In-Game Live Chat & Rain System
+    try {
+      if (typeof InGameChat !== 'undefined') {
+        window.chickenChat = new InGameChat({
+          gameName: 'chicken_road',
+          mountBtn: '#chatToggleBtn'
+        });
+      }
+    } catch (e) {
+      console.warn('Chicken chat init error:', e);
+    }
 
     requestAnimationFrame(loop);
     if (window.hideGameLoader) {

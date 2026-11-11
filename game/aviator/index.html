@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;0,900;1,700;1,900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./assets/style.css" />
+  <link rel="stylesheet" href="../in-game-chat.css" />
   <link rel="stylesheet" href="../../assets/game-loader.css" />
   <script src="../../assets/game-loader.js"></script>
 </head>
@@ -39,7 +40,13 @@
           <span id="userBalanceText">50,000.00</span>
           <span class="currency">ETB</span>
         </div>
-        <button id="menuBtn" class="hamburger-btn" aria-label="Menu">&#9776;</button>
+                <button id="menuBtn" class="hamburger-btn" aria-label="Menu">&#9776;</button>
+        <button type="button" id="chatToggleBtn" class="chat-toggle-btn" aria-label="Live Chat" title="Live Chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span id="chatUnreadBadge" class="chat-badge hidden">0</span>
+        </button>
       </div>
     </header>
 
@@ -211,6 +218,7 @@
   <!-- Shared Balance Engine -->
   <script src="../shared-balance.js"></script>
   <!-- Mobile Aviator Game Engine -->
+  <script src="../in-game-chat.js"></script>
   <script src="./assets/game.js"></script>
 </body>
 </html>

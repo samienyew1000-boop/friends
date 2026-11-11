@@ -891,6 +891,15 @@
         creditBalance(winAmt);
         playWinSound();
         p.state = 'WON';
+
+        if (window.aviatorChat && winAmt >= 5) {
+          window.aviatorChat.shareWin({
+            multiplier: state.multiplier,
+            win: winAmt,
+            bet: p.amount,
+            round: state.crashPoint
+          });
+        }
       }
     }
 
@@ -1024,6 +1033,25 @@
 
     resetLiveBets(initialRound.roundIndex);
     setupEvents();
+
+    // Initialize In-Game Community Live Chat & Rain System
+    try {
+      if (typeof InGameChat !== 'undefined') {
+        window.aviatorChat = new InGameChat({
+          gameName: 'aviator',
+          mountBtn: '#chatToggleBtn'
+        });
+        const fab = document.getElementById('chatFab');
+        if (fab) {
+          fab.addEventListener('click', () => {
+            if (window.aviatorChat) window.aviatorChat.toggle();
+          });
+        }
+      }
+    } catch(e) {
+      console.warn('Chat init error:', e);
+    }
+
     gameTick();
     setInterval(gameTick, 30);
     updateBetControlsLock();

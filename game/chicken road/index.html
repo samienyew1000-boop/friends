@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800;900&family=Noto+Sans:wght@500;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../in-game-chat.css" />
   <link rel="stylesheet" href="../../assets/game-loader.css" />
   <script src="../../assets/game-loader.js"></script>
 </head>
@@ -46,6 +47,14 @@
           <span class="cr-balance-num" id="balance">1000.00</span>
           <span class="cr-coin-tag">ETB</span>
         </div>
+
+        <!-- Chat Button (Next to Balance) -->
+        <button type="button" class="cr-menu-btn chat-toggle-btn" id="chatToggleBtn" aria-label="Live Chat" title="Live Chat">
+          <svg viewBox="0 0 24 24" class="cr-menu-icon" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span id="chatUnreadBadge" class="chat-badge hidden">0</span>
+        </button>
 
         <!-- Fullscreen Button -->
         <button type="button" class="cr-menu-btn" id="btn-fullscreen" aria-label="Toggle Fullscreen" title="Toggle Fullscreen (F)">
@@ -233,6 +242,7 @@
 
   <!-- Shared Balance & Game Script -->
   <script src="../shared-balance.js"></script>
+  <script src="../in-game-chat.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

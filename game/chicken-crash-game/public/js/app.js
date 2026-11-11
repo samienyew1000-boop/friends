@@ -164,4 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 4500);
   }
+  // Initialize In-Game Live Chat & Rain System
+  try {
+    if (typeof InGameChat !== 'undefined') {
+      window.chickenCrashChat = new InGameChat({
+        gameName: 'chicken_crash',
+        mountBtn: '#chatToggleBtn'
+      });
+    }
+  } catch (e) {
+    console.warn('Chicken crash chat init error:', e);
+  }
 });
