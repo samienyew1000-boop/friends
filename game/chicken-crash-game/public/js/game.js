@@ -929,7 +929,7 @@ class ChickenCrashGame {
     this.updateBalanceUI();
     this.playAudioSprite('win');
 
-    if (window.chickenCrashChat && winAmount > this.betAmount) {
+    if (window.chickenCrashChat && this.currentMultiplier >= 10.0) {
       window.chickenCrashChat.shareWin({
         multiplier: this.currentMultiplier,
         win: winAmount,

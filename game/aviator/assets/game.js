@@ -642,6 +642,8 @@
       state.roundStartTime = round.roundStartTime + round.data.waitMs;
       state.waitStartTime = round.roundStartTime;
       state.waitDuration = round.data.waitMs;
+      state.userCashoutsThisRound = [];
+      state.hasSharedThisRound = false;
 
       // Transition panels: QUEUED bets become active in new round
       ['panel1', 'panel2'].forEach(pKey => {
@@ -738,6 +740,77 @@
           state.history.unshift({ mult: cp, color: colorClass });
           if (state.history.length > 25) state.history.pop();
           renderHistory();
+
+          // Win card sharing strictly AFTER round crash (never during flight)
+          // Only high multiplier cashouts (>= 10.0x) or high rounds (>= 20.0x) are shared
+          if (window.aviatorChat && !state.hasSharedThisRound) {
+            state.hasSharedThisRound = true;
+            const finalCrash = cp;
+
+            // Check if current user cashed out at a high multiplier (>= 10.0x)
+            let userWin = null;
+            if (state.userCashoutsThisRound && state.userCashoutsThisRound.length > 0) {
+              const eligible = state.userCashoutsThisRound.filter(c => c.multiplier >= 10.0);
+              if (eligible.length > 0) {
+                eligible.sort((a, b) => b.multiplier - a.multiplier);
+                userWin = eligible[0];
+              }
+            }
+
+            if (userWin) {
+              window.aviatorChat.shareWin({
+                multiplier: userWin.multiplier,
+                win: userWin.win,
+                bet: userWin.bet,
+                round: finalCrash
+              });
+            } else if (finalCrash >= 20.0) {
+              // High round! Share top player of this round (e.g. crash 50x -> cashout ~48x)
+              const simPct = 0.86 + (Math.sin(round.roundIndex * 9301 + 49297) * 0.5 + 0.5) * 0.11;
+              const simMult = Number((finalCrash * simPct).toFixed(2));
+              const simBetList = [10, 20, 50, 100];
+              const simBet = simBetList[Math.abs(round.roundIndex) % simBetList.length];
+              const simWin = Number((simMult * simBet).toFixed(2));
+              const simAvatars = ['🍀', '🦁', '🦒', '💎', '👑', '🚀'];
+              const simNames = ['+***6', '+***5', '+***2', '+***9', '+***8'];
+              const simComments = ['Wow! 😮', 'Congratulations 👏', 'Boom! What a round 🎉', 'Nice cashout! 🔥'];
+              const chosenAvatar = simAvatars[Math.abs(round.roundIndex) % simAvatars.length];
+              const chosenName = simNames[Math.abs(round.roundIndex) % simNames.length];
+              const chosenComment = simComments[Math.abs(round.roundIndex) % simComments.length];
+
+              const winId = 'round_win_' + round.roundIndex;
+              const timeStr = window.aviatorChat.formatTime();
+
+              window.aviatorChat.seenMessageIds.add(winId);
+              window.aviatorChat.addWinCard({
+                id: winId,
+                sender: chosenName,
+                avatar: chosenAvatar,
+                comment: chosenComment,
+                cashedOut: simMult,
+                winAmount: simWin,
+                roundMult: finalCrash,
+                betAmount: simBet,
+                time: timeStr,
+                gameName: 'Aviator'
+              });
+
+              window.aviatorChat.broadcastPayload({
+                type: 'win_card',
+                id: winId,
+                sender: chosenName,
+                avatar: chosenAvatar,
+                comment: chosenComment,
+                cashedOut: simMult,
+                winAmount: simWin,
+                roundMult: finalCrash,
+                betAmount: simBet,
+                time: timeStr,
+                gameName: 'Aviator',
+                uid: 'system_round_' + round.roundIndex
+              });
+            }
+          }
         }
 
         updateHUD();
@@ -892,14 +965,13 @@
         playWinSound();
         p.state = 'WON';
 
-        if (window.aviatorChat && winAmt >= 5) {
-          window.aviatorChat.shareWin({
-            multiplier: state.multiplier,
-            win: winAmt,
-            bet: p.amount,
-            round: state.crashPoint
-          });
-        }
+        // Record cashout for evaluation strictly after round crashes (never leak round mid-flight)
+        if (!state.userCashoutsThisRound) state.userCashoutsThisRound = [];
+        state.userCashoutsThisRound.push({
+          multiplier: state.multiplier,
+          win: winAmt,
+          bet: p.amount
+        });
       }
     }
 

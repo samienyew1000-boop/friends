@@ -655,8 +655,8 @@
     showToast(`🎉 Cashed out +${money(win)} ETB!`, 'win');
     syncUi();
 
-    if (window.chickenChat && win > state.bet) {
-      const mult = Number((win / state.bet).toFixed(2));
+    const mult = Number((win / state.bet).toFixed(2));
+    if (window.chickenChat && mult >= 10.0) {
       window.chickenChat.shareWin({
         multiplier: mult,
         win: win,

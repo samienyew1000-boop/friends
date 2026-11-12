@@ -1018,8 +1018,9 @@
       }, remainingMs);
     }
 
-    shareWin({ multiplier, win, bet, round = null }) {
-      const finalRound = round || (multiplier + Number((Math.random() * 2).toFixed(2)));
+    shareWin({ multiplier, win, bet, round = null, sender = 'You', avatar = null, comment = 'I just cashed out! 🚀' }) {
+      if (multiplier < 10.0) return; // Strict guard: only high multiplier wins (>= 10.0x) are shared
+      const finalRound = round || multiplier;
       const winId = 'win_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
       const timeStr = this.formatTime();
 
@@ -1027,9 +1028,9 @@
 
       this.addWinCard({
         id: winId,
-        sender: 'You',
-        avatar: this.myProfile.avatar,
-        comment: 'I just cashed out! 🚀',
+        sender: sender,
+        avatar: avatar || this.myProfile.avatar,
+        comment: comment,
         cashedOut: multiplier,
         winAmount: win,
         roundMult: finalRound,
@@ -1042,9 +1043,9 @@
       this.broadcastPayload({
         type: 'win_card',
         id: winId,
-        sender: this.myProfile.name,
-        avatar: this.myProfile.avatar,
-        comment: 'I just cashed out! 🚀',
+        sender: sender === 'You' ? this.myProfile.name : sender,
+        avatar: avatar || this.myProfile.avatar,
+        comment: comment,
         cashedOut: multiplier,
         winAmount: win,
         roundMult: finalRound,
@@ -1054,7 +1055,9 @@
         uid: this.myUid
       });
 
-      this.showToast('🚀 Your win was shared in chat across all phones!');
+      if (sender === 'You') {
+        this.showToast('🚀 High win shared in chat across all phones!');
+      }
     }
 
     seedInitialMessages() {
@@ -1115,33 +1118,15 @@
         }
 
         const p = SIMULATED_PLAYERS[Math.floor(Math.random() * SIMULATED_PLAYERS.length)];
-        const isWin = Math.random() < 0.45;
-
-        if (isWin) {
-          const mult = Number((1.5 + Math.random() * 8.5).toFixed(2));
-          const bet = [10, 20, 50, 100][Math.floor(Math.random() * 4)];
-          const win = Number((mult * bet).toFixed(2));
-          this.addWinCard({
-            id: 'sim_win_' + Date.now(),
-            sender: p.name,
-            avatar: p.avatar,
-            comment: CHAT_COMMENTS[Math.floor(Math.random() * CHAT_COMMENTS.length)],
-            cashedOut: mult,
-            winAmount: win,
-            roundMult: Number((mult + Math.random() * 2).toFixed(2)),
-            betAmount: bet,
-            time: this.formatTime(),
-            gameName: this.gameName
-          });
-        } else {
-          this.addTextMessage({
-            id: 'sim_msg_' + Date.now(),
-            sender: p.name,
-            avatar: p.avatar,
-            text: CHAT_COMMENTS[Math.floor(Math.random() * CHAT_COMMENTS.length)],
-            time: this.formatTime()
-          });
-        }
+        
+        // Chat banter only (win cards are exclusively triggered by high game rounds)
+        this.addTextMessage({
+          id: 'sim_msg_' + Date.now(),
+          sender: p.name,
+          avatar: p.avatar,
+          text: CHAT_COMMENTS[Math.floor(Math.random() * CHAT_COMMENTS.length)],
+          time: this.formatTime()
+        });
 
         const nextDelay = 18000 + Math.random() * 25000;
         setTimeout(triggerSimulated, nextDelay);
