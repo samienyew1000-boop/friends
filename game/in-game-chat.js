@@ -405,10 +405,10 @@
             const envelope = JSON.parse(line);
             if (envelope.event === 'message' && envelope.message) {
               const payload = JSON.parse(envelope.message);
-              // Discard any rain drops older than 15 minutes
+              // Discard any rain drops older than 1 minute ("le 1 min bicha nw mekoyet yalebt")
               if (payload.type === 'rain_drop') {
-                const cTime = payload.createdAt || payload.timestamp || 0;
-                if (cTime && (Date.now() - cTime >= 15 * 60 * 1000)) {
+                const cTime = Number(payload.createdAt) || Number(payload.timestamp) || 0;
+                if (cTime && (Date.now() - cTime >= 60 * 1000)) {
                   continue;
                 }
               }
@@ -895,6 +895,18 @@
         return;
       }
 
+      // 2. Strict expiration guard: Rain only lasts for 1 minute ("le 1 min bicha nw mekoyet yalebt")
+      const rainCreatedAt = Number(btnEl?.dataset?.createdAt) || 0;
+      if (rainCreatedAt && (Date.now() - rainCreatedAt >= 60 * 1000)) {
+        this.showToast('⚠️ የዚህ Rain 1 ደቂቃ ጊዜ አልፏል (This Rain has expired)!');
+        if (btnEl) {
+          btnEl.disabled = true;
+          btnEl.classList.add('exhausted');
+          btnEl.textContent = 'Expired';
+        }
+        return;
+      }
+
       if (this._claimingIds && this._claimingIds.has(rainId)) return;
       if (!this._claimingIds) this._claimingIds = new Set();
       this._claimingIds.add(rainId);
@@ -1122,7 +1134,7 @@
 
       const rainCreatedAt = Number(createdAt) || Date.now();
       const ageMs = Date.now() - rainCreatedAt;
-      const LIFESPAN_MS = 15 * 60 * 1000; // 15 minutes max lifespan ("le 15 dekika nw mekoyet yalbet keza yetefal")
+      const LIFESPAN_MS = 60 * 1000; // 1 minute max lifespan ("le 1 min bicha nw mekoyet yalebt")
 
       if (ageMs >= LIFESPAN_MS) {
         // Expired! Disappear completely
@@ -1167,7 +1179,7 @@
               <div class="chat-rain-progress-bar" id="rainProgress_${id}" style="width: ${progressPercent}%;"></div>
             </div>
             <button type="button" class="chat-rain-claim-btn ${isClaimedByMe ? 'claimed' : (isExhausted ? 'exhausted' : '')}"
-                    data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" ${(isClaimedByMe || isExhausted) ? 'disabled' : ''}>
+                    data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" data-created-at="${rainCreatedAt}" ${(isClaimedByMe || isExhausted) ? 'disabled' : ''}>
               ${isClaimedByMe ? '✔ Claimed' : (isExhausted ? 'Claimed Out' : 'Claim')}
             </button>
             <div class="chat-rain-total-footer">Total: ${totalAmount.toFixed(2)}ETB</div>
@@ -1180,7 +1192,7 @@
       this.scrollToBottom();
       this.incrementUnreadBadge();
 
-      // Schedule exact disappearance at 15 minutes after creation
+      // Schedule exact disappearance at 1 minute after creation ("le 1 min bicha nw mekoyet yalebt")
       const remainingMs = Math.max(0, LIFESPAN_MS - ageMs);
       setTimeout(() => {
         row.style.transition = 'opacity 0.6s ease, transform 0.6s ease, max-height 0.6s ease, margin 0.6s ease';
