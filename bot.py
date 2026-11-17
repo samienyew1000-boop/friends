@@ -19,7 +19,7 @@ import http.client
 import ssl
 import concurrent.futures
 import random
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Permanent Telegram File ID for inout_logo.png (Delivered instantly from Telegram edge RAM)
 CACHED_LOGO_FILE_ID = "AgACAgQAAxkDAAIET2rbq2sGgbMD8e1JelhtRWVaYM3GAAJZDmsbtUokUvEw05b3lpqvAQADAgADeAADPQQ" 
@@ -191,7 +191,9 @@ def broadcast_live_rain(total_amount, players_count, each_amount, min_wager, wag
     """Broadcasts a real Rain Drop payload directly to all connected players via WebSocket."""
     try:
         rain_id = f"rain_bot_{int(time.time()*1000)}_{random.randint(100, 999)}"
-        now_str = datetime.now().strftime("%H:%M:%S")
+        # Format time in East Africa Time (UTC+3) for local Ethiopian time alignment
+        now_eat = datetime.now(timezone(timedelta(hours=3)))
+        now_str = now_eat.strftime("%H:%M:%S")
         payload = {
             "type": "rain_drop",
             "id": rain_id,

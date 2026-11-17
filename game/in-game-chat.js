@@ -63,22 +63,58 @@
       this.isOpen = false;
       this.unreadCount = 0;
       this.onlineCount = 8;
-      this.claimedRainIds = new Set();
+
+      // Resolve user identity
+      this.myProfile = this.resolveMyProfile();
+      this.myUid = this.myProfile.uid;
+      this.myUserId = this.myProfile.userId;
+
+      // Load persisted claimed rain IDs for this user so each rain can only be claimed once
+      this.claimedRainIds = this.loadPersistedClaimedRains();
       this.cardClaimCounts = {};
       this.seenMessageIds = new Set();
       this.messages = [];
       this.dividerIcon = this.gameName.includes('chicken') ? '🐔' : '✈️';
 
-      // Resolve user identity
-      this.myProfile = this.resolveMyProfile();
-      this.myUid = this.myProfile.uid;
-
       this.initDOM();
       this.bindEvents();
       this.connectRealtime();
       this.loadRecentHistory();
+      this.startBackgroundPoller();
       this.startSimulatedActivity();
       this.startRainScheduler();
+    }
+
+    loadPersistedClaimedRains() {
+      const set = new Set();
+      try {
+        const keys = [
+          'habesha_claimed_rains_' + this.myUserId,
+          'habesha_claimed_rains_' + this.myUid,
+          'habesha_claimed_rains_all'
+        ];
+        keys.forEach(k => {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            try {
+              const arr = JSON.parse(raw);
+              if (Array.isArray(arr)) {
+                arr.forEach(id => set.add(id));
+              }
+            } catch(e) {}
+          }
+        });
+      } catch(e) {}
+      return set;
+    }
+
+    persistClaimedRainIds() {
+      try {
+        const arr = Array.from(this.claimedRainIds);
+        localStorage.setItem('habesha_claimed_rains_' + this.myUserId, JSON.stringify(arr));
+        localStorage.setItem('habesha_claimed_rains_' + this.myUid, JSON.stringify(arr));
+        localStorage.setItem('habesha_claimed_rains_all', JSON.stringify(arr));
+      } catch(e) {}
     }
 
     resolveMyProfile() {
@@ -93,32 +129,88 @@
         uid = 'u_' + Math.random().toString(36).substring(2, 8);
       }
 
-      let name = 'You';
+      let userId = '';
+      let rawPhone = '';
       try {
         const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        if (tgUser) {
-          if (tgUser.username) {
-            name = '@' + tgUser.username;
-          } else if (tgUser.first_name) {
-            name = tgUser.first_name;
+        if (tgUser && tgUser.id) {
+          userId = String(tgUser.id);
+        }
+      } catch(e) {}
+
+      try {
+        const regStr = localStorage.getItem('habesha_registered_user');
+        if (regStr) {
+          const parsed = (typeof regStr === 'string' && regStr.trim().startsWith('{')) ? JSON.parse(regStr) : null;
+          if (parsed) {
+            if (!userId && parsed.id) userId = String(parsed.id);
+            if (parsed.phone) rawPhone = String(parsed.phone);
           }
         }
       } catch(e) {}
 
-      if (name === 'You') {
-        const stored = localStorage.getItem('habesha_username') || localStorage.getItem('habesha_registered_user');
-        if (stored) {
-          name = stored;
-        } else {
-          name = '+***' + uid.slice(-1);
-        }
+      if (!userId) userId = uid;
+
+      // Always format masked Spribe Aviator name: "+***<last_digit>"
+      // Strictly prevent exposing phone numbers, usernames, or raw JSON!
+      let lastDigit = '1';
+      if (rawPhone) {
+        const digits = rawPhone.replace(/\D/g, '');
+        if (digits.length > 0) lastDigit = digits.slice(-1);
+      } else if (userId) {
+        lastDigit = String(userId).slice(-1);
+      } else {
+        lastDigit = uid.slice(-1);
       }
+      const maskedName = '+***' + lastDigit;
 
       return {
         uid,
-        name,
+        userId,
+        name: maskedName,
         avatar: { icon: '😎', bg: '#4c1d95' }
       };
+    }
+
+    formatPublicName(raw, fallbackUid = '') {
+      if (!raw) return '+***' + (String(fallbackUid).slice(-1) || '1');
+      if (raw === 'You') return 'You';
+      if (raw === 'Habesha Bot 🤖' || raw === 'Habesha Bot' || raw === 'Rain Bot' || (typeof raw === 'string' && raw.includes('Bot'))) {
+        return 'Habesha Bot 🤖';
+      }
+
+      // If raw is a serialized JSON object, parse it
+      if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.phone) {
+            const p = String(parsed.phone).replace(/\D/g, '');
+            return '+***' + (p.slice(-1) || '5');
+          }
+          if (parsed.id) {
+            return '+***' + (String(parsed.id).slice(-1) || '3');
+          }
+          if (parsed.username) {
+            return '+***' + (String(parsed.username).slice(-1) || '8');
+          }
+        } catch(e) {}
+      }
+
+      // If raw contains phone digits (e.g. +251... or 09...)
+      const digits = String(raw).replace(/\D/g, '');
+      if (digits.length >= 9) {
+        return '+***' + digits.slice(-1);
+      }
+
+      // If already formatted like +***5 or +***2
+      if (/^\+\*{2,}\d$/.test(raw)) {
+        return raw;
+      }
+
+      // Mask any plain username or custom string
+      let hash = 0;
+      for (let i = 0; i < raw.length; i++) hash = (hash * 31 + raw.charCodeAt(i)) % 9;
+      return '+***' + (hash + 1);
     }
 
     getWallet() {
@@ -238,14 +330,25 @@
       this.sendBtn = this.drawer.querySelector('#chatSendBtn');
     }
 
-    // --- Realtime WebSocket Pub/Sub Connection ---
+    // --- Realtime WebSocket Pub/Sub Connection + Ultra-Reliable Background Sync ---
     connectRealtime() {
       try {
         if (typeof WebSocket === 'undefined') return;
+        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+
         this.ws = new WebSocket(WS_URL);
 
         this.ws.onopen = () => {
           console.log('[InGameChat] Real-time WebSocket connected to ' + WS_URL);
+          // Ping/Heartbeat every 20s to prevent mobile browser suspension
+          if (this.pingInterval) clearInterval(this.pingInterval);
+          this.pingInterval = setInterval(() => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+              try { this.ws.send(JSON.stringify({ type: 'ping' })); } catch(e) {}
+            }
+          }, 20000);
         };
 
         this.ws.onmessage = (event) => {
@@ -259,14 +362,15 @@
         };
 
         this.ws.onclose = () => {
-          setTimeout(() => this.connectRealtime(), 3000);
+          if (this.pingInterval) clearInterval(this.pingInterval);
+          setTimeout(() => this.connectRealtime(), 2500);
         };
 
         this.ws.onerror = () => {
           try { this.ws.close(); } catch(e) {}
         };
       } catch(e) {
-        setTimeout(() => this.connectRealtime(), 3000);
+        setTimeout(() => this.connectRealtime(), 2500);
       }
     }
 
@@ -283,8 +387,16 @@
     }
 
     async loadRecentHistory() {
+      await this.syncRecentMessages();
+      // If no messages yet, seed standard baseline
+      if (this.messages.length === 0) {
+        this.seedInitialMessages();
+      }
+    }
+
+    async syncRecentMessages() {
       try {
-        const resp = await fetch(POLL_URL);
+        const resp = await fetch(POLL_URL, { cache: 'no-store' });
         if (!resp.ok) return;
         const text = await resp.text();
         const lines = text.trim().split('\n').filter(Boolean);
@@ -293,7 +405,7 @@
             const envelope = JSON.parse(line);
             if (envelope.event === 'message' && envelope.message) {
               const payload = JSON.parse(envelope.message);
-              // Discard any rain drops older than 15 minutes ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
+              // Discard any rain drops older than 15 minutes
               if (payload.type === 'rain_drop') {
                 const cTime = payload.createdAt || payload.timestamp || 0;
                 if (cTime && (Date.now() - cTime >= 15 * 60 * 1000)) {
@@ -305,11 +417,28 @@
           } catch(e) {}
         }
       } catch(e) {}
+    }
 
-      // If no messages yet, seed standard baseline
-      if (this.messages.length === 0) {
-        this.seedInitialMessages();
-      }
+    startBackgroundPoller() {
+      // Periodic background poll every 4.5 seconds to guarantee all phones see all messages even if WebSocket sleeps
+      if (this.pollerInterval) clearInterval(this.pollerInterval);
+      this.pollerInterval = setInterval(() => {
+        this.syncRecentMessages();
+        // Check websocket state and reconnect if dropped
+        if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+          this.connectRealtime();
+        }
+      }, 4500);
+
+      // Instant sync whenever user switches back into app or tab
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          this.syncRecentMessages();
+          if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            this.connectRealtime();
+          }
+        }
+      });
     }
 
     handleIncomingPayload(payload, isHistory = false) {
@@ -317,12 +446,12 @@
       if (this.seenMessageIds.has(payload.id)) return;
       this.seenMessageIds.add(payload.id);
 
-      const isOwn = (payload.uid === this.myUid);
+      const isOwn = (payload.uid === this.myUid) || (payload.userId && payload.userId === this.myUserId);
 
       if (payload.type === 'chat_message') {
         this.addTextMessage({
           id: payload.id,
-          sender: isOwn ? 'You' : payload.sender,
+          sender: isOwn ? 'You' : this.formatPublicName(payload.sender, payload.uid),
           avatar: payload.avatar || { icon: '😎', bg: '#4c1d95' },
           text: payload.text,
           time: payload.time || this.formatTime(),
@@ -332,7 +461,7 @@
       } else if (payload.type === 'win_card') {
         this.addWinCard({
           id: payload.id,
-          sender: isOwn ? 'You' : payload.sender,
+          sender: isOwn ? 'You' : this.formatPublicName(payload.sender, payload.uid),
           avatar: payload.avatar || { icon: '😎', bg: '#4c1d95' },
           comment: payload.comment,
           cashedOut: payload.cashedOut,
@@ -345,7 +474,7 @@
       } else if (payload.type === 'rain_drop') {
         this.addRainCard({
           id: payload.id,
-          sender: isOwn ? 'You' : payload.sender,
+          sender: isOwn ? 'You' : this.formatPublicName(payload.sender, payload.uid),
           totalAmount: payload.totalAmount,
           playersCount: payload.playersCount,
           eachAmount: payload.eachAmount,
@@ -358,6 +487,14 @@
       } else if (payload.type === 'rain_claimed') {
         const rid = payload.rainId;
         if (rid) {
+          // Check if this claim was made by this player
+          const isMyClaim = (payload.uid && payload.uid === this.myUid) ||
+                            (payload.userId && payload.userId === this.myUserId);
+          if (isMyClaim) {
+            this.claimedRainIds.add(rid);
+            this.persistClaimedRainIds();
+          }
+
           this.cardClaimCounts[rid] = (this.cardClaimCounts[rid] || 0) + 1;
           const card = this.drawer ? this.drawer.querySelector(`.chat-rain-card[data-rain-id="${rid}"]`) : null;
           if (card) {
@@ -372,7 +509,12 @@
             if (pBar) {
               pBar.style.width = `${Math.min(100, Math.round((count / maxPlayers) * 100))}%`;
             }
-            if (count >= maxPlayers && btn && !btn.classList.contains('claimed')) {
+            if ((isMyClaim || this.claimedRainIds.has(rid)) && btn) {
+              btn.disabled = true;
+              btn.classList.remove('exhausted');
+              btn.classList.add('claimed');
+              btn.textContent = `✔ Claimed`;
+            } else if (count >= maxPlayers && btn && !btn.classList.contains('claimed')) {
               btn.disabled = true;
               btn.classList.add('exhausted');
               btn.textContent = `Claimed Out`;
@@ -380,7 +522,8 @@
           }
         }
         if (!isHistory) {
-          this.showToast(`💧 ${payload.claimer} claimed ${payload.amount.toFixed(2)} ETB from Rain!`);
+          const displayClaimer = isOwn ? 'You' : this.formatPublicName(payload.claimer, payload.uid);
+          this.showToast(`💧 ${displayClaimer} claimed ${payload.amount.toFixed(2)} ETB from Rain!`);
         }
       }
     }
@@ -547,7 +690,9 @@
             playersCount: selectedPlayers,
             eachAmount: eachAmt,
             time: timeStr,
-            uid: this.myUid
+            createdAt: Date.now(),
+            uid: this.myUid,
+            userId: this.myUserId
           });
         });
       }
@@ -605,6 +750,7 @@
       if (this.drawer) this.drawer.classList.add('open');
       if (this.dimmer) this.dimmer.classList.add('open');
       this.clearUnreadBadge();
+      this.syncRecentMessages(); // Ensure all recent messages from other phones appear immediately!
       this.scrollToBottom();
       setTimeout(() => {
         if (this.textInput) this.textInput.focus();
@@ -737,7 +883,21 @@
     }
 
     claimRain(rainId, amount, btnEl) {
-      if (this.claimedRainIds.has(rainId)) return;
+      // 1. Strict guard: one person can only claim this ONCE! ("ande sw ande becha nw yehen claim madrg michelew")
+      if (this.claimedRainIds.has(rainId)) {
+        this.showToast('⚠️ አስቀድመው ወስደዋል (You already claimed this Rain once)!');
+        if (btnEl) {
+          btnEl.disabled = true;
+          btnEl.classList.remove('exhausted');
+          btnEl.classList.add('claimed');
+          btnEl.textContent = '✔ Claimed';
+        }
+        return;
+      }
+
+      if (this._claimingIds && this._claimingIds.has(rainId)) return;
+      if (!this._claimingIds) this._claimingIds = new Set();
+      this._claimingIds.add(rainId);
 
       const playersCount = parseInt(btnEl.dataset.players, 10) || 5;
       const curClaims = this.cardClaimCounts[rainId] || 0;
@@ -746,6 +906,7 @@
         btnEl.disabled = true;
         btnEl.classList.add('exhausted');
         btnEl.textContent = `Claimed Out`;
+        this._claimingIds.delete(rainId);
         return;
       }
 
@@ -758,17 +919,21 @@
           windowMinutes: req.windowMinutes,
           requiredWager: req.requiredWager
         });
+        this._claimingIds.delete(rainId);
         return;
       }
 
-      // 2. Grant claim
+      // 2. Grant claim & strictly persist to localStorage so user can NEVER claim again
       this.claimedRainIds.add(rainId);
+      this.persistClaimedRainIds();
 
       const wallet = this.getWallet();
       if (wallet) {
         wallet.modify(amount, 'Rain Claim', 'win');
       }
 
+      btnEl.disabled = true;
+      btnEl.classList.remove('exhausted');
       btnEl.classList.add('claimed');
       btnEl.textContent = '✔ Claimed';
       this.showToast(`🎉 +${amount.toFixed(2)} ETB added to balance!`);
@@ -791,8 +956,11 @@
         claimer: this.myProfile.name,
         amount: amount,
         time: this.formatTime(),
-        uid: this.myUid
+        uid: this.myUid,
+        userId: this.myUserId
       });
+
+      this._claimingIds.delete(rainId);
 
       // Sound fx
       this.playCoinSound();
@@ -847,11 +1015,12 @@
       this.broadcastPayload({
         type: 'chat_message',
         id: msgId,
-        sender: this.myProfile.name,
+        sender: this.myProfile.name, // masked e.g. "+***7"
         avatar: this.myProfile.avatar,
         text: text,
         time: timeStr,
-        uid: this.myUid
+        uid: this.myUid,
+        userId: this.myUserId
       });
     }
 
@@ -859,15 +1028,19 @@
       if (!this.msgContainer) return;
       if (id) this.seenMessageIds.add(id);
 
+      const displaySender = isOwn ? 'You' : this.formatPublicName(sender, id);
+      const avIcon = (typeof avatar === 'string') ? avatar : (avatar?.icon || '😎');
+      const avBg = (typeof avatar === 'object' && avatar?.bg) ? avatar.bg : '#4c1d95';
+
       const row = document.createElement('div');
       row.className = `chat-msg-row ${isOwn ? 'own-msg' : ''}`;
 
       row.innerHTML = `
-        <div class="chat-avatar" style="background:${avatar.bg}">${avatar.icon}</div>
+        <div class="chat-avatar" style="background:${avBg}">${avIcon}</div>
         <div class="chat-msg-body">
           <div class="chat-msg-meta">
             <span class="chat-username">
-              ${sender}
+              ${displaySender}
               ${!isOwn ? '<span class="chat-verified-badge" title="Verified Player">✔</span>' : ''}
             </span>
             <span class="chat-time">${time}</span>
@@ -886,16 +1059,21 @@
       if (!this.msgContainer) return;
       if (id) this.seenMessageIds.add(id);
 
+      const isOwn = (sender === 'You');
+      const displaySender = isOwn ? 'You' : this.formatPublicName(sender, id);
+      const avIcon = (typeof avatar === 'string') ? avatar : (avatar?.icon || '😎');
+      const avBg = (typeof avatar === 'object' && avatar?.bg) ? avatar.bg : '#4c1d95';
+
       const icon = (gameName && gameName.includes('chicken')) ? '🐔' : this.dividerIcon;
       const row = document.createElement('div');
       row.className = 'chat-msg-row';
 
       row.innerHTML = `
-        <div class="chat-avatar" style="background:${avatar.bg}">${avatar.icon}</div>
+        <div class="chat-avatar" style="background:${avBg}">${avIcon}</div>
         <div class="chat-msg-body">
           <div class="chat-msg-meta">
             <span class="chat-username">
-              ${sender}
+              ${displaySender}
               <span class="chat-verified-badge" title="Verified Winner">✔</span>
             </span>
             <span class="chat-time">${time}</span>
@@ -951,28 +1129,28 @@
         return;
       }
 
-      const row = document.createElement('div');
-      row.className = 'chat-msg-row';
-      const avatar = isSelf ? { icon: '🌧️', bg: '#163a1e' } : { icon: '🌧️', bg: '#163a1e' };
-      const timeStr = time || this.formatTime();
-      const req = (minWager && wagerMinutes)
-        ? { requiredWager: minWager, windowMinutes: wagerMinutes }
-        : this.getWagerRequirement(eachAmount);
+      const displaySender = isSelf ? 'You' : this.formatPublicName(sender, id);
+      const avIcon = '🌧️';
+      const avBg = '#163a1e';
+      const timeStr = createdAt ? this.formatTime(new Date(Number(createdAt))) : (time || this.formatTime());
 
       const curClaimCount = this.cardClaimCounts[id] || 0;
-      const isExhausted = curClaimCount >= playersCount;
       const isClaimedByMe = this.claimedRainIds.has(id);
+      const isExhausted = curClaimCount >= playersCount;
       const progressPercent = Math.min(100, Math.round((curClaimCount / playersCount) * 100));
 
       const pad2 = (n) => String(n).padStart(2, '0');
 
+      const row = document.createElement('div');
+      row.className = 'chat-msg-row';
+
       row.innerHTML = `
-        <div class="chat-avatar" style="background:${avatar.bg}; border: 1px solid rgba(34, 197, 94, 0.4);">${avatar.icon}</div>
+        <div class="chat-avatar" style="background:${avBg}; border: 1px solid rgba(34, 197, 94, 0.4);">${avIcon}</div>
         <div class="chat-msg-body">
           <div class="chat-msg-meta">
             <span class="chat-username" style="color: #4ade80;">
-              ${sender}
-              <span class="chat-verified-badge" style="background:#22c55e;">✔</span>
+              ${displaySender}
+              <span class="chat-verified-badge">✔</span>
             </span>
             <span class="chat-time">${timeStr}</span>
           </div>
@@ -989,7 +1167,7 @@
               <div class="chat-rain-progress-bar" id="rainProgress_${id}" style="width: ${progressPercent}%;"></div>
             </div>
             <button type="button" class="chat-rain-claim-btn ${isClaimedByMe ? 'claimed' : (isExhausted ? 'exhausted' : '')}"
-                    data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" ${isExhausted && !isClaimedByMe ? 'disabled' : ''}>
+                    data-rain-id="${id}" data-amount="${eachAmount}" data-players="${playersCount}" ${(isClaimedByMe || isExhausted) ? 'disabled' : ''}>
               ${isClaimedByMe ? '✔ Claimed' : (isExhausted ? 'Claimed Out' : 'Claim')}
             </button>
             <div class="chat-rain-total-footer">Total: ${totalAmount.toFixed(2)}ETB</div>
@@ -1043,7 +1221,7 @@
       this.broadcastPayload({
         type: 'win_card',
         id: winId,
-        sender: sender === 'You' ? this.myProfile.name : sender,
+        sender: sender === 'You' ? this.myProfile.name : this.formatPublicName(sender),
         avatar: avatar || this.myProfile.avatar,
         comment: comment,
         cashedOut: multiplier,
@@ -1052,7 +1230,8 @@
         betAmount: bet,
         time: timeStr,
         gameName: this.gameName,
-        uid: this.myUid
+        uid: this.myUid,
+        userId: this.myUserId
       });
 
       if (sender === 'You') {
