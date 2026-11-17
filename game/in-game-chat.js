@@ -405,10 +405,10 @@
             const envelope = JSON.parse(line);
             if (envelope.event === 'message' && envelope.message) {
               const payload = JSON.parse(envelope.message);
-              // Discard any rain drops older than 1 minute ("le 1 min bicha nw mekoyet yalebt")
+              // Discard any rain drops older than 15 minutes ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
               if (payload.type === 'rain_drop') {
                 const cTime = Number(payload.createdAt) || Number(payload.timestamp) || 0;
-                if (cTime && (Date.now() - cTime >= 60 * 1000)) {
+                if (cTime && (Date.now() - cTime >= 15 * 60 * 1000)) {
                   continue;
                 }
               }
@@ -895,10 +895,10 @@
         return;
       }
 
-      // 2. Strict expiration guard: Rain only lasts for 1 minute ("le 1 min bicha nw mekoyet yalebt")
+      // 2. Strict expiration guard: Rain only lasts for 15 minutes ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
       const rainCreatedAt = Number(btnEl?.dataset?.createdAt) || 0;
-      if (rainCreatedAt && (Date.now() - rainCreatedAt >= 60 * 1000)) {
-        this.showToast('⚠️ የዚህ Rain 1 ደቂቃ ጊዜ አልፏል (This Rain has expired)!');
+      if (rainCreatedAt && (Date.now() - rainCreatedAt >= 15 * 60 * 1000)) {
+        this.showToast('⚠️ የዚህ Rain 15 ደቂቃ ጊዜ አልፏል (This Rain has expired)!');
         if (btnEl) {
           btnEl.disabled = true;
           btnEl.classList.add('exhausted');
@@ -1134,7 +1134,7 @@
 
       const rainCreatedAt = Number(createdAt) || Date.now();
       const ageMs = Date.now() - rainCreatedAt;
-      const LIFESPAN_MS = 60 * 1000; // 1 minute max lifespan ("le 1 min bicha nw mekoyet yalebt")
+      const LIFESPAN_MS = 15 * 60 * 1000; // 15 minutes max lifespan ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
 
       if (ageMs >= LIFESPAN_MS) {
         // Expired! Disappear completely
@@ -1192,7 +1192,7 @@
       this.scrollToBottom();
       this.incrementUnreadBadge();
 
-      // Schedule exact disappearance at 1 minute after creation ("le 1 min bicha nw mekoyet yalebt")
+      // Schedule exact disappearance at 15 minutes after creation ("ke telekeke le 15 dekika nw mekoyet yalbet keza yetefal")
       const remainingMs = Math.max(0, LIFESPAN_MS - ageMs);
       setTimeout(() => {
         row.style.transition = 'opacity 0.6s ease, transform 0.6s ease, max-height 0.6s ease, margin 0.6s ease';
