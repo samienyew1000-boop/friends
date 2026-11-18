@@ -52,7 +52,7 @@ ADMIN_USER_IDS = {
 }
 ADMIN_USER_IDS.add("8474256363")
 ADMIN_USER_IDS.add("5663531258")  # samTesfa19 ID from logs
-ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19", "friends_game_64"}
+ADMIN_USERNAMES = {"ninjaaj7", "samtesfa19", "friends_game_64", "habtambet64"}
 if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
     for u in os.environ.get("TELEGRAM_ADMIN_USERNAMES", "").split(","):
         if u.strip():
@@ -968,7 +968,7 @@ def send_withdraw_info(chat_id, user):
         inline_keyboard = {
             "inline_keyboard": [
                 [{"text": "🎮 ጨዋታዎችን ይጫወቱ (Play Games)", "web_app": {"url": app_url}}],
-                [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+                [{"text": "💬 Contact Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}]
             ]
         }
         return api_call("sendMessage", {
@@ -1010,7 +1010,7 @@ def send_withdraw_info(chat_id, user):
         inline_rows.append(quick_row)
     if real_bal > 200 and int(real_bal) not in [200, 500, 1000]:
         inline_rows.append([{"text": f"ሙሉውን ወጪ አድርግ ({int(real_bal)} ETB)", "callback_data": f"quick_wd:{int(real_bal)}"}])
-    inline_rows.append([{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}])
+    inline_rows.append([{"text": "💬 Contact Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}])
 
     return api_call("sendMessage", {
         "chat_id": chat_id,
@@ -1128,7 +1128,7 @@ def handle_withdraw_request(chat_id, user, amount_str):
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+            [{"text": "💬 Contact Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}]
         ]
     }
     api_call("sendMessage", {
@@ -1306,7 +1306,7 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
             "parse_mode": "HTML",
             "reply_markup": {
                 "inline_keyboard": [
-                    [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+                    [{"text": "💬 Contact Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}]
                 ]
             }
         })
@@ -1670,17 +1670,19 @@ def send_referral_info(chat_id, user):
 
 def send_help_info(chat_id, user):
     text = (
-        f"🆘 <b>እርዳታ እና ድጋፍ (Help & 24/7 Support)</b>\n\n"
-        f"ማንኛውም ጥያቄ ወይም ችግር ካጋጠመዎት የደንበኞች አገልግሎት ሰራተኞቻችንን 24/7 ማግኘት ይችላሉ፦\n\n"
-        f"• <b>ቴሌግራም ድጋፍ (Telegram):</b> @Friends_game_64\n"
-        f"• <b>ስልክ ቁጥር 1:</b> <code>+251939292694</code>\n"
-        f"• <b>ስልክ ቁጥር 2:</b> <code>+251972450776</code>\n"
-        f"• <b>ሰዓት:</b> 24 ሰዓት ክፍት ነው\n\n"
-        f"በፍጥነት ምላሽ እንሰጣለን!"
+        "📞 <b>Contact Us & 24/7 Support | የደንበኞች አገልግሎት</b>\n\n"
+        "Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
+        "👤 <b>Customer Support:</b> <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+        "🤖 <b>Official Bot:</b> <a href=\"https://t.me/Friends64_BOT\">@Friends64_BOT</a>\n"
+        "📱 <b>Phone 1:</b> <code>+251939292694</code>\n"
+        "📱 <b>Phone 2:</b> <code>+251972450776</code>\n"
+        "📢 <b>Official Channel:</b> https://t.me/Habtam_bet64"
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": "💬 አግኙን (Contact @Friends_game_64)", "url": "https://t.me/Friends_game_64"}]
+            [{"text": "💬 Customer Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}],
+            [{"text": "📢 Official Channel (Habtam Bet)", "url": "https://t.me/Habtam_bet64"}],
+            [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
     return api_call("sendMessage", {
@@ -1927,19 +1929,19 @@ def send_join_group_info(chat_id, user):
 def send_contact_us_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
     text = (
-        f"📞 <b>Contact Us & 24/7 Support | የደንበኞች አገልግሎት</b>\n\n"
-        f"Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
-        f"👤 <b>Customer Support:</b> @Friends_game_64\n"
-        f"🤖 <b>Official Bot:</b> @Friends64_BOT\n"
-        f"📱 <b>Phone 1:</b> <code>+251939292694</code>\n"
-        f"📱 <b>Phone 2:</b> <code>+251972450776</code>\n"
-        f"📢 <b>Official Channel:</b> @{REQUIRED_GROUP_USERNAME}\n\n"
-        f"Tap below to contact support directly:"
+        "📞 <b>Contact Us & 24/7 Support | የደንበኞች አገልግሎት</b>\n\n"
+        "Need assistance with deposits, withdrawals, or gaming? We are available 24/7!\n\n"
+        "👤 <b>Customer Support:</b> <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+        "🤖 <b>Official Bot:</b> <a href=\"https://t.me/Friends64_BOT\">@Friends64_BOT</a>\n"
+        "📱 <b>Phone 1:</b> <code>+251939292694</code>\n"
+        "📱 <b>Phone 2:</b> <code>+251972450776</code>\n"
+        "📢 <b>Official Channel:</b> https://t.me/Habtam_bet64"
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": "💬 Contact Support (@Friends_game_64)", "url": "https://t.me/Friends_game_64"}],
-            [{"text": f"📢 Community Group (@{REQUIRED_GROUP_USERNAME})", "url": REQUIRED_GROUP_URL}]
+            [{"text": "💬 Customer Support (@HABTAMBET64)", "url": "https://t.me/HABTAMBET64"}],
+            [{"text": "📢 Official Channel (Habtam Bet)", "url": "https://t.me/Habtam_bet64"}],
+            [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
     return api_call("sendMessage", {
