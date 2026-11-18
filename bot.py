@@ -60,7 +60,7 @@ if os.environ.get("TELEGRAM_ADMIN_USERNAMES"):
 
 ADMIN_PASSWORDS = {"7DoGpDwZ4zpIvotZm9p", "admin123", os.environ.get("ADMIN_PASSWORD", "").strip()} - {""}
 
-REQUIRED_GROUP_USERNAME = os.environ.get("REQUIRED_GROUP_USERNAME", "friendsgame1").lstrip("@")
+REQUIRED_GROUP_USERNAME = os.environ.get("REQUIRED_GROUP_USERNAME", "Habtam_bet64").lstrip("@")
 REQUIRED_GROUP_ID = int(os.environ.get("REQUIRED_GROUP_ID", "-1001332933972"))
 REQUIRED_GROUP_URL = os.environ.get("REQUIRED_GROUP_URL", f"https://t.me/{REQUIRED_GROUP_USERNAME}")
 
@@ -583,7 +583,8 @@ def send_registration_success(chat_id, user):
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
         f"📞 Contact 2: <code>+251972450776</code>\n"
-        f"✈️ Telegram: @Friends_game_64"
+        f"✈️ Telegram: <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+        f"📢 Channel: https://t.me/Habtam_bet64"
     )
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -773,7 +774,8 @@ def update_live_welcome_message(chat_id, user):
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
         f"📞 Contact 2: <code>+251972450776</code>\n"
-        f"✈️ Telegram: @Friends_game_64"
+        f"✈️ Telegram: <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+        f"📢 Channel: https://t.me/Habtam_bet64"
     )
 
     inline_kb = {
@@ -841,7 +843,8 @@ def send_welcome(chat_id, user=None):
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
         f"📞 Contact 2: <code>+251972450776</code>\n"
-        f"✈️ Telegram: @Friends_game_64"
+        f"✈️ Telegram: <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+        f"📢 Channel: https://t.me/Habtam_bet64"
     )
 
     photo_url = WEBAPP_URL.rstrip("/") + "/assets/inout_logo.png"
@@ -2546,7 +2549,7 @@ def handle_single_update(update):
                 else:
                     send_text_message(chat_id, (
                         "🔐 <b>Friendes Game | Admin Access</b>\n\n"
-                        "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@Friends_game_64, @samTesfa19) ብቻ የተወሰነ ነው።\n"
+                        "ይህ ክፍል ለተፈቀደላቸው አድሚኖች (@HABTAMBET64, @samTesfa19) ብቻ የተወሰነ ነው።\n"
                         "የይለፍ ቃል ካለዎት በሚከተለው መልኩ ይላኩ:\n\n"
                         "👉 <code>/admin &lt;password&gt;</code>"
                     ))
@@ -2615,7 +2618,9 @@ def main():
                     "Play Aviator, JetX, Mines, Slots, Betting and others to win real cash!\n"
                     "እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):\n"
                     "Contact 1: +251939292694\n"
-                    "Contact 2: +251972450776"
+                    "Contact 2: +251972450776\n"
+                    "Telegram: @HABTAMBET64\n"
+                    "Channel: https://t.me/Habtam_bet64"
                 )
             })
             api_call("setMyShortDescription", {
