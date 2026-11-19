@@ -324,9 +324,26 @@ html, body {
 
 .ticket-sel { position: relative; z-index: 1; padding: 8px 10px; height: 100%; }
 .ticket-sel.hidden, .ticket-empty.hidden, .draw-stage.hidden { display: none; }
-.sel-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.sel-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .sel-head strong { font-size: 1.05rem; }
 .sel-head em { opacity: 0.6; font-style: normal; font-size: 0.85rem; }
+.btn-clear-picks {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  line-height: 1.1;
+  transition: all 0.15s ease;
+}
+.btn-clear-picks:hover {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fff;
+  border-color: #ef4444;
+}
 .possible { margin-left: auto; color: #51b579; font-family: "Roboto Condensed", sans-serif; font-weight: 700; }
 
 .pay-row {

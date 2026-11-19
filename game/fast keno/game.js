@@ -289,6 +289,12 @@
       mine: true,
       status: "Waiting",
     });
+
+    // Clear previous selection immediately after placing bet so player can select new numbers
+    picks = [];
+    paintPicks();
+    updateTicketCard();
+
     renderBalance();
     save();
     flashBetAccepted();
@@ -464,11 +470,22 @@
     ).join("");
   }
 
+  function clearPicks() {
+    const { phase } = roundMeta();
+    if (phase !== "betting") return;
+    picks = [];
+    paintPicks();
+    updateTicketCard();
+    updateBetBtn();
+  }
+
   function renderDrawBalls(drawn, count) {
     $("drawn-count").textContent = String(count).padStart(2, "0");
-    const hits = new Set(picks);
+    const { id } = roundMeta();
+    const hitNums = new Set(picks);
+    myTickets.filter((t) => t.roundId === id).forEach((t) => t.numbers.forEach((n) => hitNums.add(n)));
     $("draw-balls").innerHTML = drawn.slice(0, count).map((n) =>
-      `<span class="kball${hits.has(n) ? " hit" : ""}">${n}</span>`
+      `<span class="kball${hitNums.has(n) ? " hit" : ""}">${n}</span>`
     ).join("");
   }
 
@@ -480,6 +497,7 @@
     $("round-hash").textContent = "ID: " + hashFor(id).slice(0, 10);
     seedLive(id);
     myTickets = myTickets.filter((t) => t.roundId >= id);
+    picks = [];
     updateTicketCard();
     updateBetBtn();
     renderLive();
@@ -595,6 +613,8 @@
         app.classList.toggle("show-results", btn.dataset.pane === "results");
       };
     });
+    const clearBtn = $("btn-clear-picks");
+    if (clearBtn) clearBtn.onclick = clearPicks;
   }
 
   load();
@@ -608,10 +628,7 @@
     }
   }
   myTickets = myTickets.filter((t) => t.roundId >= roundMeta().id);
-  const curRoundTickets = myTickets.filter((t) => t.roundId === roundMeta().id);
-  if (curRoundTickets.length && picks.length === 0) {
-    picks = [...curRoundTickets[curRoundTickets.length - 1].numbers];
-  }
+  picks = [];
   buildBoard();
   buildPaytable();
   bind();
