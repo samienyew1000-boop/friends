@@ -32,12 +32,35 @@
         localStorage.setItem('habesha_uid', qUid);
       }
 
+      // Read authoritative balance passed directly from Telegram Bot launch
+      const rawBal = params.get('bal') !== null ? params.get('bal') : params.get('balance');
+      const rawBonus = params.get('bonus') !== null ? params.get('bonus') : params.get('bonus_balance');
+      if (rawBal !== null && !isNaN(parseFloat(rawBal))) {
+        const urlBal = Math.max(0, round2(parseFloat(rawBal)));
+        const curLocal = getRealBalance();
+        const urlTs = parseInt(params.get('ts') || '0', 10);
+        const isFresh = urlTs > 0 && Math.abs(Date.now() - (urlTs * 1000)) < 3600000;
+        // If the balance from the bot is greater than 0, or freshly launched, adopt it immediately
+        if (urlBal > 0 || isFresh || curLocal === 0) {
+          localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
+          try {
+            localStorage.removeItem('habesha_balance_pending_sync');
+            localStorage.removeItem('habesha_balance_mod_ts');
+            localStorage.removeItem('habesha_balance_last_loss_ts');
+          } catch(e) {}
+        }
+      }
+      if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
+        const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
+        localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
+      }
+
       // Clean query params so subsequent refreshes or navigation don't retain stale balance params
       if (window.history && window.history.replaceState) {
         try {
           const cleanUrl = new URL(window.location.href);
           let cleaned = false;
-          ['balance', 'bonus_balance', 'ts'].forEach((k) => {
+          ['balance', 'bonus_balance', 'bal', 'bonus', 'ts'].forEach((k) => {
             if (cleanUrl.searchParams.has(k)) {
               cleanUrl.searchParams.delete(k);
               cleaned = true;
@@ -602,13 +625,10 @@
           const timeSinceMod = Date.now() - modTs;
           const timeSinceLoss = Date.now() - lastLossTs;
 
-          // CRITICAL PROTECTION AGAINST WIPING OUT GAMEPLAY LOSSES:
-          // If the local balance was deducted or modified recently (within 2 minutes) OR has pending sync,
-          // and the server returned a higher balance because the cloud update hasn't finished propagating,
-          // NEVER overwrite our lower deducted balance with the higher stale cloud balance!
-          // Instead, preserve local balance and immediately re-push it to the cloud.
-          if ((hasUnsyncedChanges || isPending || timeSinceMod < 120000 || timeSinceLoss < 120000) && cloudBal > localReal) {
-            console.log('[HabeshaWallet] Preserving local deducted balance. Local:', localReal, 'Cloud (stale):', cloudBal);
+          // If localReal > 0 AND an in-game bet was deducted within the last 15 seconds, protect against a race condition.
+          // NEVER block an approved deposit when localReal is 0 or when no active bet was placed in the last 15s!
+          if (localReal > 0 && cloudBal > localReal && (timeSinceLoss < 15000 || timeSinceMod < 15000) && hasUnsyncedChanges) {
+            console.log('[HabeshaWallet] Preserving recent local in-game deduction. Local:', localReal, 'Cloud (stale):', cloudBal);
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
@@ -730,7 +750,8 @@
     syncLiveBalanceToCloud(true);
     let sent = false;
     try {
-      if (window.Telegram?.WebApp?.sendData) {
+      // Only send sync_balance if user has actual balance or active unsynced changes to avoid sending false zeros
+      if (window.Telegram?.WebApp?.sendData && (realBal > 0 || bonusBal > 0 || hasUnsyncedChanges)) {
         window.Telegram.WebApp.sendData(JSON.stringify({
           action: 'sync_balance',
           balance: realBal,

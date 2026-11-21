@@ -392,10 +392,13 @@ def get_user_webapp_url(chat_id, user=None):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     username = user.get("username", "")
+    balance = float(user.get("balance", 0.0))
+    bonus_balance = float(user.get("bonus_balance", 0.0))
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     clean_uname = urllib.parse.quote(username)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=3.3"
+    ts = int(time.time())
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={balance:.2f}&bonus={bonus_balance:.2f}&ts={ts}&v=3.5"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -693,8 +696,14 @@ def fetch_live_cloud_balance(chat_id, user):
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
                 cur_bal = round(float(user.get("balance", 0.0)), 2)
+                # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
+                # NEVER wipe out the deposit! Heal the cloud with cur_bal!
+                if cur_bal > 0 and cloud_bal == 0.0:
+                    logging.info(f"[FetchBalance] Cloud returned 0.0 for {chat_id} but bot has {cur_bal:.2f}. Healing cloud!")
+                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
+                    return cur_bal
                 # If cloud balance is higher than local balance and local was modified recently, preserve local loss!
-                if cloud_bal > cur_bal and (now - last_bal_update < 120):
+                if cloud_bal > cur_bal and (now - last_bal_update < 120) and cur_bal > 0:
                     push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
                     return cur_bal
                 if abs(cloud_bal - cur_bal) >= 0.01:
@@ -2341,6 +2350,16 @@ def handle_single_update(update):
                     users = load_known_users()
                     uid_str = str(chat_id)
                     if uid_str in users:
+                        cur_bot_bal = float(users[uid_str].get("balance", 0.0))
+                        last_upd = float(users[uid_str].get("balance_updated", 0.0))
+                        # SAFETY GUARD: If WebApp reports 0.0, but bot balance was recently credited (>0) within 45 mins,
+                        # NEVER wipe out the deposit!
+                        if s_real == 0.0 and cur_bot_bal > 0 and (time.time() - last_upd < 2700):
+                            logging.warning(f"[SyncGuard] Blocked wiping out deposit for {chat_id}: bot_bal={cur_bot_bal:.2f}, webapp sent 0.0")
+                            push_balance_to_cloud(chat_id, cur_bot_bal, users[uid_str].get("username", ""))
+                            send_welcome(chat_id, users[uid_str])
+                            return
+
                         users[uid_str]["balance"] = round(s_real, 2)
                         users[uid_str]["bonus_balance"] = round(s_bonus, 2)
                         users[uid_str]["balance_updated"] = time.time()
@@ -2680,6 +2699,12 @@ def main():
                             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                                 cloud_bal = round(float(data["balance"]), 2)
                                 cur_bal = round(float(udata.get("balance", 0.0)), 2)
+                                # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
+                                # NEVER zero out the local user! Instead re-push cur_bal to heal the cloud!
+                                if cur_bal > 0 and cloud_bal == 0.0:
+                                    logging.warning(f"[LiveSync] Cloud has 0.0 for {uid} but bot has {cur_bal:.2f}. Healing cloud!")
+                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
+                                    continue
                                 if abs(cloud_bal - cur_bal) >= 0.01:
                                     logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
                                     users_all = load_known_users()
