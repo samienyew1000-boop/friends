@@ -1445,7 +1445,7 @@
 
     requestAnimationFrame(loop);
     if (window.hideGameLoader) {
-      window.hideGameLoader(300);
+      window.hideGameLoader(0);
     }
   });
 })();

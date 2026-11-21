@@ -21,21 +21,7 @@
       -webkit-font-smoothing: antialiased;
     }
     #inoutLoader {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 9999999 !important;
-      background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%) !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      transition: opacity 0.38s ease, visibility 0.38s ease !important;
-    }
-    #inoutLoader.fade-out {
-      opacity: 0 !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
+      display: none !important;
     }
   </style>
 
@@ -84,24 +70,18 @@
   </script>
 
   <!-- Custom App Styles -->
-  <link rel="stylesheet" href="app.css?v=3.3" />
-  <link rel="stylesheet" href="assets/game-loader.css?v=3.3" />
-  <script src="assets/game-loader.js?v=3.3"></script>
+  <link rel="stylesheet" href="app.css?v=3.6" />
+  <link rel="stylesheet" href="assets/game-loader.css?v=3.6" />
+  <script src="assets/game-loader.js?v=3.6"></script>
   <script>
-    // Fail-safe loader dismissal
-    setTimeout(function() {
-      var l = document.getElementById('inoutLoader');
-      if (l) {
-        l.classList.add('fade-out');
-        setTimeout(function() { l.style.display = 'none'; }, 350);
-      }
-    }, 1200);
+    // Instant loader dismissal: zero loading delay
+    if (window.hideGameLoader) window.hideGameLoader(0);
   </script>
 </head>
 <body class="bg-[#070a0f] text-slate-100 min-h-screen flex justify-center selection:bg-teal-500 selection:text-white" style="background-color: #070a0f; color: #f1f5f9; margin: 0; padding: 0;">
 
-  <!-- InOut Global Loading Screen (Instant Frame 1 Render) -->
-  <div id="inoutLoader" class="inout-loader-screen" style="position: fixed; inset: 0; z-index: 9999999; background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%); display: flex; align-items: center; justify-content: center;" aria-label="Loading Friendes Game...">
+  <!-- InOut Global Loading Screen (Hidden by default for instant first-frame render) -->
+  <div id="inoutLoader" class="inout-loader-screen" style="display: none !important; position: fixed; inset: 0; z-index: 9999999; background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%); align-items: center; justify-content: center;" aria-label="Loading Friendes Game...">
     <div class="inout-loader-content">
       <img src="assets/inout_logo.png" alt="IN OUT" class="inout-loader-logo" />
       <div class="inout-loader-spinner-row">
@@ -1068,9 +1048,9 @@
   </div>
 
   <!-- Unified Shared Balance Engine -->
-  <script src="game/shared-balance.js?v=3.3"></script>
+  <script src="game/shared-balance.js?v=3.6"></script>
 
   <!-- App JavaScript Engine -->
-  <script src="app.js?v=3.3"></script>
+  <script src="app.js?v=3.6"></script>
 </body>
 </html>

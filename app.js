@@ -1156,7 +1156,7 @@
           const sep = activeGameUrl.includes('?') ? '&' : '?';
           window.location.href = activeGameUrl + sep + 'mode=demo';
         }
-      }, 350);
+      }, 50);
     });
   }
 
@@ -1202,7 +1202,7 @@
           const sep = activeGameUrl.includes('?') ? '&' : '?';
           window.location.href = `${activeGameUrl}${sep}mode=real&uid=${encodeURIComponent(uid)}&phone=${encodeURIComponent(phone)}`;
         }
-      }, 350);
+      }, 50);
     });
   }
 
@@ -1241,7 +1241,7 @@
           const sep = activeGameUrl.includes('?') ? '&' : '?';
           window.location.href = activeGameUrl + sep + 'mode=real';
         }
-      }, 400);
+      }, 50);
     });
   }
 
@@ -1431,6 +1431,6 @@
 
   console.log('Friendes Game Mini App initialized successfully.');
   if (window.hideGameLoader) {
-    window.hideGameLoader(300);
+    window.hideGameLoader(0);
   }
 })();

@@ -817,7 +817,8 @@ def send_welcome(chat_id, user=None):
     if not user:
         users = load_known_users()
         user = users.get(str(chat_id), {})
-    fetch_live_cloud_balance(chat_id, user)
+    # Sync live cloud balance in background so /start and menu open instantly
+    threading.Thread(target=fetch_live_cloud_balance, args=(chat_id, user), daemon=True).start()
 
     first_name = user.get("first_name", "Player")
     username = user.get("username")

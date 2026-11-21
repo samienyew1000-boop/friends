@@ -644,6 +644,6 @@
   onNewRound(roundMeta().id);
   requestAnimationFrame(tick);
   if (window.hideGameLoader) {
-    window.hideGameLoader(300);
+    window.hideGameLoader(0);
   }
 })();

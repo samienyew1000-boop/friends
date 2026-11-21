@@ -53,6 +53,7 @@
     if (loaders.length > 0) {
       loaders.forEach((loader) => {
         loader.style.removeProperty('display');
+        loader.style.setProperty('display', 'flex', 'important');
         loader.style.removeProperty('pointer-events');
         loader.classList.remove('fade-out');
       });
@@ -62,32 +63,29 @@
   };
 
   window.hideGameLoader = function(delay = 0) {
-    setTimeout(() => {
+    const doHide = () => {
       const loaders = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
       loaders.forEach((loader) => {
         loader.classList.add('fade-out');
         loader.style.setProperty('pointer-events', 'none', 'important');
-        setTimeout(() => {
-          loader.style.setProperty('display', 'none', 'important');
-        }, 400);
+        loader.style.setProperty('display', 'none', 'important');
       });
-    }, Math.max(0, delay));
+    };
+    if (delay <= 0) {
+      doHide();
+    } else {
+      setTimeout(doHide, delay);
+    }
   };
 
-  // Auto-run loading screen dismissal
+  // Auto-run loading screen dismissal (instantaneous - zero artificial delay)
   injectStyles();
-
-  const startTime = Date.now();
-  const MIN_DISPLAY_TIME = 750; // Visible for ~750ms for authentic InOut splash
-  const MAX_DISPLAY_TIME = 1500; // Guaranteed dismissal within 1.5s max
 
   let dismissed = false;
   function handleDismiss() {
     if (dismissed) return;
     dismissed = true;
-    const elapsed = Date.now() - startTime;
-    const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
-    window.hideGameLoader(remaining);
+    window.hideGameLoader(0);
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
@@ -95,8 +93,6 @@
   } else {
     document.addEventListener('DOMContentLoaded', handleDismiss);
     window.addEventListener('load', handleDismiss);
+    setTimeout(handleDismiss, 50);
   }
-
-  // Hard safety timeout: Guaranteed dismissal
-  setTimeout(handleDismiss, MAX_DISPLAY_TIME);
 })();

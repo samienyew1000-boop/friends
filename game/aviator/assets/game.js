@@ -1137,7 +1137,7 @@
     window.addEventListener('touchstart', unlockAudio, { once: true });
 
     if (window.hideGameLoader) {
-      window.hideGameLoader(300);
+      window.hideGameLoader(0);
     }
   }
 
