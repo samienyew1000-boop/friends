@@ -601,17 +601,22 @@
       }
 
       isFetchingBalance = true;
-      fetch('https://africa-bingo.ethiodeploy.com/api/me', {
+      const safetyTimer = setTimeout(() => { isFetchingBalance = false; }, 4000);
+      fetch('https://africa-bingo.ethiodeploy.com/api/me?_t=' + Date.now(), {
+        cache: 'no-store',
         headers: {
           'X-Telegram-User-Id': uid,
           'Accept': 'application/json'
         }
       })
       .then(res => {
+        clearTimeout(safetyTimer);
+        isFetchingBalance = false;
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       })
       .then(data => {
+        clearTimeout(safetyTimer);
         isFetchingBalance = false;
         if (data && typeof data.balance !== 'undefined' && !isNaN(parseFloat(data.balance))) {
           const cloudBal = Math.max(0, round2(parseFloat(data.balance)));
@@ -649,6 +654,7 @@
         }
       })
       .catch(() => {
+        clearTimeout(safetyTimer);
         isFetchingBalance = false;
         if (typeof callback === 'function') callback(getRealBalance());
       });
@@ -742,6 +748,13 @@
     window.addEventListener('pageshow', () => {
       fetchBalanceFromCloud();
     });
+
+    // Fast periodic auto-refresh from cloud relay (every 2.5 seconds) for instant live balance updates
+    setInterval(() => {
+      if (!document.hidden && !hasUnsyncedChanges) {
+        fetchBalanceFromCloud();
+      }
+    }, 2500);
   }
 
   function exitAndSave() {

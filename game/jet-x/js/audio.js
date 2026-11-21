@@ -74,7 +74,8 @@ class SoundEngine {
     }
 
     playClick() {
-        this.play('button');
+        // Button sound disabled
+        return;
     }
 
     playTakeoff() {

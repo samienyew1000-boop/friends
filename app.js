@@ -22,20 +22,8 @@
     }
 
     playClick() {
-      if (!this.enabled) return;
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.05);
+      // Button click sound disabled per user request
+      return;
     }
 
     playSuccess() {
@@ -256,25 +244,33 @@
     });
   }
 
-  refreshBalanceBtn.addEventListener('click', () => {
-    sound.playClick();
-    triggerHaptic('impact');
-    refreshBalanceBtn.classList.add('rotate-180');
+  let isRefreshingBalance = false;
+  if (refreshBalanceBtn) {
+    refreshBalanceBtn.addEventListener('click', () => {
+      triggerHaptic('impact');
+      if (isRefreshingBalance) return;
+      isRefreshingBalance = true;
+      refreshBalanceBtn.classList.add('animate-spin');
 
-    // Sync from HabeshaWallet (which reads the active mode and latest live balance)
-    if (window.HabeshaWallet) {
-      state.balance = window.HabeshaWallet.get();
-    } else {
-      state.balance = parseFloat(localStorage.getItem('habesha_balance') || '0.00');
-    }
+      const finishRefresh = (currentBal) => {
+        isRefreshingBalance = false;
+        refreshBalanceBtn.classList.remove('animate-spin');
+        state.balance = typeof currentBal === 'number' ? currentBal : (window.HabeshaWallet ? window.HabeshaWallet.get() : 0);
+        updateBalanceDisplay();
+        const currentFormatted = window.HabeshaWallet ? window.HabeshaWallet.format(state.balance) : state.balance.toFixed(2) + ' ETB';
+        showToast(`የሂሳብ መጠን ተመሳስሏል: ${currentFormatted}`, 'success');
+      };
 
-    setTimeout(() => {
-      refreshBalanceBtn.classList.remove('rotate-180');
-      updateBalanceDisplay();
-      const currentFormatted = window.HabeshaWallet ? window.HabeshaWallet.format(window.HabeshaWallet.get()) : state.balance.toFixed(2) + ' ETB';
-      showToast(`የሂሳብ መጠን ተመሳስሏል: ${currentFormatted}`, 'success');
-    }, 350);
-  });
+      if (window.HabeshaWallet && typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
+        window.HabeshaWallet.fetchBalanceFromCloud(finishRefresh);
+        setTimeout(() => {
+          if (isRefreshingBalance) finishRefresh(window.HabeshaWallet.get());
+        }, 1200);
+      } else {
+        finishRefresh(window.HabeshaWallet ? window.HabeshaWallet.get() : parseFloat(localStorage.getItem('habesha_balance') || '0.00'));
+      }
+    });
+  }
 
   // --- Hero Carousel Engine ---
   function renderDots() {
@@ -1412,6 +1408,17 @@
     });
     if (typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
       window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay());
+      // Fast periodic balance check every 2.5s while viewing lobby
+      setInterval(() => {
+        if (!document.hidden) {
+          window.HabeshaWallet.fetchBalanceFromCloud((bal) => {
+            if (typeof bal === 'number' && state.balance !== bal) {
+              state.balance = bal;
+              updateBalanceDisplay();
+            }
+          });
+        }
+      }, 2500);
     }
   }
   renderDots();
