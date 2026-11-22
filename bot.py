@@ -676,11 +676,11 @@ def send_registration_success(chat_id, user):
 def fetch_live_cloud_balance(chat_id, user):
     """Fetch the latest live gameplay balance from the cloud relay if available."""
     try:
-        last_bal_update = float(user.get("balance_updated") or user.get("updated") or 0)
+        last_dep = float(user.get("last_deposit_time") or 0)
         now = time.time()
         cur_bal = round(float(user.get("balance", 0.0)), 2)
         # Protect very recent deposit approvals (within 10s) from in-flight race condition
-        if now - last_bal_update < 10:
+        if now - last_dep < 10:
             return cur_bal
 
         req = urllib.request.Request(
@@ -702,17 +702,11 @@ def fetch_live_cloud_balance(chat_id, user):
                     logging.info(f"[FetchBalance] Cloud returned 0.0 for {chat_id} but bot has {cur_bal:.2f}. Healing cloud!")
                     push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
                     return cur_bal
-                # If local deposit was approved in last 5 minutes and cloud is still lower, heal the cloud
-                if cur_bal > 0 and cloud_bal < cur_bal and (now - last_bal_update < 300):
-                    logging.info(f"[FetchBalance] Recent deposit active for {chat_id} (bot={cur_bal:.2f}, cloud={cloud_bal:.2f}). Healing cloud!")
-                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
-                    return cur_bal
                 if abs(cloud_bal - cur_bal) >= 0.01:
                     users_all = load_known_users()
                     uid_str = str(chat_id)
                     if uid_str in users_all:
                         users_all[uid_str]["balance"] = cloud_bal
-                        users_all[uid_str]["balance_updated"] = time.time()
                         save_all_users(users_all)
                     user["balance"] = cloud_bal
                     return cloud_bal
@@ -766,9 +760,6 @@ def push_balance_to_cloud(chat_id, new_balance, username=""):
 
 def update_live_welcome_message(chat_id, user):
     """Dynamically updates the welcome message caption & 'Play Games' button in real time."""
-    msg_id = user.get("welcome_msg_id")
-    if not msg_id:
-        return
     username = user.get("username")
     display_user = f"@{username}" if username else user.get("first_name", "Player")
     real_bal = float(user.get("balance", 0.0))
@@ -776,52 +767,93 @@ def update_live_welcome_message(chat_id, user):
     total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
 
-    caption = (
-        f"👋 Welcome {display_user}!\n"
-        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
-        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
-        f"📞 Contact 1: <code>+251939292694</code>\n"
-        f"📞 Contact 2: <code>+251972450776</code>\n"
-        f"✈️ Telegram: <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
-        f"📢 Channel: https://t.me/Habtam_bet64"
-    )
+    msg_id = user.get("welcome_msg_id")
+    if msg_id:
+        caption = (
+            f"👋 Welcome {display_user}!\n"
+            f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
+            f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
+            f"📞 Contact 1: <code>+251939292694</code>\n"
+            f"📞 Contact 2: <code>+251972450776</code>\n"
+            f"✈️ Telegram: <a href=\"https://t.me/HABTAMBET64\">@HABTAMBET64</a>\n"
+            f"📢 Channel: https://t.me/Habtam_bet64"
+        )
 
-    inline_kb = {
-        "inline_keyboard": [
-            [
-                {
-                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
-                    "web_app": {"url": app_url}
-                }
-            ],
-            [
-                {"text": "Deposit 💰", "callback_data": "deposit"},
-                {"text": "Withdraw 💰", "callback_data": "withdraw"}
+        inline_kb = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
+                        "web_app": {"url": app_url}
+                    }
+                ],
+                [
+                    {"text": "Deposit 💰", "callback_data": "deposit"},
+                    {"text": "Withdraw 💰", "callback_data": "withdraw"}
+                ]
             ]
-        ]
-    }
+        }
 
-    try:
-        api_call("editMessageCaption", {
-            "chat_id": chat_id,
-            "message_id": msg_id,
-            "caption": caption,
-            "parse_mode": "HTML",
-            "reply_markup": inline_kb
-        })
-    except Exception as ex:
-        logging.warning(f"Failed to edit welcome caption: {ex}")
+        try:
+            api_call("editMessageCaption", {
+                "chat_id": chat_id,
+                "message_id": msg_id,
+                "caption": caption,
+                "parse_mode": "HTML",
+                "reply_markup": inline_kb
+            })
+        except Exception as ex:
+            logging.warning(f"Failed to edit welcome caption: {ex}")
+
+    # Also update 'Balance 💰' message if user has one open in chat
+    bal_mid = user.get("balance_msg_id")
+    if bal_mid:
+        bal_text = (
+            f"💰 <b>Your Account Balance | የሂሳብ መጠን</b>\n\n"
+            f"💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
+            f"🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
+            f"🎮 <b>Total Playable (አጠቃላይ መጫወቻ):</b> <b>{total_playable:.2f} ETB</b>\n"
+            f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
+            f"📌 <i>ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
+            f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr / Safaricom\n"
+            f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance\n"
+            f"• Tap <b>'Play Games 🎮'</b> to start playing!"
+        )
+        bal_kb = {
+            "inline_keyboard": [
+                [{"text": f"🎮 Play Games ({total_playable:.2f} ETB)", "web_app": {"url": app_url}}],
+                [
+                    {"text": "Deposit 💰", "callback_data": "deposit"},
+                    {"text": "Withdraw 💰", "callback_data": "withdraw"}
+                ]
+            ]
+        }
+        try:
+            api_call("editMessageText", {
+                "chat_id": chat_id,
+                "message_id": bal_mid,
+                "text": bal_text,
+                "parse_mode": "HTML",
+                "reply_markup": bal_kb
+            })
+        except Exception:
+            pass
 
 def send_welcome(chat_id, user=None):
     if not user:
         users = load_known_users()
         user = users.get(str(chat_id), {})
-    try:
-        fetch_live_cloud_balance(chat_id, user)
-    except Exception:
-        pass
+
+    # Sync live cloud balance in background without stalling immediate welcome response
+    def _bg_cloud_sync():
+        try:
+            fetch_live_cloud_balance(chat_id, user)
+            update_live_welcome_message(chat_id, user)
+        except Exception:
+            pass
+    threading.Thread(target=_bg_cloud_sync, daemon=True).start()
 
     first_name = user.get("first_name", "Player")
     username = user.get("username")
@@ -1526,6 +1558,7 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
 
     new_balance = round(base_bal + amt, 2)
     users[uid_str]["balance"] = new_balance
+    users[uid_str]["last_deposit_time"] = time.time()
     users[uid_str]["balance_updated"] = time.time()
     users[uid_str]["updated"] = time.time()
     save_all_users(users)
@@ -1701,12 +1734,22 @@ def send_help_info(chat_id, user):
             [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
-    return api_call("sendMessage", {
+    res = api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
+    if res and res.get("ok"):
+        b_mid = res.get("result", {}).get("message_id")
+        if b_mid:
+            users_up = load_known_users()
+            uid_str = str(chat_id)
+            if uid_str in users_up:
+                users_up[uid_str]["balance_msg_id"] = b_mid
+                save_all_users(users_up)
+            user["balance_msg_id"] = b_mid
+    return res
 
 def send_language_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -1768,12 +1811,22 @@ def send_balance_info(chat_id, user):
             ]
         ]
     }
-    return api_call("sendMessage", {
+    res = api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
+    if res and res.get("ok"):
+        b_mid = res.get("result", {}).get("message_id")
+        if b_mid:
+            users_up = load_known_users()
+            uid_str = str(chat_id)
+            if uid_str in users_up:
+                users_up[uid_str]["balance_msg_id"] = b_mid
+                save_all_users(users_up)
+            user["balance_msg_id"] = b_mid
+    return res
 
 def send_transactions_info(chat_id, user):
     deposits = load_deposits()
@@ -1935,12 +1988,22 @@ def send_join_group_info(chat_id, user):
             [{"text": f"🚀 Join @{REQUIRED_GROUP_USERNAME} ↗️", "url": REQUIRED_GROUP_URL}]
         ]
     }
-    return api_call("sendMessage", {
+    res = api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
+    if res and res.get("ok"):
+        b_mid = res.get("result", {}).get("message_id")
+        if b_mid:
+            users_up = load_known_users()
+            uid_str = str(chat_id)
+            if uid_str in users_up:
+                users_up[uid_str]["balance_msg_id"] = b_mid
+                save_all_users(users_up)
+            user["balance_msg_id"] = b_mid
+    return res
 
 def send_contact_us_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -1960,12 +2023,22 @@ def send_contact_us_info(chat_id, user):
             [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
-    return api_call("sendMessage", {
+    res = api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
+    if res and res.get("ok"):
+        b_mid = res.get("result", {}).get("message_id")
+        if b_mid:
+            users_up = load_known_users()
+            uid_str = str(chat_id)
+            if uid_str in users_up:
+                users_up[uid_str]["balance_msg_id"] = b_mid
+                save_all_users(users_up)
+            user["balance_msg_id"] = b_mid
+    return res
 
 def send_admin_menu(chat_id):
     admin_web_url = f"{ADMIN_URL}?auth=admin"
@@ -2355,23 +2428,29 @@ def handle_single_update(update):
                     uid_str = str(chat_id)
                     if uid_str in users:
                         cur_bot_bal = float(users[uid_str].get("balance", 0.0))
-                        last_upd = float(users[uid_str].get("balance_updated", 0.0))
-                        # SAFETY GUARD: If WebApp reports lower balance than a deposit approved in the last 15 mins (or sends 0.0),
-                        # NEVER wipe out the deposit!
-                        if cur_bot_bal > s_real and (time.time() - last_upd < 900):
-                            logging.warning(f"[SyncGuard] Preserved recent bot balance for {chat_id}: bot={cur_bot_bal:.2f}, webapp sent {s_real:.2f}")
+                        last_dep = float(users[uid_str].get("last_deposit_time", 0.0))
+
+                        # CRITICAL GUARD 1: If WebApp sent 0.0 but bot has positive balance, NEVER wipe it out!
+                        if s_real == 0.0 and cur_bot_bal > 0:
+                            logging.warning(f"[SyncGuard] Prevented zeroing out {chat_id}: bot={cur_bot_bal:.2f}, webapp sent 0.0")
                             push_balance_to_cloud(chat_id, cur_bot_bal, users[uid_str].get("username", ""))
-                            send_welcome(chat_id, users[uid_str])
+                            update_live_welcome_message(chat_id, users[uid_str])
+                            return
+
+                        # CRITICAL GUARD 2: Protect very recent deposit approvals (within 15s) from in-flight race condition
+                        if cur_bot_bal > s_real and (time.time() - last_dep < 15):
+                            logging.warning(f"[SyncGuard] Preserved recent deposit for {chat_id}: bot={cur_bot_bal:.2f}, webapp sent {s_real:.2f}")
+                            push_balance_to_cloud(chat_id, cur_bot_bal, users[uid_str].get("username", ""))
+                            update_live_welcome_message(chat_id, users[uid_str])
                             return
 
                         users[uid_str]["balance"] = round(s_real, 2)
                         users[uid_str]["bonus_balance"] = round(s_bonus, 2)
-                        users[uid_str]["balance_updated"] = time.time()
                         users[uid_str]["updated"] = time.time()
                         save_all_users(users)
                         user = users[uid_str]
                     push_balance_to_cloud(chat_id, s_real, user.get("username", ""))
-                    send_welcome(chat_id, user)
+                    update_live_welcome_message(chat_id, user)
                     return
                 elif action in ("broadcast", "send"):
                     out_msg = payload.get("message") or payload.get("text")
@@ -2684,9 +2763,9 @@ def main():
                 ]
                 for uid, udata in active_users:
                     try:
-                        last_bal_update = float(udata.get("balance_updated") or 0)
+                        last_dep = float(udata.get("last_deposit_time") or 0)
                         # Only wait 10 seconds after a deposit/approval to give push_balance_to_cloud time to hit cloud
-                        if now - last_bal_update < 10:
+                        if now - last_dep < 10:
                             continue
 
                         req = urllib.request.Request(
@@ -2708,17 +2787,11 @@ def main():
                                     logging.warning(f"[LiveSync] Cloud has 0.0 for {uid} but bot has {cur_bal:.2f}. Healing cloud!")
                                     push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
                                     continue
-                                # If recent deposit in bot (within 5 mins) and cloud is lower, re-push to cloud
-                                if cur_bal > 0 and cloud_bal < cur_bal and (now - last_bal_update < 300):
-                                    logging.info(f"[LiveSync] Recent deposit protection for {uid} ({cur_bal:.2f} > {cloud_bal:.2f}). Re-pushing!")
-                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
-                                    continue
                                 if abs(cloud_bal - cur_bal) >= 0.01:
                                     logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
                                     users_all = load_known_users()
                                     if str(uid) in users_all:
                                         users_all[str(uid)]["balance"] = cloud_bal
-                                        users_all[str(uid)]["balance_updated"] = time.time()
                                         save_all_users(users_all)
                                         udata["balance"] = cloud_bal
                                     update_live_welcome_message(int(uid), udata)

@@ -8,18 +8,25 @@
   height: 100vh !important;
   z-index: 9999999 !important;
   background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%) !important;
-  display: flex !important;
+  display: none !important;
   align-items: center !important;
   justify-content: center !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
   transition: opacity 0.38s ease, visibility 0.38s ease !important;
-  pointer-events: all !important;
+  pointer-events: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
   box-sizing: border-box !important;
   margin: 0 !important;
   padding: 0 !important;
+}
+
+.inout-loader-screen.active {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
 }
 
 .inout-loader-screen.fade-out {

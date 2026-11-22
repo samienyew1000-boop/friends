@@ -43,11 +43,12 @@
         const isNewerFromBot = urlTs > 0 && (urlTs * 1000 > lastModTs);
 
         // ONLY adopt URL balance if:
-        // 1. Local balance is zero/uninitialized, OR
-        // 2. The bot launch URL timestamp is strictly newer than our last in-game gameplay modification
-        if (curLocal === 0 || isNewerFromBot) {
+        // 1. Local balance is zero/uninitialized AND urlBal > 0, OR
+        // 2. The bot launch URL timestamp is strictly newer than our last in-game gameplay modification AND urlBal > 0
+        if (urlBal > 0 && (curLocal === 0 || isNewerFromBot)) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
           localStorage.setItem('habesha_balance_mod_ts', String(Date.now()));
+          localStorage.setItem('habesha_wallet_synced', 'true');
           try {
             localStorage.removeItem('habesha_balance_pending_sync');
             localStorage.removeItem('habesha_balance_last_loss_ts');
@@ -659,6 +660,7 @@
           // Otherwise, server is authoritative (approved deposits, admin top-up, or true updates)
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
+          localStorage.setItem('habesha_wallet_synced', 'true');
           hasUnsyncedChanges = false;
           try {
             localStorage.removeItem('habesha_balance_pending_sync');
@@ -699,6 +701,17 @@
         if (uid && /^\d+$/.test(uid)) {
           const realBal = getRealBalance();
           const bonusBal = getBonusBalance();
+
+          // CRITICAL SAFETY GUARD: If realBal is 0 and user has never placed a bet in this session
+          // and wallet is not verified synced, NEVER push 0 to the server! This protects existing server funds
+          // from being wiped out by a fresh/cleared local storage device or cold launch!
+          const hasBetLoss = !!localStorage.getItem('habesha_balance_last_loss_ts');
+          const isWalletSynced = localStorage.getItem('habesha_wallet_synced') === 'true';
+          if (realBal === 0 && !hasBetLoss && !isWalletSynced) {
+            console.warn('[HabeshaWallet] Skipping 0 balance cloud push to protect server balance.');
+            return;
+          }
+
           const payload = JSON.stringify({
             user_id: String(uid),
             balance: realBal,

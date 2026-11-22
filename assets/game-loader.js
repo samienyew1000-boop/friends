@@ -11,7 +11,7 @@
     if (document.getElementById('inout-loader-styles')) return;
     const style = document.createElement('style');
     style.id = 'inout-loader-styles';
-    style.textContent = `/* InOut Global Game Loading Screen */ .inout-loader-screen { position: fixed !important; inset: 0 !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999999 !important; background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%) !important; display: flex !important; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; transition: opacity 0.38s ease, visibility 0.38s ease !important; pointer-events: all !important; user-select: none !important; -webkit-user-select: none !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; } .inout-loader-screen.fade-out { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; } .inout-loader-content { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 56px !important; transform: translateY(-8px) !important; } .inout-loader-logo { width: 220px !important; max-width: 65vw !important; height: auto !important; display: block !important; filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.5)) !important; } .inout-loader-spinner-row { display: flex !important; align-items: center !important; justify-content: center !important; gap: 13px !important; } .inout-spinner { width: 24px !important; height: 24px !important; border: 2.8px solid rgba(255, 255, 255, 0.22) !important; border-top-color: #ffffff !important; border-radius: 50% !important; animation: inoutSpin 0.72s linear infinite !important; box-sizing: border-box !important; display: inline-block !important; flex-shrink: 0 !important; } @keyframes inoutSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } .inout-loading-text { color: #f8fafc !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; font-size: 16px !important; font-weight: 500 !important; letter-spacing: 0.35px !important; line-height: 1 !important; display: inline-block !important; }`;
+    style.textContent = `/* InOut Global Game Loading Screen */ .inout-loader-screen { position: fixed !important; inset: 0 !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999999 !important; background: radial-gradient(circle at 50% 46%, #182332 0%, #0d1520 56%, #080c12 100%) !important; display: none !important; align-items: center !important; justify-content: center !important; opacity: 0 !important; visibility: hidden !important; transition: opacity 0.38s ease, visibility 0.38s ease !important; pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; } .inout-loader-screen.active { display: flex !important; opacity: 1 !important; visibility: visible !important; pointer-events: all !important; } .inout-loader-screen.fade-out { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; } .inout-loader-content { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 56px !important; transform: translateY(-8px) !important; } .inout-loader-logo { width: 220px !important; max-width: 65vw !important; height: auto !important; display: block !important; filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.5)) !important; } .inout-loader-spinner-row { display: flex !important; align-items: center !important; justify-content: center !important; gap: 13px !important; } .inout-spinner { width: 24px !important; height: 24px !important; border: 2.8px solid rgba(255, 255, 255, 0.22) !important; border-top-color: #ffffff !important; border-radius: 50% !important; animation: inoutSpin 0.72s linear infinite !important; box-sizing: border-box !important; display: inline-block !important; flex-shrink: 0 !important; } @keyframes inoutSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } .inout-loading-text { color: #f8fafc !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; font-size: 16px !important; font-weight: 500 !important; letter-spacing: 0.35px !important; line-height: 1 !important; display: inline-block !important; }`;
     (document.head || document.documentElement).appendChild(style);
   }
 
@@ -20,7 +20,8 @@
     if (existing.length > 0) {
       existing.forEach((loader) => {
         loader.classList.remove('fade-out');
-        loader.style.removeProperty('display');
+        loader.classList.add('active');
+        loader.style.setProperty('display', 'flex', 'important');
         loader.style.removeProperty('pointer-events');
       });
       return existing[0];
@@ -30,7 +31,7 @@
 
     const screen = document.createElement('div');
     screen.id = 'inoutLoader';
-    screen.className = 'inout-loader-screen';
+    screen.className = 'inout-loader-screen active';
     screen.setAttribute('aria-label', 'Loading Friendes Game...');
     screen.innerHTML = `
       <div class="inout-loader-content">
@@ -52,10 +53,10 @@
     const loaders = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
     if (loaders.length > 0) {
       loaders.forEach((loader) => {
-        loader.style.removeProperty('display');
+        loader.classList.remove('fade-out');
+        loader.classList.add('active');
         loader.style.setProperty('display', 'flex', 'important');
         loader.style.removeProperty('pointer-events');
-        loader.classList.remove('fade-out');
       });
     } else {
       createLoaderElement();
@@ -66,11 +67,18 @@
     const doHide = () => {
       const loaders = document.querySelectorAll('#inoutLoader, .inout-loader-screen');
       loaders.forEach((loader) => {
+        loader.classList.remove('active');
         loader.classList.add('fade-out');
         loader.style.setProperty('pointer-events', 'none', 'important');
         loader.style.setProperty('display', 'none', 'important');
       });
     };
+    if (delay <= 0) {
+      doHide();
+    } else {
+      setTimeout(doHide, delay);
+    }
+  };
     if (delay <= 0) {
       doHide();
     } else {
