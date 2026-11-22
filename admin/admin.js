@@ -122,6 +122,36 @@
             transactions = Array.from(txMap.values());
           }
         }
+        if (setData.friends_bot_transactions && Array.isArray(setData.friends_bot_transactions)) {
+          const txMap = new Map();
+          setData.friends_bot_transactions.forEach((t) => txMap.set(t.id, t));
+          transactions.forEach((t) => { if (!txMap.has(t.id)) txMap.set(t.id, t); });
+          transactions = Array.from(txMap.values());
+        }
+        if (setData.friends_bot_players && typeof setData.friends_bot_players === 'object') {
+          Object.entries(setData.friends_bot_players).forEach(([uid, bUser]) => {
+            let existing = cloudUsers.find((u) => String(u.id) === String(uid));
+            if (existing) {
+              if (bUser.referred_by) existing.referred_by = bUser.referred_by;
+              if (bUser.referrer_name) existing.referrer_name = bUser.referrer_name;
+              if (bUser.phone) existing.phone = bUser.phone;
+              if (bUser.balance !== undefined) existing.balance = bUser.balance;
+              if (bUser.bonus_balance !== undefined) existing.bonus_balance = bUser.bonus_balance;
+            } else {
+              cloudUsers.push({
+                id: uid,
+                first_name: bUser.first_name || bUser.name || `Player ${String(uid).slice(-4)}`,
+                username: bUser.username || '',
+                phone: bUser.phone || '',
+                balance: bUser.balance || 0,
+                bonus_balance: bUser.bonus_balance || 0,
+                referred_by: bUser.referred_by || '',
+                referrer_name: bUser.referrer_name || '',
+                created_at: bUser.created_at || new Date().toISOString()
+              });
+            }
+          });
+        }
       }
     } catch (e) {
       console.warn('Settings fetch error:', e);
@@ -295,6 +325,81 @@
     }
   }
 
+  function openPlayerTxModal(rawPlayerId) {
+    const cleanId = String(rawPlayerId).replace(/^TG-/, '').trim();
+    let playerObj = cloudUsers.find((u) => String(u.id) === cleanId) || null;
+    let playerName = playerObj ? (playerObj.first_name || (playerObj.username ? `@${playerObj.username}` : `Player ${cleanId.slice(-4)}`)) : `Player ${cleanId.slice(-4)}`;
+    let playerPhone = playerObj?.phone || '';
+    let playerRef = playerObj?.referrer_name || playerObj?.referred_by || '';
+    let playerBal = Number(playerObj?.balance || 0);
+
+    const pTxs = transactions.filter((t) => {
+      const tPid = String(t.playerId || '').replace(/^TG-/, '').trim();
+      const tUid = String(t.user_id || '').trim();
+      const tChat = String(t.chat_id || '').trim();
+      return tPid === cleanId || tUid === cleanId || tChat === cleanId;
+    });
+
+    let totalDeps = 0;
+    let totalWiths = 0;
+    pTxs.forEach((t) => {
+      const amt = Number(t.amount || 0);
+      if (t.type === 'deposit' && (t.status === 'completed' || t.status === 'approved')) {
+        totalDeps += amt;
+      } else if (t.type === 'withdraw' && (t.status === 'completed' || t.status === 'approved')) {
+        totalWiths += amt;
+      }
+    });
+
+    if (!playerPhone) {
+      const withPh = pTxs.find((t) => t.phone);
+      if (withPh) playerPhone = withPh.phone;
+    }
+    if (!playerRef) {
+      const withRef = pTxs.find((t) => t.referrer_name || t.referred_by);
+      if (withRef) playerRef = withRef.referrer_name || withRef.referred_by;
+    }
+
+    const modalNameEl = $('modalPlayerName');
+    const modalMetaEl = $('modalPlayerMeta');
+    const modalBalEl = $('modalPlayerBalance');
+    const modalDepsEl = $('modalPlayerDeposits');
+    const modalWithsEl = $('modalPlayerWithdrawals');
+    const modalRefEl = $('modalPlayerReferrer');
+    const modalTableEl = $('modalTxTable');
+    const modalEl = $('playerTxModal');
+
+    if (modalNameEl) modalNameEl.textContent = playerName;
+    if (modalMetaEl) modalMetaEl.textContent = `Player ID: TG-${cleanId}${playerPhone ? ' • Phone: ' + playerPhone : ''}`;
+    if (modalBalEl) modalBalEl.textContent = money(playerBal);
+    if (modalDepsEl) modalDepsEl.textContent = money(totalDeps);
+    if (modalWithsEl) modalWithsEl.textContent = money(totalWiths);
+    if (modalRefEl) modalRefEl.innerHTML = playerRef ? `<span class="ref-by-badge">🔗 ${escapeHTML(playerRef)}</span>` : '<span class="muted">ቀጥታ (Direct)</span>';
+
+    if (modalTableEl) {
+      modalTableEl.innerHTML = pTxs.length ? pTxs.map((t) => {
+        const isPending = t.status === 'pending';
+        const isRejected = t.status === 'rejected' || t.status === 'cancelled';
+        let stHtml = '<span class="status-tag">COMPLETED ✓</span>';
+        if (isPending) stHtml = '<span class="status-tag pending">PENDING ⏳</span>';
+        else if (isRejected) stHtml = '<span class="status-tag off">REJECTED ✕</span>';
+        const tType = escapeHTML(t.type || 'activity');
+        const tAmt = (t.type === 'deposit' || t.type === 'win') ? `+${money(t.amount)}` : `-${money(t.amount)}`;
+        const amtClass = (t.type === 'deposit' || t.type === 'win') ? 'text-green' : '';
+
+        return `<tr>
+          <td><strong>${escapeHTML(t.txId || t.id || '-')}</strong></td>
+          <td><span class="type-label type-${tType}">${tType}</span></td>
+          <td class="${amtClass}"><strong>${tAmt}</strong></td>
+          <td>${stHtml}</td>
+          <td>${escapeHTML(t.time || t.date || t.requested || 'Recent')}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5"><span class="muted">No transactions found for this player.</span></td></tr>';
+    }
+
+    if (modalEl) modalEl.classList.remove('hidden');
+  }
+
   function renderPlayers() {
     let playerList = [];
     if (cloudUsers && cloudUsers.length > 0) {
@@ -305,8 +410,11 @@
         return {
           player: displayName,
           username: uname,
+          phone: u.phone || '',
           playerId: `TG-${u.id}`,
           balance: Number(u.balance || 0),
+          referred_by: u.referred_by || '',
+          referrer_name: u.referrer_name || '',
           time: joined,
           rawId: String(u.id)
         };
@@ -316,21 +424,45 @@
       playerList = mapped.map((p) => ({
         player: p.player || 'Player',
         username: p.username || '',
+        phone: p.phone || '',
         playerId: p.playerId || 'Local',
         balance: 0,
+        referred_by: p.referred_by || '',
+        referrer_name: p.referrer_name || '',
         time: p.time || 'Recently',
         rawId: String(p.playerId || '').replace(/^TG-/, '')
       }));
     }
 
     const query = String($('playerSearch').value || '').toLowerCase();
-    const filtered = playerList.filter((player) => `${player.player} ${player.username} ${player.playerId}`.toLowerCase().includes(query));
+    const filtered = playerList.filter((player) => 
+      `${player.player} ${player.username} ${player.phone} ${player.playerId} ${player.referred_by} ${player.referrer_name}`.toLowerCase().includes(query)
+    );
     $('playerCount').textContent = `${filtered.length} player${filtered.length === 1 ? '' : 's'}`;
     $('playersTable').innerHTML = filtered.length ? filtered.map((player) => {
       const cleanId = player.rawId;
-      const actionHtml = /^\d+$/.test(cleanId) ? `<button class="text-btn direct-msg-btn" data-chat-id="${cleanId}">Message 💬</button>` : `<span class="status-tag">ACTIVE</span>`;
-      return `<tr><td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td><td>${escapeHTML(player.playerId || 'Local')}</td><td><strong>${money(Math.max(0, player.balance))}</strong></td><td><span class="status-tag">ACTIVE</span></td><td>${escapeHTML(player.time || 'Recently')}</td><td>${actionHtml}</td></tr>`;
+      const refDisplay = player.referrer_name || player.referred_by;
+      const refHtml = refDisplay ? `<span class="ref-by-badge">🔗 ${escapeHTML(refDisplay)}</span>` : `<span class="muted">ቀጥታ (Direct)</span>`;
+      const idPhoneHtml = `<strong>${escapeHTML(player.playerId || 'Local')}</strong>${player.phone ? `<br><small class="text-gold">📞 ${escapeHTML(player.phone)}</small>` : ''}`;
+      
+      let actionsHtml = `<button class="text-btn view-tx-btn" data-player-id="${cleanId}">Transactions 📊</button>`;
+      if (/^\d+$/.test(cleanId)) {
+        actionsHtml += ` <button class="text-btn direct-msg-btn" data-chat-id="${cleanId}">Message 💬</button>`;
+      }
+
+      return `<tr>
+        <td><strong>${escapeHTML(player.player || 'Unknown player')}</strong><small>${escapeHTML(player.username || 'Telegram user')}</small></td>
+        <td>${idPhoneHtml}</td>
+        <td><strong>${money(Math.max(0, player.balance))}</strong></td>
+        <td>${refHtml}</td>
+        <td>${escapeHTML(player.time || 'Recently')}</td>
+        <td>${actionsHtml}</td>
+      </tr>`;
     }).join('') : '<tr><td colspan="6"><span class="muted">No matching players.</span></td></tr>';
+
+    document.querySelectorAll('.view-tx-btn').forEach((btn) => {
+      btn.addEventListener('click', () => openPlayerTxModal(btn.dataset.playerId));
+    });
 
     document.querySelectorAll('.direct-msg-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -347,10 +479,31 @@
 
   function renderTransactions() {
     const filter = $('transactionFilter').value;
+    const searchVal = String($('transactionSearch')?.value || '').toLowerCase();
+
+    const userRefMap = new Map();
+    if (cloudUsers && cloudUsers.length > 0) {
+      cloudUsers.forEach((u) => {
+        const ref = u.referrer_name || u.referred_by;
+        if (ref) userRefMap.set(String(u.id), ref);
+      });
+    }
+
     const records = transactions.filter((item) => {
-      if (filter === 'all') return true;
-      if (filter === 'pending') return item.status === 'pending';
-      return item.type === filter;
+      if (filter !== 'all') {
+        if (filter === 'pending') {
+          if (item.status !== 'pending') return false;
+        } else if (item.type !== filter) {
+          return false;
+        }
+      }
+      if (searchVal) {
+        const rawPid = String(item.playerId || '').replace(/^TG-/, '');
+        const refText = item.referrer_name || item.referred_by || userRefMap.get(rawPid) || '';
+        const str = `${item.id || ''} ${item.txId || ''} ${item.player || ''} ${item.playerId || ''} ${item.phone || ''} ${refText}`.toLowerCase();
+        if (!str.includes(searchVal)) return false;
+      }
+      return true;
     });
 
     $('transactionCount').textContent = `${records.length} record${records.length === 1 ? '' : 's'}`;
@@ -359,6 +512,10 @@
       const isRejected = item.status === 'rejected' || item.status === 'cancelled';
       const txBadge = item.txId ? `<span class="tx-id-badge">${escapeHTML(item.txId)}</span>` : '<span class="muted">-</span>';
       
+      const rawPid = String(item.playerId || '').replace(/^TG-/, '');
+      const refText = item.referrer_name || item.referred_by || userRefMap.get(rawPid);
+      const refHtml = refText ? `<span class="ref-by-badge">🔗 ${escapeHTML(refText)}</span>` : '<span class="muted">ቀጥታ (Direct)</span>';
+
       let statusHtml = '';
       if (isPending) {
         statusHtml = '<span class="status-tag pending">PENDING ⏳</span>';
@@ -379,7 +536,7 @@
           </button>
         `;
       } else {
-        actionsHtml = `<span class="muted" style="font-size:10px;">Processed</span>`;
+        actionsHtml = `<button class="text-btn view-tx-btn" data-player-id="${rawPid}">History 📊</button>`;
       }
 
       return `<tr>
@@ -389,6 +546,7 @@
           <strong>${escapeHTML(item.player || 'Player')}</strong>
           <small>${escapeHTML(item.playerId || '')} ${item.phone ? '• ' + escapeHTML(item.phone) : ''}</small>
         </td>
+        <td>${refHtml}</td>
         <td><span class="type-label type-${escapeHTML(item.type)}">${escapeHTML(item.type || 'activity')}</span></td>
         <td>${escapeHTML(item.method || 'Wallet')}</td>
         <td><strong>${money(item.amount)}</strong></td>
@@ -396,14 +554,16 @@
         <td>${escapeHTML(item.time || item.requested || 'Recent')}</td>
         <td>${actionsHtml}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="9"><span class="muted">No transactions found matching this filter.</span></td></tr>';
+    }).join('') : '<tr><td colspan="10"><span class="muted">No transactions found matching this filter.</span></td></tr>';
 
-    // Attach approve / cancel button handlers
     $('transactionsTable').querySelectorAll('.approve-btn').forEach((btn) => {
       btn.addEventListener('click', () => approveTx(btn.dataset.txId));
     });
     $('transactionsTable').querySelectorAll('.cancel-btn').forEach((btn) => {
       btn.addEventListener('click', () => cancelTx(btn.dataset.txId));
+    });
+    $('transactionsTable').querySelectorAll('.view-tx-btn').forEach((btn) => {
+      btn.addEventListener('click', () => openPlayerTxModal(btn.dataset.playerId));
     });
   }
 
@@ -659,7 +819,17 @@
     await fetchCloudData();
     showToast('✅ Live dashboard data updated');
   });
-  $('playerSearch').addEventListener('input', renderPlayers); $('transactionFilter').addEventListener('change', renderTransactions);
+  $('playerSearch').addEventListener('input', renderPlayers);
+  $('transactionFilter').addEventListener('change', renderTransactions);
+  $('transactionSearch')?.addEventListener('input', renderTransactions);
+  $('closePlayerTxModal')?.addEventListener('click', () => {
+    $('playerTxModal')?.classList.add('hidden');
+  });
+  $('playerTxModal')?.addEventListener('click', (e) => {
+    if (e.target === $('playerTxModal')) {
+      $('playerTxModal').classList.add('hidden');
+    }
+  });
   $('messageAudience').addEventListener('change', (event) => $('chatIdField').classList.toggle('hidden', event.target.value !== 'selected'));
   $('messageText').addEventListener('input', (event) => { $('charCount').textContent = `${event.target.value.length} / 4096`; });
   $('clearMessage').addEventListener('click', () => { $('messageText').value = ''; $('charCount').textContent = '0 / 4096'; });
@@ -689,8 +859,13 @@
   $('clearQueue').addEventListener('click', () => { queue = queue.filter((item) => item.status !== 'Sent'); saveQueue(); renderQueue(); showToast('Completed messages cleared'); });
   $('seedDemoData').addEventListener('click', () => { transactions = DEMO_TRANSACTIONS; localStorage.setItem(SEED_KEY, '1'); renderOverview(); renderPlayers(); renderTransactions(); showToast('Demo reporting data loaded'); });
   $('resetAdminData').addEventListener('click', () => { if (!window.confirm('Reset all admin settings and queued messages?')) return; config = defaultConfig(); queue = []; localStorage.removeItem(CONFIG_KEY); localStorage.removeItem(QUEUE_KEY); renderGameControls(); renderQueue(); renderOverview(); showToast('Admin configuration reset'); });
-  $('exportPlayers').addEventListener('click', () => exportCSV('habesha-players.csv', [['Player', 'Username', 'ID', 'Last seen'], ...[...new Map(transactions.map((item) => [item.playerId || item.player, item])).values()].map((item) => [item.player, item.username, item.playerId, item.time])]));
-  $('exportTransactions').addEventListener('click', () => exportCSV('habesha-transactions.csv', [['Reference', 'Tx ID', 'Player', 'Type', 'Method', 'Amount', 'Status', 'Time'], ...transactions.map((item) => [item.id, item.txId || '', item.player, item.type, item.method, item.amount, item.status, item.time])]));
+  $('exportPlayers').addEventListener('click', () => {
+    const rows = cloudUsers && cloudUsers.length > 0
+      ? cloudUsers.map((u) => [u.first_name || u.name || `Player ${String(u.id).slice(-4)}`, u.username ? `@${u.username}` : '', u.phone || '', `TG-${u.id}`, u.balance || 0, u.referrer_name || u.referred_by || 'Direct', u.created_at || 'Recently'])
+      : transactions.map((t) => [t.player, t.username || '', t.phone || '', t.playerId, 0, t.referrer_name || t.referred_by || 'Direct', t.time]);
+    exportCSV('habesha-players.csv', [['Player', 'Username', 'Phone', 'ID', 'Balance', 'Referred By', 'Registered'], ...rows]);
+  });
+  $('exportTransactions').addEventListener('click', () => exportCSV('habesha-transactions.csv', [['Reference', 'Tx ID', 'Player', 'Referred By', 'Type', 'Method', 'Amount', 'Status', 'Time'], ...transactions.map((item) => [item.id, item.txId || '', item.player, item.referrer_name || item.referred_by || 'Direct', item.type, item.method, item.amount, item.status, item.time])]));
 
   // --- Admin Authentication Gate ---
   const AUTH_KEY = 'habesha_admin_session_auth_v1';

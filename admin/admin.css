@@ -26,3 +26,25 @@
 .cancel-btn:hover{background:#5a303e;color:#fff}
 .tx-id-badge{font-family:monospace;letter-spacing:.5px;background:#0d1e32;border:1px solid #233e59;padding:3px 7px;border-radius:5px;color:#71d9c9;font-size:10px;font-weight:bold}
 .status-tag.pending{background:#3d3020;color:#f6bb54}
+/* Player Transaction Modal & Badges */
+.modal-overlay{position:fixed;inset:0;background:rgba(3,10,19,.88);display:flex;align-items:center;justify-content:center;z-index:999;padding:18px;backdrop-filter:blur(6px)}
+.modal-card{width:100%;max-width:850px;max-height:90vh;background:rgba(13,26,43,.98);border:1px solid #1e3c5a;border-radius:16px;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid #18344e}
+.modal-header h2{font-size:19px;margin:0 0 4px;color:#fff}
+.close-btn{background:transparent;border:0;color:#8da4be;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:.15s}
+.close-btn:hover{color:#fff;background:#1e3550}
+.modal-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+.summary-box{background:#0a192a;border:1px solid #1a3652;border-radius:10px;padding:12px 14px}
+.summary-box span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#6f8aa1;margin-bottom:4px}
+.summary-box strong{font-size:15px;color:#fff;display:block}
+.text-green{color:#23d2bd!important}
+.text-gold{color:#f6bb54!important}
+.modal-tx-heading{display:flex;align-items:center;justify-content:space-between;margin:12px 0 10px}
+.modal-tx-heading h3{font-size:14px;margin:0;color:#cfdeec}
+.modal-table-scroll{overflow-y:auto;max-height:340px;border:1px solid #18344e;border-radius:8px;background:#091624}
+.ref-by-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;background:#13283e;border:1px solid #234568;color:#94b8d7;padding:3px 8px;border-radius:6px}
+.ref-by-badge.direct{background:#0f2030;border-color:#1c354e;color:#6d88a2}
+.ref-by-badge strong{color:#23d2bd;font-weight:600}
+.view-tx-btn{background:#112d46;color:#70c9ff;border:1px solid #1e4b74;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:700;cursor:pointer;transition:.15s;margin-left:6px}
+.view-tx-btn:hover{background:#1d4d77;color:#fff}
+@media(max-width:768px){.modal-summary-grid{grid-template-columns:repeat(2,1fr)}}

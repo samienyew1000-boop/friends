@@ -380,6 +380,20 @@ def save_known_user(user_obj, phone=None):
     save_all_users(users)
     return user_record
 
+def get_referrer_display(referred_by, all_users=None):
+    if not referred_by:
+        return "ቀጥታ (Direct)"
+    ref_str = str(referred_by).strip()
+    if not all_users:
+        all_users = load_known_users()
+    ref_u = all_users.get(ref_str)
+    if ref_u:
+        uname = ref_u.get("username")
+        fname = ref_u.get("first_name", f"Player {ref_str[-4:]}")
+        tag = f"@{uname}" if uname else fname
+        return f"{tag} (<code>{ref_str}</code>)"
+    return f"<code>{ref_str}</code>"
+
 def is_user_registered(chat_id):
     users = load_known_users()
     user = users.get(str(chat_id))
@@ -395,7 +409,9 @@ def get_user_webapp_url(chat_id, user=None):
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     clean_uname = urllib.parse.quote(username)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=3.8"
+    real_bal = float(user.get("balance", 0.0))
+    bonus_bal = float(user.get("bonus_balance", 0.0))
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={real_bal:.2f}&bonus={bonus_bal:.2f}&ts={int(time.time())}&v=3.9"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -689,7 +705,7 @@ def fetch_live_cloud_balance(chat_id, user):
                 "X-Telegram-User-Name": user.get("username", "") or ""
             }
         )
-        with urllib.request.urlopen(req, timeout=3.5) as resp:
+        with urllib.request.urlopen(req, timeout=1.2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
@@ -768,7 +784,7 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=3.5) as resp:
+        with urllib.request.urlopen(req, timeout=1.2) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             logging.info(f"[CloudPush] user={chat_id} bal={new_balance:.2f} bonus={bonus_balance:.2f} -> {result}")
             return True
@@ -864,14 +880,11 @@ def send_welcome(chat_id, user=None):
         users = load_known_users()
         user = users.get(str(chat_id), {})
 
-    # Sync live cloud balance in background without stalling immediate welcome response
-    def _bg_cloud_sync():
-        try:
-            fetch_live_cloud_balance(chat_id, user)
-            update_live_welcome_message(chat_id, user)
-        except Exception:
-            pass
-    threading.Thread(target=_bg_cloud_sync, daemon=True).start()
+    # Ensure freshest live cloud balance is reflected in the welcome message
+    try:
+        fetch_live_cloud_balance(chat_id, user)
+    except Exception:
+        pass
 
     first_name = user.get("first_name", "Player")
     username = user.get("username")
@@ -1180,6 +1193,10 @@ def handle_withdraw_request(chat_id, user, amount_str):
     }
     withdrawals.append(wd_record)
     save_withdrawals(withdrawals)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
+
+    ref_raw = user.get("referred_by")
+    ref_disp = get_referrer_display(ref_raw)
 
     # 1. Notify Player with pending message, 10 minutes notice & Contact Support button
     player_text = (
@@ -1211,6 +1228,7 @@ def handle_withdraw_request(chat_id, user, amount_str):
         f"👤 <b>ተጠቃሚ:</b> {full_name} (@{user.get('username', '')})\n"
         f"📱 <b>ስልክ (Telebirr):</b> <code>{phone}</code>\n"
         f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n"
+        f"🔗 <b>መገኛ (Referred By):</b> {ref_disp}\n"
         f"💰 <b>መጠን:</b> <b>{amt:.2f} ETB</b>\n"
         f"⏰ <b>ሰዓት:</b> {now_str}\n\n"
         f"ብር ወደ <code>{phone}</code> በቴሌብር ከላኩ በኋላ <b>'Approve'</b> ይጫኑ፦"
@@ -1264,6 +1282,7 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
     target["approved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     target["deducted"] = True
     save_withdrawals(withdrawals)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
     # Deduct balance if not previously deducted (e.g. from Mini App) & sync to cloud
     new_bal = 0.0
@@ -1335,6 +1354,7 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
         target["rejected_by"] = admin_id
         target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         save_withdrawals(withdrawals)
+        threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
     # Refund amount back to user balance if it was deducted
     new_bal = 0.0
@@ -1404,6 +1424,101 @@ def save_deposits(deposits):
     except Exception as e:
         logging.error(f"Error saving deposits: {e}")
 
+def sync_bot_ledger_to_cloud():
+    """
+    Syncs deposits, withdrawals, and user referral mapping to cloud
+    so Admin Control Center (admin.js) has real-time player acquisition
+    and transaction ledger data.
+    """
+    try:
+        users = load_known_users()
+        deposits = load_deposits()
+        withdrawals = load_withdrawals()
+
+        players_summary = {}
+        for uid_str, u in users.items():
+            ref_raw = u.get("referred_by")
+            ref_disp = get_referrer_display(ref_raw, users) if ref_raw else "ቀጥታ (Direct)"
+            players_summary[str(uid_str)] = {
+                "id": str(uid_str),
+                "first_name": u.get("first_name", f"Player {str(uid_str)[-4:]}"),
+                "username": u.get("username", ""),
+                "phone": u.get("phone", ""),
+                "balance": float(u.get("balance", 0.0)),
+                "bonus_balance": float(u.get("bonus_balance", 0.0)),
+                "referred_by": str(ref_raw) if ref_raw else "",
+                "referrer_name": ref_disp,
+                "created_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(float(u.get("updated") or u.get("balance_updated") or time.time())))
+            }
+
+        normalized_txs = []
+        for d in deposits:
+            uid = str(d.get("user_id") or d.get("chat_id") or "")
+            u_info = players_summary.get(uid, {})
+            d_id = str(d.get("id") or d.get("tx_id") or "")
+            ref_display = u_info.get("referrer_name", "ቀጥታ (Direct)")
+            status = d.get("status", "pending")
+            normalized_txs.append({
+                "id": f"DEP-{d_id[-6:]}" if len(d_id) >= 6 else f"DEP-{d_id}",
+                "txId": d.get("tx_id") or d_id,
+                "player": d.get("name") or u_info.get("first_name", "Player"),
+                "username": d.get("username") or u_info.get("username", ""),
+                "playerId": f"TG-{uid}" if uid else "Local",
+                "user_id": uid,
+                "phone": d.get("phone") or u_info.get("phone", ""),
+                "type": "deposit",
+                "method": d.get("method") or "Telebirr",
+                "amount": float(d.get("amount", 0.0)),
+                "status": status,
+                "time": d.get("date") or d.get("created_at") or "Recent",
+                "referred_by": u_info.get("referred_by", ""),
+                "referrer_name": ref_display
+            })
+
+        for w in withdrawals:
+            uid = str(w.get("user_id") or w.get("chat_id") or "")
+            u_info = players_summary.get(uid, {})
+            w_id = str(w.get("id") or "")
+            ref_display = u_info.get("referrer_name", "ቀጥታ (Direct)")
+            status = w.get("status", "pending")
+            normalized_txs.append({
+                "id": f"WTH-{w_id[-6:]}" if len(w_id) >= 6 else f"WTH-{w_id}",
+                "txId": w.get("account_number") or w_id,
+                "player": w.get("name") or u_info.get("first_name", "Player"),
+                "username": w.get("username") or u_info.get("username", ""),
+                "playerId": f"TG-{uid}" if uid else "Local",
+                "user_id": uid,
+                "phone": w.get("phone") or u_info.get("phone", ""),
+                "type": "withdraw",
+                "method": w.get("method") or "Telebirr",
+                "amount": float(w.get("amount", 0.0)),
+                "status": status,
+                "time": w.get("date") or w.get("created_at") or "Recent",
+                "referred_by": u_info.get("referred_by", ""),
+                "referrer_name": ref_display
+            })
+
+        normalized_txs.reverse()
+
+        payload = json.dumps({
+            "friends_bot_transactions": normalized_txs,
+            "friends_bot_players": players_summary
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://africa-bingo.ethiodeploy.com/api/admin/settings/update",
+            data=payload,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            pass
+    except Exception as ex:
+        logging.warning(f"[SyncBotLedger] Error syncing ledger to cloud: {ex}")
+
 def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebirr"):
     now_str = time.strftime("%Y-%m-%d %H:%M:%S")
     deposits = load_deposits()
@@ -1426,6 +1541,10 @@ def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebi
     }
     deposits.append(record)
     save_deposits(deposits)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
+
+    ref_raw = user.get("referred_by")
+    ref_disp = get_referrer_display(ref_raw)
 
     kb = {
         "inline_keyboard": [
@@ -1442,6 +1561,7 @@ def handle_deposit_submission(chat_id, user, tx_id, amount=100.0, method="Telebi
         f"👤 <b>ተጫዋች:</b> {full_name} (@{username})\n"
         f"🆔 <b>User ID:</b> <code>{chat_id}</code>\n"
         f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
+        f"🔗 <b>መገኛ (Referred By):</b> {ref_disp}\n"
         f"🏦 <b>ዘዴ:</b> {method}\n"
         f"💰 <b>መጠን:</b> <b>{amount:.2f} ETB</b>\n"
         f"⏰ <b>ሰዓት:</b> {now_str}"
@@ -1532,6 +1652,7 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
     target["approved_by"] = admin_id
     target["approved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     save_deposits(deposits)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
     chat_id = target.get("chat_id")
     amt = float(target.get("amount", 100.0))
@@ -1658,6 +1779,7 @@ def reject_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=None
     target["rejected_by"] = admin_id
     target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     save_deposits(deposits)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
     chat_id = target.get("chat_id")
     if chat_id:
@@ -2028,15 +2150,140 @@ def send_contact_us_info(chat_id, user):
         "reply_markup": inline_kb
     })
 
+def handle_admin_player_lookup(admin_chat_id, query):
+    q = query.strip().lstrip("@").lower()
+    users = load_known_users()
+    matched_uid = None
+    matched_user = None
+
+    if q in users:
+        matched_uid = q
+        matched_user = users[q]
+    else:
+        for uid, u in users.items():
+            u_name = (u.get("username") or "").lower()
+            u_phone = (u.get("phone") or "").replace("+251", "0").replace(" ", "")
+            clean_q = q.replace("+251", "0").replace(" ", "")
+            if u_name == q or (clean_q and clean_q in u_phone):
+                matched_uid = uid
+                matched_user = u
+                break
+
+    if not matched_user:
+        send_text_message(admin_chat_id, f"❌ ተጫዋች አልተገኘም (Player not found): <code>{query}</code>")
+        return
+
+    first_name = matched_user.get("first_name", "Player")
+    last_name = matched_user.get("last_name", "")
+    full_name = f"{first_name} {last_name}".strip()
+    u_name = matched_user.get("username", "")
+    phone = matched_user.get("phone", "አልተመዘገበም")
+    bal = float(matched_user.get("balance", 0.0))
+    bonus = float(matched_user.get("bonus_balance", 0.0))
+
+    ref_raw = matched_user.get("referred_by")
+    ref_display = get_referrer_display(ref_raw, users)
+
+    referred_count = sum(1 for u in users.values() if str(u.get("referred_by")) == str(matched_uid))
+
+    deposits = load_deposits()
+    withdrawals = load_withdrawals()
+    p_deps = [d for d in deposits if str(d.get("user_id") or d.get("chat_id")) == str(matched_uid)]
+    p_withs = [w for w in withdrawals if str(w.get("user_id") or w.get("chat_id")) == str(matched_uid)]
+
+    total_dep_amt = sum(float(d.get("amount", 0.0)) for d in p_deps if d.get("status") in ("completed", "approved"))
+    total_with_amt = sum(float(w.get("amount", 0.0)) for w in p_withs if w.get("status") in ("completed", "approved"))
+
+    msg = (
+        f"👤 <b>የተጫዋች መረጃ (Player Profile)</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🆔 <b>Player ID:</b> <code>{matched_uid}</code>\n"
+        f"👤 <b>ስም:</b> {full_name} (@{u_name if u_name else 'None'})\n"
+        f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
+        f"💰 <b>Real Balance:</b> <b>{bal:.2f} ETB</b>\n"
+        f"🎁 <b>Bonus Balance:</b> <b>{bonus:.2f} ETB</b>\n\n"
+        f"🔗 <b>መገኛ (Referred By):</b> {ref_display}\n"
+        f"👥 <b>የጋበዟቸው ተጫዋቾች:</b> <b>{referred_count}</b>\n\n"
+        f"📊 <b>የግብይት ታሪክ (Transactions Summary):</b>\n"
+        f"• የገቢ ጥያቄዎች: {len(p_deps)} (ድምር: {total_dep_amt:.2f} ETB)\n"
+        f"• የወጪ ጥያቄዎች: {len(p_withs)} (ድምር: {total_with_amt:.2f} ETB)\n"
+    )
+
+    recent_txs = []
+    for d in p_deps[-3:]:
+        recent_txs.append(f"📥 Deposit: {float(d.get('amount', 0)):.2f} ETB ({d.get('status', 'pending')}) - {d.get('date', d.get('created_at', ''))}")
+    for w in p_withs[-3:]:
+        recent_txs.append(f"📤 Withdrawal: {float(w.get('amount', 0)):.2f} ETB ({w.get('status', 'pending')}) - {w.get('date', w.get('created_at', ''))}")
+
+    if recent_txs:
+        msg += "\n🕒 <b>የቅርብ ጊዜ እንቅስቃሴዎች:</b>\n" + "\n".join(f"• {tx}" for tx in recent_txs)
+
+    send_text_message(admin_chat_id, msg)
+
+def handle_admin_tx_list(admin_chat_id):
+    users = load_known_users()
+    deposits = load_deposits()
+    withdrawals = load_withdrawals()
+
+    all_tx = []
+    for d in deposits:
+        uid = str(d.get("user_id") or d.get("chat_id") or "")
+        u = users.get(uid, {})
+        ref = get_referrer_display(u.get("referred_by"), users)
+        all_tx.append({
+            "type": "📥 Deposit",
+            "id": d.get("tx_id") or d.get("id"),
+            "user": d.get("name") or u.get("first_name", "Player"),
+            "uid": uid,
+            "ref": ref,
+            "amt": float(d.get("amount", 0.0)),
+            "status": d.get("status", "pending"),
+            "time": d.get("date") or d.get("created_at") or "Recent"
+        })
+    for w in withdrawals:
+        uid = str(w.get("user_id") or w.get("chat_id") or "")
+        u = users.get(uid, {})
+        ref = get_referrer_display(u.get("referred_by"), users)
+        all_tx.append({
+            "type": "📤 Withdraw",
+            "id": w.get("id"),
+            "user": w.get("name") or u.get("first_name", "Player"),
+            "uid": uid,
+            "ref": ref,
+            "amt": float(w.get("amount", 0.0)),
+            "status": w.get("status", "pending"),
+            "time": w.get("date") or w.get("created_at") or "Recent"
+        })
+
+    all_tx.reverse()
+    latest_8 = all_tx[:8]
+
+    if not latest_8:
+        send_text_message(admin_chat_id, "ℹ️ ምንም ግብይት አልተገኘም (No transactions).")
+        return
+
+    msg = "📊 <b>የቅርብ ጊዜ ግብይቶች (Latest Transactions & Referrals)</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    for t in latest_8:
+        msg += (
+            f"{t['type']} <b>{t['amt']:.2f} ETB</b> ({t['status']})\n"
+            f"👤 {t['user']} (<code>{t['uid']}</code>)\n"
+            f"🔗 መገኛ: {t['ref']}\n"
+            f"🧾 Ref: <code>{t['id']}</code> • {t['time']}\n\n"
+        )
+    send_text_message(admin_chat_id, msg)
+
 def send_admin_menu(chat_id):
     admin_web_url = f"{ADMIN_URL}?auth=admin"
     admin_text = (
         "🛡️ <b>Friendes Game | Admin Control Center</b>\n\n"
         "Welcome to the Operator Dashboard. From here you can manage:\n"
         "• 🎮 <b>Games & Margins</b> - Set house edge & toggle games online/paused\n"
-        "• ♙ <b>Players Directory</b> - Monitor player balances & export CSV\n"
+        "• ♙ <b>Players Directory</b> - Monitor player balances, referral sources & export CSV\n"
         "• ✈️ <b>Bot Messages</b> - Queue Telegram announcements & broadcasts\n"
         "• ▤ <b>Financial Records</b> - Inspect Telebirr, CBE & game transactions\n"
+        "• 📊 <b>/tx</b> - View recent transactions with player referral origins\n"
+        "• 👤 <b>/player &lt;id/phone/user&gt;</b> - Lookup player profile & transactions\n"
+        "• 🔄 <b>/sync_ledger</b> - Manually push bot ledger to Web Admin\n"
         "• ⚙️ <b>Settings</b> - Master maintenance toggle & platform configuration\n\n"
         "Tap below to launch the Control Center:"
     )
@@ -2046,6 +2293,16 @@ def send_admin_menu(chat_id):
                 {
                     "text": "🛡️ Open Admin Control Center",
                     "web_app": {"url": admin_web_url}
+                }
+            ],
+            [
+                {
+                    "text": "📊 Transactions & Referrals",
+                    "callback_data": "admin_view_txs"
+                },
+                {
+                    "text": "🔄 Sync Cloud Ledger",
+                    "callback_data": "admin_sync_ledger"
                 }
             ],
             [
@@ -2276,6 +2533,27 @@ def handle_single_update(update):
                     send_channel_join_prompt(cb_chat_id)
                 return
 
+            if cb_data == "admin_view_txs":
+                caller_id = cb_from.get("id")
+                caller_username = cb_from.get("username", "")
+                if is_admin(caller_id, caller_username):
+                    api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                    handle_admin_tx_list(cb_chat_id)
+                else:
+                    api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "❌ Unauthorized", "show_alert": True})
+                return
+
+            if cb_data == "admin_sync_ledger":
+                caller_id = cb_from.get("id")
+                caller_username = cb_from.get("username", "")
+                if is_admin(caller_id, caller_username):
+                    api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "🔄 Syncing ledger to cloud..."})
+                    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
+                    send_text_message(cb_chat_id, "✅ Bot ledger sync dispatched to cloud!")
+                else:
+                    api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "❌ Unauthorized", "show_alert": True})
+                return
+
             api_call("answerCallbackQuery", {"callback_query_id": cb_id})
 
             if not ensure_user_registered_or_prompt(cb_chat_id):
@@ -2349,6 +2627,8 @@ def handle_single_update(update):
                         })
 
             # Notify admins
+            ref_raw = user.get("referred_by")
+            ref_disp = get_referrer_display(ref_raw)
             for admin_id in ADMIN_USER_IDS:
                 if str(admin_id) != str(chat_id):
                     api_call("sendMessage", {
@@ -2357,10 +2637,12 @@ def handle_single_update(update):
                             f"🎉 <b>አዲስ ተጫዋች ተመዝግቧል (New Player Registered)!</b>\n\n"
                             f"👤 <b>ስም:</b> {full_name} (@{msg['from'].get('username','')})\n"
                             f"📱 <b>ስልክ:</b> <code>{phone}</code>\n"
-                            f"🆔 <b>ID:</b> <code>{chat_id}</code>"
+                            f"🆔 <b>ID:</b> <code>{chat_id}</code>\n"
+                            f"🔗 <b>መገኛ (Referred By):</b> {ref_disp}"
                         ),
                         "parse_mode": "HTML"
                     })
+            threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
             # Send congratulations and attach persistent keyboard
             send_registration_success(chat_id, user)
@@ -2663,6 +2945,21 @@ def handle_single_update(update):
                 result = send_text_message(target_chat_id, message)
                 send_text_message(chat_id, "✅ Message sent." if result and result.get("ok") else "❌ Telegram could not deliver that message.")
 
+        elif (text.lower().startswith("/player") or text.lower().startswith("/user")) and is_admin(chat_id, username):
+            parts = text.split(" ", 1)
+            if len(parts) < 2 or not parts[1].strip():
+                send_text_message(chat_id, "ℹ️ <b>አጠቃቀም:</b> <code>/player &lt;User ID, @username ወይም ስልክ&gt;</code>")
+            else:
+                handle_admin_player_lookup(chat_id, parts[1].strip())
+
+        elif text.lower() in ("/tx", "/transactions", "/txs") and is_admin(chat_id, username):
+            handle_admin_tx_list(chat_id)
+
+        elif text.lower().startswith("/sync_ledger") and is_admin(chat_id, username):
+            send_text_message(chat_id, "⏳ Syncing all bot transactions and player referrals to cloud...")
+            threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
+            send_text_message(chat_id, "✅ Sync request dispatched to cloud!")
+
         else:
             if not is_user_registered(chat_id):
                 request_phone_registration(chat_id)
@@ -2796,8 +3093,21 @@ def main():
             except Exception as e:
                 time.sleep(3)
 
+    def _ledger_cloud_sync_worker():
+        try:
+            sync_bot_ledger_to_cloud()
+        except Exception:
+            pass
+        while True:
+            try:
+                time.sleep(25)
+                sync_bot_ledger_to_cloud()
+            except Exception:
+                time.sleep(25)
+
     threading.Thread(target=_live_cloud_balance_sync_worker, daemon=True).start()
     threading.Thread(target=_auto_rain_scheduler_worker, daemon=True).start()
+    threading.Thread(target=_ledger_cloud_sync_worker, daemon=True).start()
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="BotWorker")
     last_heartbeat = time.time()

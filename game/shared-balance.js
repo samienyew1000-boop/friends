@@ -32,21 +32,28 @@
         localStorage.setItem('habesha_uid', qUid);
       }
 
-      // Initial fallback balance ONLY if local device storage is empty/zero
+      // Authoritative URL balance from bot (deposit approval, start link, or play button)
       const rawBal = params.get('bal') !== null ? params.get('bal') : params.get('balance');
       const rawBonus = params.get('bonus') !== null ? params.get('bonus') : params.get('bonus_balance');
       const curLocal = getRealBalance();
-      if (curLocal === 0 && rawBal !== null && !isNaN(parseFloat(rawBal))) {
+      const modTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
+      const isRecentMod = (Date.now() - modTs) < 10000;
+      const isPending = localStorage.getItem('habesha_balance_pending_sync') === 'true';
+
+      if (rawBal !== null && !isNaN(parseFloat(rawBal))) {
         const urlBal = Math.max(0, round2(parseFloat(rawBal)));
-        if (urlBal > 0) {
+        // Accept URL balance if:
+        // 1. Local is 0, OR
+        // 2. URL balance >= local balance (deposit approved, admin credit), OR
+        // 3. User is entering freshly without an active pending in-game bet
+        if (curLocal === 0 || urlBal >= curLocal || (!isRecentMod && !isPending)) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
           localStorage.setItem('habesha_wallet_synced', 'true');
         }
       }
-      const curBonus = getBonusBalance();
-      if (curBonus === 0 && rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
+      if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
         const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
-        if (urlBonus > 0) {
+        if (getBonusBalance() === 0 || urlBonus >= getBonusBalance() || (!isRecentMod && !isPending)) {
           localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
         }
       }
@@ -682,6 +689,11 @@
     }
     const doSync = () => {
       try {
+        const isPending = localStorage.getItem('habesha_balance_pending_sync') === 'true';
+        if (!hasUnsyncedChanges && !isPending) {
+          return; // No local gameplay changes to push; protects server balance from stale device cache
+        }
+
         const params = new URLSearchParams(window.location.search);
         const qUid = params.get('uid');
         const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
@@ -741,16 +753,25 @@
       try {
         const link = e.target && e.target.closest ? e.target.closest('a') : null;
         if (link && link.getAttribute('href') && (link.getAttribute('href').includes('index.html') || link.getAttribute('href').includes('../'))) {
-          syncLiveBalanceToCloud(true);
+          if (hasUnsyncedChanges || localStorage.getItem('habesha_balance_pending_sync') === 'true') {
+            syncLiveBalanceToCloud(true);
+          }
         }
       } catch(ex) {}
     }, { capture: true });
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        if (hasUnsyncedChanges) syncLiveBalanceToCloud(true);
+        if (hasUnsyncedChanges || localStorage.getItem('habesha_balance_pending_sync') === 'true') {
+          syncLiveBalanceToCloud(true);
+        }
       } else {
         syncAdminConfigFromCloud();
+        if (typeof fetchBalanceFromCloud === 'function') {
+          fetchBalanceFromCloud();
+        }
+      }
+    });
         fetchBalanceFromCloud();
       }
     });
