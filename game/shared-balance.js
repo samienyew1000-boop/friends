@@ -39,20 +39,27 @@
         const urlBal = Math.max(0, round2(parseFloat(rawBal)));
         const curLocal = getRealBalance();
         const urlTs = parseInt(params.get('ts') || '0', 10);
-        const isFresh = urlTs > 0 && Math.abs(Date.now() - (urlTs * 1000)) < 3600000;
-        // If the balance from the bot is greater than 0, or freshly launched, adopt it immediately
-        if (urlBal > 0 || isFresh || curLocal === 0) {
+        const lastModTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
+        const isNewerFromBot = urlTs > 0 && (urlTs * 1000 > lastModTs);
+
+        // ONLY adopt URL balance if:
+        // 1. Local balance is zero/uninitialized, OR
+        // 2. The bot launch URL timestamp is strictly newer than our last in-game gameplay modification
+        if (curLocal === 0 || isNewerFromBot) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
+          localStorage.setItem('habesha_balance_mod_ts', String(Date.now()));
           try {
             localStorage.removeItem('habesha_balance_pending_sync');
-            localStorage.removeItem('habesha_balance_mod_ts');
             localStorage.removeItem('habesha_balance_last_loss_ts');
           } catch(e) {}
         }
       }
       if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
         const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
-        localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
+        const curBonus = getBonusBalance();
+        if (curBonus === 0 || urlBonus > curBonus) {
+          localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
+        }
       }
 
       // Clean query params so subsequent refreshes or navigation don't retain stale balance params
@@ -630,13 +637,23 @@
           const timeSinceMod = Date.now() - modTs;
           const timeSinceLoss = Date.now() - lastLossTs;
 
-          // If localReal > 0 AND an in-game bet was deducted within the last 15 seconds, protect against a race condition.
-          // NEVER block an approved deposit when localReal is 0 or when no active bet was placed in the last 15s!
-          if (localReal > 0 && cloudBal > localReal && (timeSinceLoss < 15000 || timeSinceMod < 15000) && hasUnsyncedChanges) {
-            console.log('[HabeshaWallet] Preserving recent local in-game deduction. Local:', localReal, 'Cloud (stale):', cloudBal);
+          // NEVER wipe out a positive local balance if cloud returns 0.0! Heal the cloud!
+          if (localReal > 0 && cloudBal === 0.0) {
+            console.log('[HabeshaWallet] Cloud returned 0.0 but local has', localReal, '. Healing cloud!');
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
+          }
+
+          // If local balance was modified recently (bet placed or win credited within 15 seconds),
+          // or has unsynced changes, NEVER let a stale cloud response overwrite the user's balance!
+          if (localReal > 0 && (hasUnsyncedChanges || isPending || timeSinceMod < 15000)) {
+            if (Math.abs(cloudBal - localReal) >= 0.01) {
+              console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
+              syncLiveBalanceToCloud(true);
+              if (typeof callback === 'function') callback(localReal);
+              return;
+            }
           }
 
           // Otherwise, server is authoritative (approved deposits, admin top-up, or true updates)

@@ -679,12 +679,12 @@ def fetch_live_cloud_balance(chat_id, user):
         last_bal_update = float(user.get("balance_updated") or user.get("updated") or 0)
         now = time.time()
         cur_bal = round(float(user.get("balance", 0.0)), 2)
-        # If balance was set or modified recently (within 120s), protect against stale cloud overwrites
-        if now - last_bal_update < 120:
+        # Protect very recent deposit approvals (within 10s) from in-flight race condition
+        if now - last_bal_update < 10:
             return cur_bal
 
         req = urllib.request.Request(
-            "https://africa-bingo.ethiodeploy.com/api/me",
+            f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
             headers={
                 "User-Agent": "Mozilla/5.0",
                 "X-Telegram-User-Id": str(chat_id),
@@ -702,8 +702,9 @@ def fetch_live_cloud_balance(chat_id, user):
                     logging.info(f"[FetchBalance] Cloud returned 0.0 for {chat_id} but bot has {cur_bal:.2f}. Healing cloud!")
                     push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
                     return cur_bal
-                # If cloud balance is higher than local balance and local was modified recently, preserve local loss!
-                if cloud_bal > cur_bal and (now - last_bal_update < 120) and cur_bal > 0:
+                # If local deposit was approved in last 5 minutes and cloud is still lower, heal the cloud
+                if cur_bal > 0 and cloud_bal < cur_bal and (now - last_bal_update < 300):
+                    logging.info(f"[FetchBalance] Recent deposit active for {chat_id} (bot={cur_bal:.2f}, cloud={cloud_bal:.2f}). Healing cloud!")
                     push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
                     return cur_bal
                 if abs(cloud_bal - cur_bal) >= 0.01:
@@ -817,8 +818,10 @@ def send_welcome(chat_id, user=None):
     if not user:
         users = load_known_users()
         user = users.get(str(chat_id), {})
-    # Sync live cloud balance in background so /start and menu open instantly
-    threading.Thread(target=fetch_live_cloud_balance, args=(chat_id, user), daemon=True).start()
+    try:
+        fetch_live_cloud_balance(chat_id, user)
+    except Exception:
+        pass
 
     first_name = user.get("first_name", "Player")
     username = user.get("username")
@@ -2353,10 +2356,10 @@ def handle_single_update(update):
                     if uid_str in users:
                         cur_bot_bal = float(users[uid_str].get("balance", 0.0))
                         last_upd = float(users[uid_str].get("balance_updated", 0.0))
-                        # SAFETY GUARD: If WebApp reports 0.0, but bot balance was recently credited (>0) within 45 mins,
+                        # SAFETY GUARD: If WebApp reports lower balance than a deposit approved in the last 15 mins (or sends 0.0),
                         # NEVER wipe out the deposit!
-                        if s_real == 0.0 and cur_bot_bal > 0 and (time.time() - last_upd < 2700):
-                            logging.warning(f"[SyncGuard] Blocked wiping out deposit for {chat_id}: bot_bal={cur_bot_bal:.2f}, webapp sent 0.0")
+                        if cur_bot_bal > s_real and (time.time() - last_upd < 900):
+                            logging.warning(f"[SyncGuard] Preserved recent bot balance for {chat_id}: bot={cur_bot_bal:.2f}, webapp sent {s_real:.2f}")
                             push_balance_to_cloud(chat_id, cur_bot_bal, users[uid_str].get("username", ""))
                             send_welcome(chat_id, users[uid_str])
                             return
@@ -2677,18 +2680,17 @@ def main():
                 now = time.time()
                 active_users = [
                     (uid, udata) for uid, udata in known.items()
-                    if (now - float(udata.get("updated") or 0)) < 1800
+                    if (now - float(udata.get("updated") or udata.get("last_seen") or 0)) < 3600
                 ]
                 for uid, udata in active_users:
                     try:
-                        # Skip users whose balance was set recently (e.g. by deposit/withdraw approval)
-                        # to avoid overwriting admin-set values before the cloud relay has caught up
                         last_bal_update = float(udata.get("balance_updated") or 0)
-                        if now - last_bal_update < 600:
+                        # Only wait 10 seconds after a deposit/approval to give push_balance_to_cloud time to hit cloud
+                        if now - last_bal_update < 10:
                             continue
 
                         req = urllib.request.Request(
-                            "https://africa-bingo.ethiodeploy.com/api/me",
+                            f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
                             headers={
                                 "User-Agent": "Mozilla/5.0",
                                 "X-Telegram-User-Id": str(uid),
@@ -2704,6 +2706,11 @@ def main():
                                 # NEVER zero out the local user! Instead re-push cur_bal to heal the cloud!
                                 if cur_bal > 0 and cloud_bal == 0.0:
                                     logging.warning(f"[LiveSync] Cloud has 0.0 for {uid} but bot has {cur_bal:.2f}. Healing cloud!")
+                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
+                                    continue
+                                # If recent deposit in bot (within 5 mins) and cloud is lower, re-push to cloud
+                                if cur_bal > 0 and cloud_bal < cur_bal and (now - last_bal_update < 300):
+                                    logging.info(f"[LiveSync] Recent deposit protection for {uid} ({cur_bal:.2f} > {cloud_bal:.2f}). Re-pushing!")
                                     push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
                                     continue
                                 if abs(cloud_bal - cur_bal) >= 0.01:
