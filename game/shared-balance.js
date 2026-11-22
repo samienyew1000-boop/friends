@@ -32,33 +32,21 @@
         localStorage.setItem('habesha_uid', qUid);
       }
 
-      // Read authoritative balance passed directly from Telegram Bot launch
+      // Initial fallback balance ONLY if local device storage is empty/zero
       const rawBal = params.get('bal') !== null ? params.get('bal') : params.get('balance');
       const rawBonus = params.get('bonus') !== null ? params.get('bonus') : params.get('bonus_balance');
-      if (rawBal !== null && !isNaN(parseFloat(rawBal))) {
+      const curLocal = getRealBalance();
+      if (curLocal === 0 && rawBal !== null && !isNaN(parseFloat(rawBal))) {
         const urlBal = Math.max(0, round2(parseFloat(rawBal)));
-        const curLocal = getRealBalance();
-        const urlTs = parseInt(params.get('ts') || '0', 10);
-        const lastModTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
-        const isNewerFromBot = urlTs > 0 && (urlTs * 1000 > lastModTs);
-
-        // ONLY adopt URL balance if:
-        // 1. Local balance is zero/uninitialized AND urlBal > 0, OR
-        // 2. The bot launch URL timestamp is strictly newer than our last in-game gameplay modification AND urlBal > 0
-        if (urlBal > 0 && (curLocal === 0 || isNewerFromBot)) {
+        if (urlBal > 0) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
-          localStorage.setItem('habesha_balance_mod_ts', String(Date.now()));
           localStorage.setItem('habesha_wallet_synced', 'true');
-          try {
-            localStorage.removeItem('habesha_balance_pending_sync');
-            localStorage.removeItem('habesha_balance_last_loss_ts');
-          } catch(e) {}
         }
       }
-      if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
+      const curBonus = getBonusBalance();
+      if (curBonus === 0 && rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
         const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
-        const curBonus = getBonusBalance();
-        if (curBonus === 0 || urlBonus > curBonus) {
+        if (urlBonus > 0) {
           localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
         }
       }
@@ -634,9 +622,12 @@
 
           const isPending = localStorage.getItem('habesha_balance_pending_sync') === 'true';
           const modTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
-          const lastLossTs = parseInt(localStorage.getItem('habesha_balance_last_loss_ts') || '0', 10);
           const timeSinceMod = Date.now() - modTs;
-          const timeSinceLoss = Date.now() - lastLossTs;
+
+          // Clear stuck pending sync if more than 10s has passed
+          if (isPending && timeSinceMod > 10000) {
+            try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
+          }
 
           // NEVER wipe out a positive local balance if cloud returns 0.0! Heal the cloud!
           if (localReal > 0 && cloudBal === 0.0) {
@@ -646,15 +637,15 @@
             return;
           }
 
-          // If local balance was modified recently (bet placed or win credited within 15 seconds),
-          // or has unsynced changes, NEVER let a stale cloud response overwrite the user's balance!
-          if (localReal > 0 && (hasUnsyncedChanges || isPending || timeSinceMod < 15000)) {
-            if (Math.abs(cloudBal - localReal) >= 0.01) {
-              console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
-              syncLiveBalanceToCloud(true);
-              if (typeof callback === 'function') callback(localReal);
-              return;
-            }
+          // If local balance was modified by an active in-game wager/win right this second (within 8 seconds),
+          // AND cloud is LESS than local (e.g. recent in-flight win hasn't reached server yet):
+          // Note: If cloudBal >= localReal (e.g. deposit approved, admin credit), ALWAYS accept cloudBal!
+          const activeInGame = (hasUnsyncedChanges || isPending) && timeSinceMod < 8000;
+          if (activeInGame && localReal > 0 && cloudBal < localReal) {
+            console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
+            syncLiveBalanceToCloud(true);
+            if (typeof callback === 'function') callback(localReal);
+            return;
           }
 
           // Otherwise, server is authoritative (approved deposits, admin top-up, or true updates)

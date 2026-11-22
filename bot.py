@@ -392,13 +392,10 @@ def get_user_webapp_url(chat_id, user=None):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     username = user.get("username", "")
-    balance = float(user.get("balance", 0.0))
-    bonus_balance = float(user.get("bonus_balance", 0.0))
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     clean_uname = urllib.parse.quote(username)
-    ts = int(time.time())
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={balance:.2f}&bonus={bonus_balance:.2f}&ts={ts}&v=3.5"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=3.8"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -679,6 +676,7 @@ def fetch_live_cloud_balance(chat_id, user):
         last_dep = float(user.get("last_deposit_time") or 0)
         now = time.time()
         cur_bal = round(float(user.get("balance", 0.0)), 2)
+        cur_bonus = round(float(user.get("bonus_balance", 0.0)), 2)
         # Protect very recent deposit approvals (within 10s) from in-flight race condition
         if now - last_dep < 10:
             return cur_bal
@@ -691,30 +689,41 @@ def fetch_live_cloud_balance(chat_id, user):
                 "X-Telegram-User-Name": user.get("username", "") or ""
             }
         )
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
-                cur_bal = round(float(user.get("balance", 0.0)), 2)
+                cloud_bonus = round(float(data.get("bonus_balance", 0.0) or 0.0), 2)
                 # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
                 # NEVER wipe out the deposit! Heal the cloud with cur_bal!
                 if cur_bal > 0 and cloud_bal == 0.0:
                     logging.info(f"[FetchBalance] Cloud returned 0.0 for {chat_id} but bot has {cur_bal:.2f}. Healing cloud!")
-                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""))
+                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""), bonus_balance=cur_bonus)
                     return cur_bal
+
+                changed = False
                 if abs(cloud_bal - cur_bal) >= 0.01:
+                    cur_bal = cloud_bal
+                    changed = True
+                if abs(cloud_bonus - cur_bonus) >= 0.01:
+                    cur_bonus = cloud_bonus
+                    changed = True
+
+                if changed:
                     users_all = load_known_users()
                     uid_str = str(chat_id)
                     if uid_str in users_all:
-                        users_all[uid_str]["balance"] = cloud_bal
+                        users_all[uid_str]["balance"] = cur_bal
+                        users_all[uid_str]["bonus_balance"] = cur_bonus
                         save_all_users(users_all)
-                    user["balance"] = cloud_bal
-                    return cloud_bal
-    except Exception:
-        pass
+                    user["balance"] = cur_bal
+                    user["bonus_balance"] = cur_bonus
+                return cur_bal
+    except Exception as e:
+        logging.warning(f"[FetchBalance] Exception for {chat_id}: {e}")
     return float(user.get("balance", 0.0))
 
-def push_balance_to_cloud(chat_id, new_balance, username=""):
+def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None):
     """Push a balance update to the cloud relay so gameplay sessions see the correct balance."""
     try:
         # 1. Ensure user exists in cloud state first
@@ -727,16 +736,25 @@ def push_balance_to_cloud(chat_id, new_balance, username=""):
                     "X-Telegram-User-Name": username or ""
                 }
             )
-            with urllib.request.urlopen(req_init, timeout=2.0) as r_init:
+            with urllib.request.urlopen(req_init, timeout=2.5) as r_init:
                 pass
         except Exception:
             pass
 
-        # 2. Push updated balance
+        # 2. If bonus_balance not explicitly passed, retrieve it from known_users
+        if bonus_balance is None:
+            try:
+                u_data = load_known_users().get(str(chat_id), {})
+                bonus_balance = float(u_data.get("bonus_balance", 0.0))
+            except Exception:
+                bonus_balance = 0.0
+
+        # 3. Push updated balance
         payload = json.dumps({
             "user_id": str(chat_id),
             "username": username or "",
             "balance": round(float(new_balance), 2),
+            "bonus_balance": round(float(bonus_balance), 2),
             "admin_authorized": True
         }).encode("utf-8")
         req = urllib.request.Request(
@@ -750,9 +768,9 @@ def push_balance_to_cloud(chat_id, new_balance, username=""):
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
             result = json.loads(resp.read().decode("utf-8"))
-            logging.info(f"[CloudPush] user={chat_id} balance={new_balance:.2f} -> {result}")
+            logging.info(f"[CloudPush] user={chat_id} bal={new_balance:.2f} bonus={bonus_balance:.2f} -> {result}")
             return True
     except Exception as e:
         logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
@@ -1734,22 +1752,12 @@ def send_help_info(chat_id, user):
             [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
-    res = api_call("sendMessage", {
+    return api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
-    if res and res.get("ok"):
-        b_mid = res.get("result", {}).get("message_id")
-        if b_mid:
-            users_up = load_known_users()
-            uid_str = str(chat_id)
-            if uid_str in users_up:
-                users_up[uid_str]["balance_msg_id"] = b_mid
-                save_all_users(users_up)
-            user["balance_msg_id"] = b_mid
-    return res
 
 def send_language_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -1988,22 +1996,12 @@ def send_join_group_info(chat_id, user):
             [{"text": f"🚀 Join @{REQUIRED_GROUP_USERNAME} ↗️", "url": REQUIRED_GROUP_URL}]
         ]
     }
-    res = api_call("sendMessage", {
+    return api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
-    if res and res.get("ok"):
-        b_mid = res.get("result", {}).get("message_id")
-        if b_mid:
-            users_up = load_known_users()
-            uid_str = str(chat_id)
-            if uid_str in users_up:
-                users_up[uid_str]["balance_msg_id"] = b_mid
-                save_all_users(users_up)
-            user["balance_msg_id"] = b_mid
-    return res
 
 def send_contact_us_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
@@ -2023,22 +2021,12 @@ def send_contact_us_info(chat_id, user):
             [{"text": "🤖 Official Bot (@Friends64_BOT)", "url": "https://t.me/Friends64_BOT"}]
         ]
     }
-    res = api_call("sendMessage", {
+    return api_call("sendMessage", {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": inline_kb
     })
-    if res and res.get("ok"):
-        b_mid = res.get("result", {}).get("message_id")
-        if b_mid:
-            users_up = load_known_users()
-            uid_str = str(chat_id)
-            if uid_str in users_up:
-                users_up[uid_str]["balance_msg_id"] = b_mid
-                save_all_users(users_up)
-            user["balance_msg_id"] = b_mid
-    return res
 
 def send_admin_menu(chat_id):
     admin_web_url = f"{ADMIN_URL}?auth=admin"
@@ -2346,6 +2334,8 @@ def handle_single_update(update):
                         all_users[str(chat_id)]["referral_rewarded"] = True
                         save_all_users(all_users)
                         user["referral_rewarded"] = True
+                        push_balance_to_cloud(int(ref_str), float(ref_user.get("balance", 0.0)), ref_user.get("username", ""), bonus_balance=ref_user["bonus_balance"])
+                        update_live_welcome_message(int(ref_str), ref_user)
                         api_call("sendMessage", {
                             "chat_id": int(ref_str),
                             "text": (
@@ -2776,24 +2766,30 @@ def main():
                                 "X-Telegram-User-Name": udata.get("username", "") or ""
                             }
                         )
-                        with urllib.request.urlopen(req, timeout=2.0) as resp:
+                        with urllib.request.urlopen(req, timeout=3.0) as resp:
                             data = json.loads(resp.read().decode("utf-8"))
                             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                                 cloud_bal = round(float(data["balance"]), 2)
+                                cloud_bonus = round(float(data.get("bonus_balance", 0.0) or 0.0), 2)
                                 cur_bal = round(float(udata.get("balance", 0.0)), 2)
+                                cur_bonus = round(float(udata.get("bonus_balance", 0.0)), 2)
                                 # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
                                 # NEVER zero out the local user! Instead re-push cur_bal to heal the cloud!
                                 if cur_bal > 0 and cloud_bal == 0.0:
                                     logging.warning(f"[LiveSync] Cloud has 0.0 for {uid} but bot has {cur_bal:.2f}. Healing cloud!")
-                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""))
+                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""), bonus_balance=cur_bonus)
                                     continue
-                                if abs(cloud_bal - cur_bal) >= 0.01:
-                                    logging.info(f"[LiveSync] Detected balance change for {uid}: {cur_bal} -> {cloud_bal}")
+                                bal_diff = abs(cloud_bal - cur_bal) >= 0.01
+                                bonus_diff = abs(cloud_bonus - cur_bonus) >= 0.01
+                                if bal_diff or bonus_diff:
+                                    logging.info(f"[LiveSync] Detected balance change for {uid}: bal {cur_bal}->{cloud_bal}, bonus {cur_bonus}->{cloud_bonus}")
                                     users_all = load_known_users()
                                     if str(uid) in users_all:
                                         users_all[str(uid)]["balance"] = cloud_bal
+                                        users_all[str(uid)]["bonus_balance"] = cloud_bonus
                                         save_all_users(users_all)
                                         udata["balance"] = cloud_bal
+                                        udata["bonus_balance"] = cloud_bonus
                                     update_live_welcome_message(int(uid), udata)
                     except Exception:
                         pass
