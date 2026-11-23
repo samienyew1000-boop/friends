@@ -705,7 +705,7 @@ def fetch_live_cloud_balance(chat_id, user):
                 "X-Telegram-User-Name": user.get("username", "") or ""
             }
         )
-        with urllib.request.urlopen(req, timeout=1.2) as resp:
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
@@ -784,7 +784,7 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             },
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=1.2) as resp:
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             logging.info(f"[CloudPush] user={chat_id} bal={new_balance:.2f} bonus={bonus_balance:.2f} -> {result}")
             return True
@@ -842,6 +842,14 @@ def update_live_welcome_message(chat_id, user):
             logging.warning(f"Failed to edit welcome caption: {ex}")
 
     # Also update 'Balance 💰' message if user has one open in chat
+    if not user.get("balance_msg_id"):
+        try:
+            fresh_users = load_known_users()
+            u_f = fresh_users.get(str(chat_id))
+            if u_f and u_f.get("balance_msg_id"):
+                user["balance_msg_id"] = u_f["balance_msg_id"]
+        except Exception:
+            pass
     bal_mid = user.get("balance_msg_id")
     if bal_mid:
         bal_text = (

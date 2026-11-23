@@ -42,18 +42,18 @@
 
       if (rawBal !== null && !isNaN(parseFloat(rawBal))) {
         const urlBal = Math.max(0, round2(parseFloat(rawBal)));
-        // Accept URL balance if:
-        // 1. Local is 0, OR
-        // 2. URL balance >= local balance (deposit approved, admin credit), OR
-        // 3. User is entering freshly without an active pending in-game bet
-        if (curLocal === 0 || urlBal >= curLocal || (!isRecentMod && !isPending)) {
+        // CRITICAL PROTECTION: A cached URL button must NEVER zero-out or lower a player's real funds!
+        // Accept URL balance only if:
+        // 1. Local is 0 and urlBal > 0 (fresh start with deposit), OR
+        // 2. urlBal > curLocal (admin top-up or newly approved deposit via URL)
+        if ((curLocal === 0 && urlBal > 0) || (urlBal > curLocal && !isRecentMod && !isPending)) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
           localStorage.setItem('habesha_wallet_synced', 'true');
         }
       }
       if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
         const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
-        if (getBonusBalance() === 0 || urlBonus >= getBonusBalance() || (!isRecentMod && !isPending)) {
+        if ((getBonusBalance() === 0 && urlBonus > 0) || (urlBonus > getBonusBalance() && !isRecentMod && !isPending)) {
           localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
         }
       }
@@ -644,10 +644,10 @@
             return;
           }
 
-          // If local balance was modified by an active in-game wager/win right this second (within 8 seconds),
+          // If local balance was modified by an active in-game wager/win (or pending cloud commit),
           // AND cloud is LESS than local (e.g. recent in-flight win hasn't reached server yet):
           // Note: If cloudBal >= localReal (e.g. deposit approved, admin credit), ALWAYS accept cloudBal!
-          const activeInGame = (hasUnsyncedChanges || isPending) && timeSinceMod < 8000;
+          const activeInGame = hasUnsyncedChanges || (isPending && timeSinceMod < 60000);
           if (activeInGame && localReal > 0 && cloudBal < localReal) {
             console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
             syncLiveBalanceToCloud(true);
