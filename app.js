@@ -247,7 +247,7 @@
       };
 
       if (window.HabeshaWallet && typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
-        window.HabeshaWallet.fetchBalanceFromCloud(finishRefresh);
+        window.HabeshaWallet.fetchBalanceFromCloud(finishRefresh, true);
         setTimeout(() => {
           if (isRefreshingBalance) finishRefresh(window.HabeshaWallet.get());
         }, 1200);

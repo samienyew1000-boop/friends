@@ -322,6 +322,8 @@ def _auto_rain_scheduler_worker():
 KNOWN_USERS_FILE = Path(__file__).resolve().parent / "known_users.json"
 WITHDRAWALS_FILE = Path(__file__).resolve().parent / "withdrawals.json"
 DEPOSITS_FILE = Path(__file__).resolve().parent / "deposits.json"
+AGENTS_FILE = Path(__file__).resolve().parent / "agents.json"
+AGENT_TXS_FILE = Path(__file__).resolve().parent / "agent_transactions.json"
 
 _USERS_CACHE = None
 _USERS_CACHE_LOCK = threading.Lock()
@@ -411,7 +413,7 @@ def get_user_webapp_url(chat_id, user=None):
     clean_uname = urllib.parse.quote(username)
     real_bal = float(user.get("balance", 0.0))
     bonus_bal = float(user.get("bonus_balance", 0.0))
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={real_bal:.2f}&bonus={bonus_bal:.2f}&ts={int(time.time())}&v=3.9"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={real_bal:.2f}&bonus={bonus_bal:.2f}&ts={int(time.time())}&v=4.0"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -700,9 +702,10 @@ def fetch_live_cloud_balance(chat_id, user):
         req = urllib.request.Request(
             f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
             headers={
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "X-Telegram-User-Id": str(chat_id),
-                "X-Telegram-User-Name": user.get("username", "") or ""
+                "X-Telegram-User-Name": user.get("username", "") or "",
+                "Accept": "application/json"
             }
         )
         with urllib.request.urlopen(req, timeout=4.0) as resp:
@@ -731,6 +734,7 @@ def fetch_live_cloud_balance(chat_id, user):
                     if uid_str in users_all:
                         users_all[uid_str]["balance"] = cur_bal
                         users_all[uid_str]["bonus_balance"] = cur_bonus
+                        users_all[uid_str]["balance_updated"] = time.time()
                         save_all_users(users_all)
                     user["balance"] = cur_bal
                     user["bonus_balance"] = cur_bonus
@@ -747,9 +751,10 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             req_init = urllib.request.Request(
                 "https://africa-bingo.ethiodeploy.com/api/me",
                 headers={
-                    "User-Agent": "Mozilla/5.0",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "X-Telegram-User-Id": str(chat_id),
-                    "X-Telegram-User-Name": username or ""
+                    "X-Telegram-User-Name": username or "",
+                    "Accept": "application/json"
                 }
             )
             with urllib.request.urlopen(req_init, timeout=2.5) as r_init:
@@ -777,10 +782,11 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             "https://africa-bingo.ethiodeploy.com/api/admin/user/update",
             data=payload,
             headers={
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Content-Type": "application/json",
                 "X-Telegram-User-Id": str(chat_id),
-                "X-Telegram-User-Name": username or ""
+                "X-Telegram-User-Name": username or "",
+                "Accept": "application/json"
             },
             method="POST"
         )
@@ -788,6 +794,9 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             result = json.loads(resp.read().decode("utf-8"))
             logging.info(f"[CloudPush] user={chat_id} bal={new_balance:.2f} bonus={bonus_balance:.2f} -> {result}")
             return True
+    except Exception as e:
+        logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
+        return False
     except Exception as e:
         logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
         return False
@@ -1924,8 +1933,11 @@ def send_agent_info(chat_id, user):
     })
 
 def send_balance_info(chat_id, user):
-    fetch_live_cloud_balance(chat_id, user)
-    real_bal = float(user.get("balance", 0.0))
+    fresh_bal = fetch_live_cloud_balance(chat_id, user)
+    users = load_known_users()
+    if str(chat_id) in users:
+        user = users[str(chat_id)]
+    real_bal = float(user.get("balance", fresh_bal))
     bonus_bal = float(user.get("bonus_balance", 0.0))
     total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
@@ -2280,6 +2292,387 @@ def handle_admin_tx_list(admin_chat_id):
         )
     send_text_message(admin_chat_id, msg)
 
+# ==============================================================================
+# AGENT MANAGEMENT & DASHBOARD ENGINE
+# ==============================================================================
+
+def load_agents():
+    if AGENTS_FILE.exists():
+        try:
+            with open(AGENTS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_agents(agents_data):
+    try:
+        with open(AGENTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(agents_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"Error saving agents: {e}")
+
+def load_agent_transactions():
+    if AGENT_TXS_FILE.exists():
+        try:
+            with open(AGENT_TXS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_agent_transactions(tx_data):
+    try:
+        with open(AGENT_TXS_FILE, "w", encoding="utf-8") as f:
+            json.dump(tx_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"Error saving agent transactions: {e}")
+
+def is_agent(chat_id):
+    agents = load_agents()
+    ag = agents.get(str(chat_id))
+    return bool(ag and ag.get("status", "active") == "active")
+
+def get_agent_record(chat_id):
+    agents = load_agents()
+    return agents.get(str(chat_id))
+
+def normalize_agent_phone(phone_str):
+    if not phone_str:
+        return ""
+    p = str(phone_str).strip().replace(" ", "").replace("-", "")
+    if p.startswith("+251"):
+        p = "0" + p[4:]
+    elif p.startswith("251"):
+        p = "0" + p[3:]
+    return p
+
+def find_player_by_query(query_str):
+    if not query_str:
+        return None, None
+    q = str(query_str).strip()
+    q_norm = normalize_agent_phone(q)
+    users = load_known_users()
+    
+    # 1. Direct ID match
+    if q in users:
+        return q, users[q]
+        
+    # 2. Match by phone or username
+    for uid, udata in users.items():
+        u_phone = normalize_agent_phone(udata.get("phone", ""))
+        if q_norm and u_phone and (u_phone == q_norm or q_norm in u_phone):
+            return uid, udata
+        u_name = (udata.get("username") or "").lower().lstrip("@")
+        clean_q = q.lower().lstrip("@")
+        if clean_q and u_name and u_name == clean_q:
+            return uid, udata
+            
+    return None, None
+
+def execute_agent_deposit(agent_id, player_uid, amount, agent_name=""):
+    agents = load_agents()
+    agent = agents.get(str(agent_id))
+    if not agent or agent.get("status") != "active":
+        return False, "ወኪሉ አልተገኘም ወይም ንቁ አይደለም!"
+    
+    ag_bal = float(agent.get("balance", 0.0))
+    if ag_bal < amount:
+        return False, f"የወኪል ካፒታል በቂ አይደለም! ያለዎት ቀሪ: {ag_bal:.2f} ETB"
+    
+    users = load_known_users()
+    player = users.get(str(player_uid))
+    if not player:
+        return False, "ተጫዋቹ አልተገኘም!"
+    
+    # Atomic transaction
+    agent["balance"] = round(ag_bal - amount, 2)
+    save_agents(agents)
+    
+    p_bal = float(player.get("balance", 0.0))
+    new_p_bal = round(p_bal + amount, 2)
+    player["balance"] = new_p_bal
+    player["updated"] = time.time()
+    player["balance_updated"] = time.time()
+    save_all_users(users)
+    
+    push_balance_to_cloud(player_uid, new_p_bal, player.get("username", ""))
+    update_live_welcome_message(player_uid, player)
+    
+    # Record transaction
+    txs = load_agent_transactions()
+    tx_id = f"AGD-{int(time.time())}-{random.randint(1000, 9999)}"
+    tx_entry = {
+        "id": tx_id,
+        "type": "deposit",
+        "agent_id": str(agent_id),
+        "agent_name": agent.get("name", agent_name or "Agent"),
+        "player_id": str(player_uid),
+        "player_phone": player.get("phone", ""),
+        "player_name": f"{player.get('first_name', '')} {player.get('last_name', '')}".strip() or player.get("username", "Player"),
+        "amount": amount,
+        "agent_balance_after": agent["balance"],
+        "player_balance_after": new_p_bal,
+        "timestamp": time.time(),
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "completed"
+    }
+    txs.insert(0, tx_entry)
+    save_agent_transactions(txs)
+    
+    # Notify player instantly via Telegram
+    try:
+        api_call("sendMessage", {
+            "chat_id": int(player_uid),
+            "text": (
+                f"✅ <b>ገንዘብ በወኪል ገቢ ተደርጓል (Agent Deposit)!</b>\n\n"
+                f"💰 <b>የተጨመረው መጠን:</b> <b>+{amount:.2f} ETB</b>\n"
+                f"💵 <b>አዲሱ Real Balance:</b> <b>{new_p_bal:.2f} ETB</b>\n"
+                f"🏢 <b>ወኪል:</b> {agent.get('name', 'Official Agent')}\n"
+                f"🔖 <b>መለያ (Ref):</b> <code>{tx_id}</code>\n\n"
+                f"መልካም እድል! አሁኑኑ ይጫወቱ! 🎮"
+            ),
+            "parse_mode": "HTML",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": f"🎮 Play Games ({new_p_bal:.2f} ETB)", "web_app": {"url": get_user_webapp_url(player_uid, player)}}]
+                ]
+            }
+        })
+    except Exception as ex:
+        logging.warning(f"Failed to alert player {player_uid} of agent deposit: {ex}")
+        
+    return True, tx_entry
+
+def execute_agent_withdraw(agent_id, player_uid, amount, agent_name=""):
+    agents = load_agents()
+    agent = agents.get(str(agent_id))
+    if not agent or agent.get("status") != "active":
+        return False, "ወኪሉ አልተገኘም ወይም ንቁ አይደለም!"
+    
+    users = load_known_users()
+    player = users.get(str(player_uid))
+    if not player:
+        return False, "ተጫዋቹ አልተገኘም!"
+    
+    p_bal = float(player.get("balance", 0.0))
+    if p_bal < amount:
+        return False, f"የተጫዋቹ Real Balance በቂ አይደለም! ያለቸው ሂሳብ: {p_bal:.2f} ETB"
+    
+    # Deduct from player, credit agent (agent gives cash to player)
+    new_p_bal = round(p_bal - amount, 2)
+    player["balance"] = new_p_bal
+    player["updated"] = time.time()
+    player["balance_updated"] = time.time()
+    save_all_users(users)
+    
+    agent["balance"] = round(float(agent.get("balance", 0.0)) + amount, 2)
+    save_agents(agents)
+    
+    push_balance_to_cloud(player_uid, new_p_bal, player.get("username", ""))
+    update_live_welcome_message(player_uid, player)
+    
+    # Record transaction
+    txs = load_agent_transactions()
+    tx_id = f"AGW-{int(time.time())}-{random.randint(1000, 9999)}"
+    tx_entry = {
+        "id": tx_id,
+        "type": "withdraw",
+        "agent_id": str(agent_id),
+        "agent_name": agent.get("name", agent_name or "Agent"),
+        "player_id": str(player_uid),
+        "player_phone": player.get("phone", ""),
+        "player_name": f"{player.get('first_name', '')} {player.get('last_name', '')}".strip() or player.get("username", "Player"),
+        "amount": amount,
+        "agent_balance_after": agent["balance"],
+        "player_balance_after": new_p_bal,
+        "timestamp": time.time(),
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "completed"
+    }
+    txs.insert(0, tx_entry)
+    save_agent_transactions(txs)
+    
+    # Notify player instantly via Telegram
+    try:
+        api_call("sendMessage", {
+            "chat_id": int(player_uid),
+            "text": (
+                f"💸 <b>ገንዘብ በወኪል ወጪ ተደርጓል (Agent Payout)!</b>\n\n"
+                f"🔻 <b>የወጣው መጠን:</b> <b>-{amount:.2f} ETB</b>\n"
+                f"💵 <b>ቀሪ Real Balance:</b> <b>{new_p_bal:.2f} ETB</b>\n"
+                f"🏢 <b>ወኪል:</b> {agent.get('name', 'Official Agent')}\n"
+                f"🔖 <b>መለያ (Ref):</b> <code>{tx_id}</code>\n\n"
+                f"ጥሬ ገንዘብዎን ከወኪሉ መቀበልዎን ያረጋግጡ!"
+            ),
+            "parse_mode": "HTML"
+        })
+    except Exception as ex:
+        logging.warning(f"Failed to alert player {player_uid} of agent withdraw: {ex}")
+        
+    return True, tx_entry
+
+def send_agent_dashboard(chat_id, user=None):
+    agent = get_agent_record(chat_id)
+    if not agent or agent.get("status") != "active":
+        if is_admin(chat_id, (user or {}).get("username", "")):
+            agents = load_agents()
+            if str(chat_id) not in agents:
+                agents[str(chat_id)] = {
+                    "id": str(chat_id),
+                    "name": "Super Admin Agent",
+                    "phone": (user or {}).get("phone", "+251717482251"),
+                    "balance": 10000.0,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "active"
+                }
+                save_agents(agents)
+            agent = agents[str(chat_id)]
+        else:
+            return api_call("sendMessage", {
+                "chat_id": chat_id,
+                "text": (
+                    "⚠️ <b>ይህ ገጽ ለተፈቀደላቸው ወኪሎች (Agents) ብቻ የተወሰነ ነው!</b>\n\n"
+                    "የ Friendes Game ይፋዊ ወኪል በመሆን በካፒታል ገቢ እና ወጪ ማስተናገድ ከፈለጉ አድሚንን ያነጋግሩ፦\n"
+                    "👉 @HABTAMBET64"
+                ),
+                "parse_mode": "HTML"
+            })
+            
+    ag_bal = float(agent.get("balance", 0.0))
+    ag_name = agent.get("name", "Habtam Bet Agent")
+    ag_phone = agent.get("phone", "N/A")
+    
+    today_str = time.strftime("%Y-%m-%d")
+    txs = load_agent_transactions()
+    today_deps = sum(t["amount"] for t in txs if t.get("agent_id") == str(chat_id) and t.get("type") == "deposit" and t.get("created_at", "").startswith(today_str))
+    today_wds = sum(t["amount"] for t in txs if t.get("agent_id") == str(chat_id) and t.get("type") == "withdraw" and t.get("created_at", "").startswith(today_str))
+    
+    agent_app_url = f"{WEBAPP_URL.rstrip('/')}/agent/index.html?agent_id={chat_id}&v=1.0"
+    
+    text = (
+        f"💼 <b>የወኪል ዳሽቦርድ | Agent Dashboard</b>\n\n"
+        f"👤 <b>ወኪል:</b> <b>{ag_name}</b>\n"
+        f"📱 <b>ስልክ:</b> <code>{ag_phone}</code>\n"
+        f"🆔 <b>Agent ID:</b> <code>{chat_id}</code>\n\n"
+        f"💰 <b>የስራ ካፒታል (Agent Balance):</b> <b>{ag_bal:.2f} ETB</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 <b>የዛሬ ግብይት (Today):</b>\n"
+        f"• የተደረገ ገቢ (Deposits): <b>+{today_deps:.2f} ETB</b>\n"
+        f"• የተከፈለ ወጪ (Withdrawals): <b>-{today_wds:.2f} ETB</b>\n\n"
+        f"🔍 <b>ተጫዋች ለመፈለግ:</b> የተጫዋቹን <b>ስልክ ቁጥር (ምሳሌ 0912345678)</b> ወይም <b>Telegram ID</b> በቀጥታ በዚህ ቻት ይላኩ!"
+    )
+    
+    kb = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🚀 Open Agent WebApp (ዳሽቦርድ ክፈት)",
+                    "web_app": {"url": agent_app_url}
+                }
+            ],
+            [
+                {
+                    "text": "📜 የግብይት ታሪክ (Recent Txs)",
+                    "callback_data": "agent_view_txs"
+                },
+                {
+                    "text": "🔄 Refresh Balance",
+                    "callback_data": "agent_refresh_bal"
+                }
+            ]
+        ]
+    }
+    
+    return api_call("sendMessage", {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": kb
+    })
+
+def send_agent_player_card(agent_chat_id, player_uid, player_data):
+    p_name = f"{player_data.get('first_name', '')} {player_data.get('last_name', '')}".strip() or player_data.get("username", "Player")
+    p_phone = player_data.get("phone", "N/A")
+    p_bal = float(player_data.get("balance", 0.0))
+    p_bonus = float(player_data.get("bonus_balance", 0.0))
+    
+    agent = get_agent_record(agent_chat_id)
+    ag_bal = float(agent.get("balance", 0.0)) if agent else 0.0
+    
+    text = (
+        f"👤 <b>ተጫዋች ተገኝቷል | Player Found</b>\n\n"
+        f"• <b>ስም:</b> <b>{p_name}</b>\n"
+        f"• 📱 <b>ስልክ:</b> <code>{p_phone}</code>\n"
+        f"• 🆔 <b>Player ID:</b> <code>{player_uid}</code>\n"
+        f"• 💵 <b>Real Balance:</b> <b>{p_bal:.2f} ETB</b>\n"
+        f"• 🎁 <b>Bonus Balance:</b> {p_bonus:.2f} ETB\n\n"
+        f"💼 <i>የእርስዎ የካፒታል መጠን፦ {ag_bal:.2f} ETB</i>\n\n"
+        f"ምን ማድረግ ይፈልጋሉ?"
+    )
+    
+    kb = {
+        "inline_keyboard": [
+            [
+                {"text": "🟢 Deposit (ገቢ አድርግ)", "callback_data": f"ag_mode:dep:{player_uid}"},
+                {"text": "🔴 Withdraw (ወጪ ክፈል)", "callback_data": f"ag_mode:wd:{player_uid}"}
+            ],
+            [
+                {"text": "💼 Back to Dashboard", "callback_data": "agent_refresh_bal"}
+            ]
+        ]
+    }
+    
+    return api_call("sendMessage", {
+        "chat_id": agent_chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": kb
+    })
+
+def send_agent_amount_selector(agent_chat_id, player_uid, mode):
+    users = load_known_users()
+    player = users.get(str(player_uid), {})
+    p_name = player.get("first_name", "Player")
+    p_bal = float(player.get("balance", 0.0))
+    
+    agent = get_agent_record(agent_chat_id)
+    ag_bal = float(agent.get("balance", 0.0)) if agent else 0.0
+    
+    mode_text = "🟢 Deposit (ገቢ ማድረጊያ)" if mode == "dep" else "🔴 Withdraw (ወጪ መክፈያ)"
+    
+    text = (
+        f"{mode_text}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>ተጫዋች:</b> {p_name} (ID: <code>{player_uid}</code>)\n"
+        f"💵 <b>የተጫዋች ባላንስ:</b> <b>{p_bal:.2f} ETB</b>\n"
+        f"💼 <b>የእርስዎ ካፒታል:</b> <b>{ag_bal:.2f} ETB</b>\n\n"
+        f"መጠኑን ይምረጡ ወይም ሌላ መጠን ለመጻፍ <b>'✏️ ሌላ መጠን'</b> ይጫኑ:"
+    )
+    
+    amounts = [50, 100, 200, 500, 1000, 2000]
+    kb_rows = []
+    for i in range(0, len(amounts), 3):
+        row = []
+        for amt in amounts[i:i+3]:
+            row.append({
+                "text": f"{amt} ETB",
+                "callback_data": f"ag_exec:{mode}:{player_uid}:{amt}"
+            })
+        kb_rows.append(row)
+        
+    kb_rows.append([
+        {"text": "✏️ ሌላ መጠን ጻፍ (Custom)", "callback_data": f"ag_prompt:{mode}:{player_uid}"},
+        {"text": "🔙 ተመለስ", "callback_data": "agent_refresh_bal"}
+    ])
+    
+    return api_call("sendMessage", {
+        "chat_id": agent_chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {"inline_keyboard": kb_rows}
+    })
+
 def send_admin_menu(chat_id):
     admin_web_url = f"{ADMIN_URL}?auth=admin"
     admin_text = (
@@ -2562,6 +2955,91 @@ def handle_single_update(update):
                     api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "❌ Unauthorized", "show_alert": True})
                 return
 
+            if cb_data == "agent_view_txs":
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                txs = load_agent_transactions()
+                ag_txs = [t for t in txs if str(t.get("agent_id")) == str(cb_chat_id)][:10]
+                if not ag_txs:
+                    send_text_message(cb_chat_id, "ℹ️ እስካሁን ምንም የወኪል ግብይት አልተደረገም (No agent transactions yet).")
+                else:
+                    msg = "📜 <b>የቅርብ ጊዜ የወኪል ግብይቶች (Recent Agent Transactions)</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                    for t in ag_txs:
+                        icon = "🟢 ገቢ (Deposit)" if t["type"] == "deposit" else "🔴 ወጪ (Withdrawal)"
+                        msg += (
+                            f"{icon}: <b>{t['amount']:.2f} ETB</b>\n"
+                            f"👤 ተጫዋች: {t.get('player_name', 'Player')} (<code>{t.get('player_phone') or t.get('player_id')}</code>)\n"
+                            f"💼 ቀሪ ካፒታል: <b>{t.get('agent_balance_after', 0):.2f} ETB</b>\n"
+                            f"🧾 Ref: <code>{t['id']}</code> • {t.get('created_at', '')}\n\n"
+                        )
+                    send_text_message(cb_chat_id, msg)
+                return
+
+            if cb_data == "agent_refresh_bal":
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "🔄 Refreshing balance..."})
+                send_agent_dashboard(cb_chat_id, cb_user)
+                return
+
+            if cb_data.startswith("ag_mode:"):
+                # Format: ag_mode:dep:UID or ag_mode:wd:UID
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                parts = cb_data.split(":")
+                if len(parts) >= 3:
+                    mode, p_uid = parts[1], parts[2]
+                    send_agent_amount_selector(cb_chat_id, p_uid, mode)
+                return
+
+            if cb_data.startswith("ag_exec:"):
+                # Format: ag_exec:dep:UID:AMT or ag_exec:wd:UID:AMT
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id, "text": "⏳ Processing transaction..."})
+                parts = cb_data.split(":")
+                if len(parts) >= 4:
+                    mode, p_uid, amt_str = parts[1], parts[2], parts[3]
+                    amt = float(amt_str)
+                    if mode == "dep":
+                        ok, res = execute_agent_deposit(cb_chat_id, p_uid, amt, agent_name=cb_user.get("first_name", ""))
+                        if ok:
+                            send_text_message(cb_chat_id, (
+                                f"✅ <b>የወኪል ገቢ ተሳክቷል (Deposit Successful)!</b>\n\n"
+                                f"👤 <b>ተጫዋች:</b> {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                                f"📱 <b>ስልክ:</b> <code>{res['player_phone']}</code>\n"
+                                f"💰 <b>የገባ መጠን:</b> <b>+{amt:.2f} ETB</b>\n"
+                                f"💼 <b>ቀሪ የካፒታል መጠን:</b> <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                                f"💵 <b>የተጫዋች አዲሱ ባላንስ:</b> <b>{res['player_balance_after']:.2f} ETB</b>\n"
+                                f"🧾 <b>Ref ID:</b> <code>{res['id']}</code>"
+                            ))
+                        else:
+                            send_text_message(cb_chat_id, f"❌ <b>ስህተት:</b> {res}")
+                    elif mode == "wd":
+                        ok, res = execute_agent_withdraw(cb_chat_id, p_uid, amt, agent_name=cb_user.get("first_name", ""))
+                        if ok:
+                            send_text_message(cb_chat_id, (
+                                f"✅ <b>የወኪል ወጪ ክፍያ ተሳክቷል (Payout Successful)!</b>\n\n"
+                                f"👤 <b>ተጫዋች:</b> {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                                f"📱 <b>ስልክ:</b> <code>{res['player_phone']}</code>\n"
+                                f"💸 <b>የወጣ መጠን:</b> <b>-{amt:.2f} ETB</b>\n"
+                                f"💼 <b>አዲሱ የካፒታል መጠን:</b> <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                                f"💵 <b>የተጫዋች ቀሪ ባላንስ:</b> <b>{res['player_balance_after']:.2f} ETB</b>\n"
+                                f"🧾 <b>Ref ID:</b> <code>{res['id']}</code>\n\n"
+                                f"⚠️ እባክዎ ጥሬ ገንዘቡን ለተጫዋቹ መስጠትዎን ያረጋግጡ!"
+                            ))
+                        else:
+                            send_text_message(cb_chat_id, f"❌ <b>ስህተት:</b> {res}")
+                return
+
+            if cb_data.startswith("ag_prompt:"):
+                # Format: ag_prompt:dep:UID or ag_prompt:wd:UID
+                api_call("answerCallbackQuery", {"callback_query_id": cb_id})
+                parts = cb_data.split(":")
+                if len(parts) >= 3:
+                    mode, p_uid = parts[1], parts[2]
+                    users = load_known_users()
+                    if str(cb_chat_id) in users:
+                        users[str(cb_chat_id)]["awaiting_agent_target"] = f"{mode}:{p_uid}"
+                        save_all_users(users)
+                    prompt_act = "ገቢ ለማድረግ (Deposit)" if mode == "dep" else "ወጪ ለመክፈል (Withdraw)"
+                    send_text_message(cb_chat_id, f"✏️ እባክዎ ለተጫዋቹ {prompt_act} የሚፈልጉትን የገንዘብ መጠን በቁጥር ብቻ ይላኩ (ምሳሌ፦ <code>150</code> ወይም <code>350.50</code>):")
+                return
+
             api_call("answerCallbackQuery", {"callback_query_id": cb_id})
 
             if not ensure_user_registered_or_prompt(cb_chat_id):
@@ -2745,6 +3223,47 @@ def handle_single_update(update):
                     else:
                         sent, failed = broadcast_message(out_msg)
                         send_text_message(chat_id, f"📢 Broadcast delivered to {sent} user(s)! (Failed: {failed})")
+                    return
+                elif action == "agent_deposit":
+                    p_id = str(payload.get("player_id", "")).strip()
+                    amt = float(payload.get("amount", 0.0))
+                    if amt <= 0:
+                        send_text_message(chat_id, "⚠️ የተሳሳተ የገንዘብ መጠን!")
+                        return
+                    ok, res = execute_agent_deposit(chat_id, p_id, amt, agent_name=user.get("first_name", ""))
+                    if ok:
+                        send_text_message(chat_id, (
+                            f"✅ <b>የወኪል ገቢ ተሳክቷል (Deposit Successful)!</b>\n\n"
+                            f"👤 <b>ተጫዋች:</b> {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                            f"📱 <b>ስልክ:</b> <code>{res['player_phone']}</code>\n"
+                            f"💰 <b>የገባ መጠን:</b> <b>+{amt:.2f} ETB</b>\n"
+                            f"💼 <b>ቀሪ የካፒታል መጠን:</b> <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                            f"💵 <b>የተጫዋች አዲሱ ባላንስ:</b> <b>{res['player_balance_after']:.2f} ETB</b>\n"
+                            f"🧾 <b>Ref ID:</b> <code>{res['id']}</code>"
+                        ))
+                    else:
+                        send_text_message(chat_id, f"❌ <b>ስህተት:</b> {res}")
+                    return
+                elif action == "agent_withdraw":
+                    p_id = str(payload.get("player_id", "")).strip()
+                    amt = float(payload.get("amount", 0.0))
+                    if amt <= 0:
+                        send_text_message(chat_id, "⚠️ የተሳሳተ የገንዘብ መጠን!")
+                        return
+                    ok, res = execute_agent_withdraw(chat_id, p_id, amt, agent_name=user.get("first_name", ""))
+                    if ok:
+                        send_text_message(chat_id, (
+                            f"✅ <b>የወኪል ወጪ ክፍያ ተሳክቷል (Payout Successful)!</b>\n\n"
+                            f"👤 <b>ተጫዋች:</b> {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                            f"📱 <b>ስልክ:</b> <code>{res['player_phone']}</code>\n"
+                            f"💸 <b>የወጣ መጠን:</b> <b>-{amt:.2f} ETB</b>\n"
+                            f"💼 <b>አዲሱ የካፒታል መጠን:</b> <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                            f"💵 <b>የተጫዋች ቀሪ ባላንስ:</b> <b>{res['player_balance_after']:.2f} ETB</b>\n"
+                            f"🧾 <b>Ref ID:</b> <code>{res['id']}</code>\n\n"
+                            f"⚠️ እባክዎ ጥሬ ገንዘቡን ለተጫዋቹ መስጠትዎን ያረጋግጡ!"
+                        ))
+                    else:
+                        send_text_message(chat_id, f"❌ <b>ስህተት:</b> {res}")
                     return
             except Exception as ex:
                 logging.error(f"Error handling web_app_data: {ex}")
@@ -2968,11 +3487,237 @@ def handle_single_update(update):
             threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
             send_text_message(chat_id, "✅ Sync request dispatched to cloud!")
 
+        elif text.lower() in ("/dashboard", "/agent"):
+            send_agent_dashboard(chat_id, user)
+
+        elif text.lower().startswith("/fund_agent") and is_admin(chat_id, username):
+            parts = text.split()
+            if len(parts) < 3:
+                send_text_message(chat_id, "ℹ️ <b>አጠቃቀም:</b> <code>/fund_agent &lt;Phone/AgentID&gt; &lt;Amount&gt;</code>")
+            else:
+                target_q = parts[1].strip()
+                try:
+                    fund_amt = float(parts[2].strip())
+                    if fund_amt <= 0:
+                        raise ValueError()
+                except ValueError:
+                    send_text_message(chat_id, "⚠️ የተሳሳተ የገንዘብ መጠን!")
+                    return
+                
+                agents = load_agents()
+                matched_ag_id = None
+                if target_q in agents:
+                    matched_ag_id = target_q
+                else:
+                    norm_q = normalize_agent_phone(target_q)
+                    for a_id, a_data in agents.items():
+                        if norm_q and (normalize_agent_phone(a_data.get("phone", "")) == norm_q or norm_q in a_id):
+                            matched_ag_id = a_id
+                            break
+                            
+                if not matched_ag_id:
+                    send_text_message(chat_id, f"❌ ወኪል <code>{target_q}</code> አልተገኘም! መጀመሪያ በ <code>/add_agent</code> ይመዝግቡ።")
+                else:
+                    cur_ag_bal = float(agents[matched_ag_id].get("balance", 0.0))
+                    new_ag_bal = round(cur_ag_bal + fund_amt, 2)
+                    agents[matched_ag_id]["balance"] = new_ag_bal
+                    save_agents(agents)
+                    ag_name = agents[matched_ag_id].get("name", "Agent")
+                    send_text_message(chat_id, (
+                        f"✅ <b>የወኪል የስራ ካፒታል ገቢ ተደርጓል!</b>\n\n"
+                        f"👤 <b>ወኪል:</b> {ag_name} (<code>{matched_ag_id}</code>)\n"
+                        f"💰 <b>የተጨመረው ካፒታል:</b> <b>+{fund_amt:.2f} ETB</b>\n"
+                        f"💵 <b>አዲሱ የወኪል ባላንስ:</b> <b>{new_ag_bal:.2f} ETB</b>"
+                    ))
+                    try:
+                        api_call("sendMessage", {
+                            "chat_id": int(matched_ag_id),
+                            "text": (
+                                f"🎉 <b>የስራ ካፒታል ገቢ ተደርጓል! (Capital Funded)</b>\n\n"
+                                f"በአድሚን <b>+{fund_amt:.2f} ETB</b> የስራ ካፒታል ወደ አካውንትዎ ገቢ ተደርጓል!\n"
+                                f"💼 <b>አዲሱ የስራ ካፒታልዎ:</b> <b>{new_ag_bal:.2f} ETB</b>\n\n"
+                                f"ተጫዋቾችን ለማስተናገድ /dashboard ይጫኑ።"
+                            ),
+                            "parse_mode": "HTML"
+                        })
+                    except Exception:
+                        pass
+
+        elif text.lower().startswith("/deduct_agent") and is_admin(chat_id, username):
+            parts = text.split()
+            if len(parts) < 3:
+                send_text_message(chat_id, "ℹ️ <b>አጠቃቀም:</b> <code>/deduct_agent &lt;Phone/AgentID&gt; &lt;Amount&gt;</code>")
+            else:
+                target_q = parts[1].strip()
+                try:
+                    ded_amt = float(parts[2].strip())
+                    if ded_amt <= 0:
+                        raise ValueError()
+                except ValueError:
+                    send_text_message(chat_id, "⚠️ የተሳሳተ የገንዘብ መጠን!")
+                    return
+                
+                agents = load_agents()
+                matched_ag_id = None
+                if target_q in agents:
+                    matched_ag_id = target_q
+                else:
+                    norm_q = normalize_agent_phone(target_q)
+                    for a_id, a_data in agents.items():
+                        if norm_q and (normalize_agent_phone(a_data.get("phone", "")) == norm_q or norm_q in a_id):
+                            matched_ag_id = a_id
+                            break
+                            
+                if not matched_ag_id:
+                    send_text_message(chat_id, f"❌ ወኪል <code>{target_q}</code> አልተገኘም!")
+                else:
+                    cur_ag_bal = float(agents[matched_ag_id].get("balance", 0.0))
+                    new_ag_bal = max(0.0, round(cur_ag_bal - ded_amt, 2))
+                    agents[matched_ag_id]["balance"] = new_ag_bal
+                    save_agents(agents)
+                    send_text_message(chat_id, f"✅ ከወኪል <b>-{ded_amt:.2f} ETB</b> ተቀንሷል። አዲሱ ባላንስ፦ <b>{new_ag_bal:.2f} ETB</b>")
+
+        elif text.lower().startswith("/add_agent") and is_admin(chat_id, username):
+            parts = text.split(" ", 2)
+            if len(parts) < 2:
+                send_text_message(chat_id, "ℹ️ <b>አጠቃቀም:</b> <code>/add_agent &lt;Phone/User ID&gt; [የወኪሉ ስም]</code>")
+            else:
+                target_q = parts[1].strip()
+                ag_custom_name = parts[2].strip() if len(parts) >= 3 else ""
+                
+                p_uid, p_data = find_player_by_query(target_q)
+                agent_uid = p_uid or target_q
+                agent_phone = (p_data or {}).get("phone", target_q)
+                agent_name = ag_custom_name or (f"{p_data.get('first_name', '')} {p_data.get('last_name', '')}".strip() if p_data else f"Agent {str(agent_uid)[-4:]}")
+                
+                agents = load_agents()
+                agents[str(agent_uid)] = {
+                    "id": str(agent_uid),
+                    "name": agent_name,
+                    "phone": agent_phone,
+                    "balance": float(agents.get(str(agent_uid), {}).get("balance", 0.0)),
+                    "status": "active",
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                save_agents(agents)
+                send_text_message(chat_id, (
+                    f"✅ <b>ወኪል በተሳካ ሁኔታ ተመዝግቧል!</b>\n\n"
+                    f"👤 <b>ስም:</b> <b>{agent_name}</b>\n"
+                    f"📱 <b>ስልክ:</b> <code>{agent_phone}</code>\n"
+                    f"🆔 <b>Agent ID:</b> <code>{agent_uid}</code>\n"
+                    f"💰 <b>የስራ ካፒታል:</b> <b>{agents[str(agent_uid)]['balance']:.2f} ETB</b>\n\n"
+                    f"ካፒታል ለመሙላት፦ <code>/fund_agent {agent_uid} &lt;amount&gt;</code>"
+                ))
+                try:
+                    api_call("sendMessage", {
+                        "chat_id": int(agent_uid),
+                        "text": (
+                            f"🎉 <b>እንኳን ደስ አለዎት! የ Friendes Game ይፋዊ ወኪል (Agent) ሆነዋል!</b>\n\n"
+                            f"👤 <b>የወኪል ስም:</b> {agent_name}\n"
+                            f"የወኪል ዳሽቦርድዎን ለመክፈትና ተጫዋቾችን ለማስተናገድ ከታች ያለውን ትዕዛዝ ይጠቀሙ፦\n"
+                            f"👉 /dashboard"
+                        ),
+                        "parse_mode": "HTML"
+                    })
+                except Exception:
+                    pass
+
+        elif text.lower().startswith("/remove_agent") and is_admin(chat_id, username):
+            parts = text.split()
+            if len(parts) < 2:
+                send_text_message(chat_id, "ℹ️ <b>አጠቃቀም:</b> <code>/remove_agent &lt;Phone/AgentID&gt;</code>")
+            else:
+                target_q = parts[1].strip()
+                agents = load_agents()
+                matched_ag_id = None
+                if target_q in agents:
+                    matched_ag_id = target_q
+                else:
+                    norm_q = normalize_agent_phone(target_q)
+                    for a_id, a_data in agents.items():
+                        if norm_q and (normalize_agent_phone(a_data.get("phone", "")) == norm_q or norm_q in a_id):
+                            matched_ag_id = a_id
+                            break
+                if matched_ag_id and matched_ag_id in agents:
+                    agents[matched_ag_id]["status"] = "inactive"
+                    save_agents(agents)
+                    send_text_message(chat_id, f"✅ ወኪል <code>{matched_ag_id}</code> ከወኪልነት ተሰርዟል (Deactivated).")
+                else:
+                    send_text_message(chat_id, f"❌ ወኪል <code>{target_q}</code> አልተገኘም!")
+
+        elif text.lower() in ("/agents", "/agent_list") and is_admin(chat_id, username):
+            agents = load_agents()
+            if not agents:
+                send_text_message(chat_id, "ℹ️ እስካሁን የተመዘገበ ወኪል የለም። በ <code>/add_agent</code> ይመዝግቡ።")
+            else:
+                msg = "👥 <b>የተመዘገቡ ወኪሎች ዝርዝር (Agents Directory)</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                for a_id, a_data in agents.items():
+                    stat_icon = "🟢" if a_data.get("status") == "active" else "🔴"
+                    msg += (
+                        f"{stat_icon} <b>{a_data.get('name', 'Agent')}</b>\n"
+                        f"📱 ስልክ: <code>{a_data.get('phone', 'N/A')}</code> | ID: <code>{a_id}</code>\n"
+                        f"💰 ካፒታል: <b>{float(a_data.get('balance', 0.0)):.2f} ETB</b>\n"
+                        f"📅 የተመዘገበበት: {a_data.get('created_at', 'N/A')}\n\n"
+                    )
+                msg += "💡 ካፒታል ለመሙላት፦ <code>/fund_agent &lt;ID/Phone&gt; &lt;Amount&gt;</code>"
+                send_text_message(chat_id, msg)
+
         else:
             if not is_user_registered(chat_id):
                 request_phone_registration(chat_id)
             else:
                 clean_num = text.strip().replace("ETB", "").replace("ብር", "").strip()
+
+                # Check if agent is responding to a custom amount prompt
+                if is_agent(chat_id) and user.get("awaiting_agent_target"):
+                    target_info = user.pop("awaiting_agent_target")
+                    users_up = load_known_users()
+                    if str(chat_id) in users_up:
+                        users_up[str(chat_id)].pop("awaiting_agent_target", None)
+                        save_all_users(users_up)
+                    try:
+                        amt_val = float(clean_num)
+                        if amt_val <= 0:
+                            raise ValueError()
+                        mode, p_uid = target_info.split(":")
+                        if mode == "dep":
+                            ok, res = execute_agent_deposit(chat_id, p_uid, amt_val, agent_name=user.get("first_name", ""))
+                            if ok:
+                                send_text_message(chat_id, (
+                                    f"✅ <b>የወኪል ገቢ ተሳክቷል!</b>\n\n"
+                                    f"👤 ተጫዋች: {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                                    f"💰 የተጨመረው: <b>+{amt_val:.2f} ETB</b>\n"
+                                    f"💼 ቀሪ ካፒታል: <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                                    f"💵 የተጫዋች አዲሱ ባላንስ: <b>{res['player_balance_after']:.2f} ETB</b>"
+                                ))
+                            else:
+                                send_text_message(chat_id, f"❌ ስህተት: {res}")
+                        elif mode == "wd":
+                            ok, res = execute_agent_withdraw(chat_id, p_uid, amt_val, agent_name=user.get("first_name", ""))
+                            if ok:
+                                send_text_message(chat_id, (
+                                    f"✅ <b>የወኪል ወጪ ክፍያ ተሳክቷል!</b>\n\n"
+                                    f"👤 ተጫዋች: {res['player_name']} (<code>{res['player_id']}</code>)\n"
+                                    f"💸 የወጣው: <b>-{amt_val:.2f} ETB</b>\n"
+                                    f"💼 አዲሱ ካፒታል: <b>{res['agent_balance_after']:.2f} ETB</b>\n"
+                                    f"💵 የተጫዋች ቀሪ ባላንስ: <b>{res['player_balance_after']:.2f} ETB</b>"
+                                ))
+                            else:
+                                send_text_message(chat_id, f"❌ ስህተት: {res}")
+                        return
+                    except ValueError:
+                        send_text_message(chat_id, "⚠️ የተሳሳተ የገንዘብ መጠን! ቁጥር ብቻ ያስገቡ።")
+                        return
+
+                # Check if agent typed a phone number or numeric user ID to search for a player
+                if is_agent(chat_id) and (re.search(r"(\+251|0)[97]\d{8}", text.strip()) or (text.strip().isdigit() and len(text.strip()) >= 7)):
+                    p_uid, p_data = find_player_by_query(text.strip())
+                    if p_uid and p_data:
+                        send_agent_player_card(chat_id, p_uid, p_data)
+                        return
+                    else:
+                        send_text_message(chat_id, f"❌ በ <code>{text.strip()}</code> የተመዘገበ ተጫዋች አልተገኘም!")
+                        return
                 if user.get("awaiting_action") == "withdraw" and re.match(r"^\d+(\.\d+)?$", clean_num):
                     handle_withdraw_request(chat_id, user, clean_num)
                     return
@@ -3066,9 +3811,10 @@ def main():
                         req = urllib.request.Request(
                             f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
                             headers={
-                                "User-Agent": "Mozilla/5.0",
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                                 "X-Telegram-User-Id": str(uid),
-                                "X-Telegram-User-Name": udata.get("username", "") or ""
+                                "X-Telegram-User-Name": udata.get("username", "") or "",
+                                "Accept": "application/json"
                             }
                         )
                         with urllib.request.urlopen(req, timeout=3.0) as resp:

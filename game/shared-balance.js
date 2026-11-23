@@ -37,25 +37,41 @@
       const rawBonus = params.get('bonus') !== null ? params.get('bonus') : params.get('bonus_balance');
       const curLocal = getRealBalance();
       const modTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
-      const isRecentMod = (Date.now() - modTs) < 10000;
+      const isRecentMod = (Date.now() - modTs) < 8000;
       const isPending = localStorage.getItem('habesha_balance_pending_sync') === 'true';
+      const rawTs = params.get('ts');
+      const urlTs = rawTs ? parseInt(rawTs, 10) : 0;
+      const urlTsMs = urlTs > 1e11 ? urlTs : urlTs * 1000;
+      const isUrlNewer = urlTsMs > 0 && (urlTsMs >= modTs - 5000);
 
+      let balanceUpdatedFromUrl = false;
       if (rawBal !== null && !isNaN(parseFloat(rawBal))) {
         const urlBal = Math.max(0, round2(parseFloat(rawBal)));
-        // CRITICAL PROTECTION: A cached URL button must NEVER zero-out or lower a player's real funds!
-        // Accept URL balance only if:
-        // 1. Local is 0 and urlBal > 0 (fresh start with deposit), OR
-        // 2. urlBal > curLocal (admin top-up or newly approved deposit via URL)
-        if ((curLocal === 0 && urlBal > 0) || (urlBal > curLocal && !isRecentMod && !isPending)) {
+        // Accept URL balance if:
+        // 1. URL timestamp is newer than or equal to local modification (authoritative bot action)
+        // 2. Local is 0 and urlBal > 0 (first session or fresh login)
+        // 3. urlBal > curLocal and no active in-flight wager is happening
+        // 4. curLocal != urlBal and modTs is older than 15s
+        if (isUrlNewer || (curLocal === 0 && urlBal > 0) || (urlBal > curLocal && !isRecentMod) || (!isRecentMod && !isPending && (Date.now() - modTs > 15000))) {
           localStorage.setItem(STORAGE_KEY_REAL, urlBal.toFixed(2));
           localStorage.setItem('habesha_wallet_synced', 'true');
+          try { localStorage.removeItem('habesha_balance_pending_sync'); } catch (e) {}
+          balanceUpdatedFromUrl = true;
         }
       }
       if (rawBonus !== null && !isNaN(parseFloat(rawBonus))) {
         const urlBonus = Math.max(0, round2(parseFloat(rawBonus)));
-        if ((getBonusBalance() === 0 && urlBonus > 0) || (urlBonus > getBonusBalance() && !isRecentMod && !isPending)) {
+        if (isUrlNewer || (getBonusBalance() === 0 && urlBonus > 0) || (urlBonus > getBonusBalance() && !isRecentMod) || (!isRecentMod && !isPending)) {
           localStorage.setItem(STORAGE_KEY_BONUS, urlBonus.toFixed(2));
+          balanceUpdatedFromUrl = true;
         }
+      }
+
+      if (balanceUpdatedFromUrl) {
+        try {
+          syncLegacyStorages(get());
+          notifyAll(get());
+        } catch (e) {}
       }
 
       // Clean query params so subsequent refreshes or navigation don't retain stale balance params
@@ -582,7 +598,12 @@
   let hasUnsyncedChanges = false;
   let isFetchingBalance = false;
 
-  function fetchBalanceFromCloud(callback) {
+  function fetchBalanceFromCloud(callback, force) {
+    if (force) {
+      isFetchingBalance = false;
+      hasUnsyncedChanges = false;
+      try { localStorage.removeItem('habesha_balance_pending_sync'); } catch (e) {}
+    }
     if (isFetchingBalance) {
       if (typeof callback === 'function') callback(getRealBalance());
       return;
@@ -604,7 +625,7 @@
       }
 
       isFetchingBalance = true;
-      const safetyTimer = setTimeout(() => { isFetchingBalance = false; }, 4000);
+      const safetyTimer = setTimeout(() => { isFetchingBalance = false; }, 3500);
       fetch('https://africa-bingo.ethiodeploy.com/api/me?_t=' + Date.now(), {
         cache: 'no-store',
         headers: {
@@ -631,8 +652,8 @@
           const modTs = parseInt(localStorage.getItem('habesha_balance_mod_ts') || '0', 10);
           const timeSinceMod = Date.now() - modTs;
 
-          // Clear stuck pending sync if more than 10s has passed
-          if (isPending && timeSinceMod > 10000) {
+          // Clear stuck pending sync if more than 8s has passed or if forced
+          if (force || (isPending && timeSinceMod > 8000)) {
             try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
           }
 
@@ -644,10 +665,8 @@
             return;
           }
 
-          // If local balance was modified by an active in-game wager/win (or pending cloud commit),
-          // AND cloud is LESS than local (e.g. recent in-flight win hasn't reached server yet):
-          // Note: If cloudBal >= localReal (e.g. deposit approved, admin credit), ALWAYS accept cloudBal!
-          const activeInGame = hasUnsyncedChanges || (isPending && timeSinceMod < 60000);
+          // If local balance was modified by an active in-game wager/win (within 10s) and cloud is less than local:
+          const activeInGame = !force && (hasUnsyncedChanges || (isPending && timeSinceMod < 10000));
           if (activeInGame && localReal > 0 && cloudBal < localReal) {
             console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
             syncLiveBalanceToCloud(true);
@@ -655,7 +674,7 @@
             return;
           }
 
-          // Otherwise, server is authoritative (approved deposits, admin top-up, or true updates)
+          // Authoritative sync from cloud
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
           localStorage.setItem('habesha_wallet_synced', 'true');
