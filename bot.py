@@ -411,9 +411,7 @@ def get_user_webapp_url(chat_id, user=None):
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     clean_uname = urllib.parse.quote(username)
-    real_bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&bal={real_bal:.2f}&bonus={bonus_bal:.2f}&ts={int(time.time())}&v=4.0"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=4.2"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
@@ -589,14 +587,11 @@ def send_registration_success(chat_id, user):
         "parse_mode": "HTML"
     })
 
-    # 2. Card with photo and account balances
-    real_bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    total_playable = real_bal + bonus_bal
+    # 2. Card with photo and welcome
     caption = (
         f"👋 Welcome {display_user}!\n"
-        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
-        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
+        f"🎮 <b>ወደ ሀብታም ቤቲንግ (Habtam Bet) በደህና መጡ!</b>\n\n"
+        f"👇 ከታች ያለውን <b>'Play Games 🎮'</b> በተን በመጫን ወደ ጨዋታው ይግቡና ያሸንፉ!\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
@@ -612,7 +607,7 @@ def send_registration_success(chat_id, user):
         "inline_keyboard": [
             [
                 {
-                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
+                    "text": "🎮 Play Games | አሁኑኑ ይጫወቱ",
                     "web_app": {"url": app_url}
                 }
             ],
@@ -689,80 +684,65 @@ def send_registration_success(chat_id, user):
     })
 
 def fetch_live_cloud_balance(chat_id, user):
-    """Fetch the latest live gameplay balance from the cloud relay if available."""
+    """Fetch the latest live gameplay balance from the local server or cloud relay."""
     try:
         last_dep = float(user.get("last_deposit_time") or 0)
         now = time.time()
         cur_bal = round(float(user.get("balance", 0.0)), 2)
         cur_bonus = round(float(user.get("bonus_balance", 0.0)), 2)
-        # Protect very recent deposit approvals (within 10s) from in-flight race condition
-        if now - last_dep < 10:
+        # Protect very recent deposit approvals (within 8s) from in-flight race condition
+        if now - last_dep < 8:
             return cur_bal
 
-        req = urllib.request.Request(
-            f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "X-Telegram-User-Id": str(chat_id),
-                "X-Telegram-User-Name": user.get("username", "") or "",
-                "Accept": "application/json"
-            }
-        )
-        with urllib.request.urlopen(req, timeout=4.0) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data and "balance" in data and isinstance(data["balance"], (int, float)):
-                cloud_bal = round(float(data["balance"]), 2)
-                cloud_bonus = round(float(data.get("bonus_balance", 0.0) or 0.0), 2)
-                # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
-                # NEVER wipe out the deposit! Heal the cloud with cur_bal!
-                if cur_bal > 0 and cloud_bal == 0.0:
-                    logging.info(f"[FetchBalance] Cloud returned 0.0 for {chat_id} but bot has {cur_bal:.2f}. Healing cloud!")
-                    push_balance_to_cloud(chat_id, cur_bal, user.get("username", ""), bonus_balance=cur_bonus)
-                    return cur_bal
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "X-Telegram-User-Id": str(chat_id),
+            "X-Telegram-User-Name": user.get("username", "") or "",
+            "Accept": "application/json"
+        }
 
-                changed = False
-                if abs(cloud_bal - cur_bal) >= 0.01:
-                    cur_bal = cloud_bal
-                    changed = True
-                if abs(cloud_bonus - cur_bonus) >= 0.01:
-                    cur_bonus = cloud_bonus
-                    changed = True
+        data = None
+        for base_url in ["http://127.0.0.1:3005", "https://africa-bingo.ethiodeploy.com"]:
+            try:
+                req = urllib.request.Request(f"{base_url}/api/me?_t={int(now)}", headers=headers)
+                timeout_sec = 1.5 if "127.0.0.1" in base_url else 3.5
+                with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    if data and "balance" in data and isinstance(data["balance"], (int, float)):
+                        break
+            except Exception:
+                continue
 
-                if changed:
-                    users_all = load_known_users()
-                    uid_str = str(chat_id)
-                    if uid_str in users_all:
-                        users_all[uid_str]["balance"] = cur_bal
-                        users_all[uid_str]["bonus_balance"] = cur_bonus
-                        users_all[uid_str]["balance_updated"] = time.time()
-                        save_all_users(users_all)
-                    user["balance"] = cur_bal
-                    user["bonus_balance"] = cur_bonus
-                return cur_bal
+        if data and "balance" in data and isinstance(data["balance"], (int, float)):
+            cloud_bal = round(float(data["balance"]), 2)
+            cloud_bonus = round(float(data.get("bonus_balance", 0.0) or 0.0), 2)
+
+            changed = False
+            if abs(cloud_bal - cur_bal) >= 0.01:
+                cur_bal = cloud_bal
+                changed = True
+            if abs(cloud_bonus - cur_bonus) >= 0.01:
+                cur_bonus = cloud_bonus
+                changed = True
+
+            if changed:
+                users_all = load_known_users()
+                uid_str = str(chat_id)
+                if uid_str in users_all:
+                    users_all[uid_str]["balance"] = cur_bal
+                    users_all[uid_str]["bonus_balance"] = cur_bonus
+                    users_all[uid_str]["balance_updated"] = time.time()
+                    save_all_users(users_all)
+                user["balance"] = cur_bal
+                user["bonus_balance"] = cur_bonus
+            return cur_bal
     except Exception as e:
         logging.warning(f"[FetchBalance] Exception for {chat_id}: {e}")
     return float(user.get("balance", 0.0))
 
 def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None):
-    """Push a balance update to the cloud relay so gameplay sessions see the correct balance."""
+    """Push a balance update to local / cloud relay so gameplay sessions see the correct balance."""
     try:
-        # 1. Ensure user exists in cloud state first
-        try:
-            req_init = urllib.request.Request(
-                "https://africa-bingo.ethiodeploy.com/api/me",
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    "X-Telegram-User-Id": str(chat_id),
-                    "X-Telegram-User-Name": username or "",
-                    "Accept": "application/json"
-                }
-            )
-            with urllib.request.urlopen(req_init, timeout=2.5) as r_init:
-                pass
-        except Exception:
-            pass
-
-        # 2. If bonus_balance not explicitly passed, retrieve it from known_users
         if bonus_balance is None:
             try:
                 u_data = load_known_users().get(str(chat_id), {})
@@ -770,7 +750,6 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             except Exception:
                 bonus_balance = 0.0
 
-        # 3. Push updated balance
         payload = json.dumps({
             "user_id": str(chat_id),
             "username": username or "",
@@ -778,44 +757,47 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             "bonus_balance": round(float(bonus_balance), 2),
             "admin_authorized": True
         }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://africa-bingo.ethiodeploy.com/api/admin/user/update",
-            data=payload,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Content-Type": "application/json",
-                "X-Telegram-User-Id": str(chat_id),
-                "X-Telegram-User-Name": username or "",
-                "Accept": "application/json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=4.0) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            logging.info(f"[CloudPush] user={chat_id} bal={new_balance:.2f} bonus={bonus_balance:.2f} -> {result}")
-            return True
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Content-Type": "application/json",
+            "X-Telegram-User-Id": str(chat_id),
+            "X-Telegram-User-Name": username or "",
+            "Accept": "application/json"
+        }
+
+        for base_url in ["http://127.0.0.1:3005", "https://africa-bingo.ethiodeploy.com"]:
+            try:
+                req = urllib.request.Request(
+                    f"{base_url}/api/admin/user/update",
+                    data=payload,
+                    headers=headers,
+                    method="POST"
+                )
+                timeout_sec = 1.5 if "127.0.0.1" in base_url else 3.5
+                with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                    if resp.status == 200:
+                        logging.info(f"[CloudPush] ({base_url}) user={chat_id} bal={new_balance:.2f} -> success")
+                        return True
+            except Exception:
+                continue
     except Exception as e:
         logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
         return False
-    except Exception as e:
-        logging.warning(f"[CloudPush] Failed for user={chat_id}: {e}")
-        return False
+    return False
 
 def update_live_welcome_message(chat_id, user):
-    """Dynamically updates the welcome message caption & 'Play Games' button in real time."""
+    """Refreshes the welcome message caption & button without confusing static balances."""
     username = user.get("username")
     display_user = f"@{username}" if username else user.get("first_name", "Player")
-    real_bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
 
     msg_id = user.get("welcome_msg_id")
     if msg_id:
         caption = (
             f"👋 Welcome {display_user}!\n"
-            f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
-            f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
+            f"🎮 <b>ወደ ሀብታም ቤቲንግ (Habtam Bet) በደህና መጡ!</b>\n\n"
+            f"👇 ከታች ያለውን <b>'Play Games 🎮'</b> በተን በመጫን ወደ ጨዋታው ይግቡና ያሸንፉ!\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
             f"📞 Contact 1: <code>+251939292694</code>\n"
@@ -828,7 +810,7 @@ def update_live_welcome_message(chat_id, user):
             "inline_keyboard": [
                 [
                     {
-                        "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
+                        "text": "🎮 Play Games | አሁኑኑ ይጫወቱ",
                         "web_app": {"url": app_url}
                     }
                 ],
@@ -863,18 +845,16 @@ def update_live_welcome_message(chat_id, user):
     if bal_mid:
         bal_text = (
             f"💰 <b>Your Account Balance | የሂሳብ መጠን</b>\n\n"
-            f"💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
-            f"🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
-            f"🎮 <b>Total Playable (አጠቃላይ መጫወቻ):</b> <b>{total_playable:.2f} ETB</b>\n"
-            f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
-            f"📌 <i>ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
+            f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n"
+            f"👤 <b>Player:</b> {display_user}\n\n"
+            f"📌 <i>ትክክለኛውን እና የቀጥታ ሂሳብዎን (Live Balance) በጨዋታው ውስጥ በቀጥታ ይመልከቱ።</i>\n\n"
+            f"👇 ከታች ያለውን <b>'Play Games 🎮'</b> በመጫን ሂሳብዎን ማየትና መጫወት ይችላሉ፦\n\n"
             f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr / Safaricom\n"
-            f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance\n"
-            f"• Tap <b>'Play Games 🎮'</b> to start playing!"
+            f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance"
         )
         bal_kb = {
             "inline_keyboard": [
-                [{"text": f"🎮 Play Games ({total_playable:.2f} ETB)", "web_app": {"url": app_url}}],
+                [{"text": "🎮 Open Game & Check Balance | ሂሳብዎን ይመልከቱ", "web_app": {"url": app_url}}],
                 [
                     {"text": "Deposit 💰", "callback_data": "deposit"},
                     {"text": "Withdraw 💰", "callback_data": "withdraw"}
@@ -897,19 +877,10 @@ def send_welcome(chat_id, user=None):
         users = load_known_users()
         user = users.get(str(chat_id), {})
 
-    # Ensure freshest live cloud balance is reflected in the welcome message
-    try:
-        fetch_live_cloud_balance(chat_id, user)
-    except Exception:
-        pass
-
     first_name = user.get("first_name", "Player")
     username = user.get("username")
     display_user = f"@{username}" if username else first_name
     main_kb = get_main_reply_keyboard(chat_id, user)
-    real_bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
 
     global CACHED_LOGO_FILE_ID
@@ -930,8 +901,8 @@ def send_welcome(chat_id, user=None):
 
     caption = (
         f"👋 Welcome {display_user}!\n"
-        f"💵 Real Balance: <b>{real_bal:.2f} ETB</b>\n"
-        f"🎁 Bonus Balance: <b>{bonus_bal:.2f} ETB</b>\n\n"
+        f"🎮 <b>ወደ ሀብታም ቤቲንግ (Habtam Bet) በደህና መጡ!</b>\n\n"
+        f"👇 ከታች ያለውን <b>'Play Games 🎮'</b> በተን በመጫን ወደ ጨዋታው ይግቡና ያሸንፉ!\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🛠 <b>እንደዚህ አይነት የካሲኖ ጨዋታዎችን እና የቤቲንግ ዌብሳይት ማሰራት ለምትፈልጉ (Casino & Betting Development):</b>\n"
         f"📞 Contact 1: <code>+251939292694</code>\n"
@@ -946,7 +917,7 @@ def send_welcome(chat_id, user=None):
         "inline_keyboard": [
             [
                 {
-                    "text": f"Play Games 🎮 ({total_playable:.2f} ETB)",
+                    "text": "🎮 Play Games | አሁኑኑ ይጫወቱ",
                     "web_app": {"url": app_url}
                 }
             ],
@@ -1052,7 +1023,11 @@ def send_withdraw_info(chat_id, user):
     phone = user.get("phone", "")
     full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or "Player"
     app_url = get_user_webapp_url(chat_id, user)
-    real_bal = float(user.get("balance", 0.0))
+    real_bal = fetch_live_cloud_balance(chat_id, user)
+    users = load_known_users()
+    if str(chat_id) in users:
+        user = users[str(chat_id)]
+        real_bal = float(user.get("balance", real_bal))
 
     if real_bal < MIN_WITHDRAWAL_AMOUNT:
         text = (
@@ -1126,7 +1101,11 @@ def handle_withdraw_request(chat_id, user, amount_str):
             "reply_markup": get_main_reply_keyboard(chat_id, user)
         })
 
-    real_bal = float(user.get("balance", 0.0))
+    real_bal = fetch_live_cloud_balance(chat_id, user)
+    users = load_known_users()
+    if str(chat_id) in users:
+        user = users[str(chat_id)]
+        real_bal = float(user.get("balance", real_bal))
 
     if real_bal < MIN_WITHDRAWAL_AMOUNT:
         return api_call("sendMessage", {
@@ -1817,22 +1796,16 @@ def send_profile_info(chat_id, user):
     username = user.get("username")
     display_user = f"@{username}" if username else "Not set"
     main_kb = get_main_reply_keyboard(chat_id, user)
-    real_bal = float(user.get("balance", 0.0))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    total_playable = real_bal + bonus_bal
 
     text = (
-        f"👤 <b>የተጫዋች ፕሮፋይል እና ሂሳብ (Profile & Balance)</b>\n\n"
+        f"👤 <b>የተጫዋች ፕሮፋይል (Player Profile)</b>\n\n"
         f"• <b>ስም:</b> {full_name}\n"
         f"• <b>የተጠቃሚ ስም:</b> {display_user}\n"
         f"• <b>ስልክ ቁጥር:</b> <code>{phone or 'Not Registered'}</code>\n"
         f"• <b>የተጫዋች መለያ (ID):</b> <code>{chat_id}</code>\n"
-        f"• 💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
-        f"• 🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
-        f"• 🎮 <b>አጠቃላይ መጫወቻ:</b> <b>{total_playable:.2f} ETB</b>\n"
+        f"• 🎮 <b>የአካውንት ሂሳብ (Balance):</b> በጨዋታው ውስጥ በቀጥታ ይመልከቱ\n"
         f"• <b>የአካውንት ሁኔታ:</b> የተረጋገጠ ተጫዋች ✓\n\n"
-        f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
-        f"ገቢ እና ወጪ ለማድረግ ከታች ያሉትን ቁልፎች ይጠቀሙ።"
+        f"ገቢ እና ወጪ ለማድረግ ወይም ለመጫወት ከታች ያሉትን ቁልፎች ይጠቀሙ።"
     )
     return api_call("sendMessage", {
         "chat_id": chat_id,
@@ -1937,24 +1910,21 @@ def send_balance_info(chat_id, user):
     users = load_known_users()
     if str(chat_id) in users:
         user = users[str(chat_id)]
-    real_bal = float(user.get("balance", fresh_bal))
-    bonus_bal = float(user.get("bonus_balance", 0.0))
-    total_playable = real_bal + bonus_bal
     app_url = get_user_webapp_url(chat_id, user)
+    username = user.get("username")
+    display_user = f"@{username}" if username else user.get("first_name", "Player")
     text = (
         f"💰 <b>Your Account Balance | የሂሳብ መጠን</b>\n\n"
-        f"💵 <b>Real Balance (እውነተኛ ሂሳብ):</b> <b>{real_bal:.2f} ETB</b>\n"
-        f"🎁 <b>Bonus Balance (የቦነስ ሂሳብ):</b> <b>{bonus_bal:.2f} ETB</b>\n"
-        f"🎮 <b>Total Playable (አጠቃላይ መጫወቻ):</b> <b>{total_playable:.2f} ETB</b>\n"
-        f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n\n"
-        f"📌 <i>ማስታወሻ፦ ቦነስ ባላንስ በሪፈራል የሚገኝ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>\n\n"
+        f"🆔 <b>Player ID:</b> <code>{chat_id}</code>\n"
+        f"👤 <b>Player:</b> {display_user}\n\n"
+        f"📌 <i>ትክክለኛውን እና የቀጥታ ሂሳብዎን (Live Balance) በጨዋታው ውስጥ ይመልከቱ።</i>\n\n"
+        f"👇 ከታች ያለውን <b>'Play Games 🎮'</b> በመጫን ሂሳብዎን ማየትና መጫወት ይችላሉ፦\n\n"
         f"• Tap <b>'Deposit 💰'</b> to add funds via Telebirr / Safaricom\n"
-        f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance\n"
-        f"• Tap <b>'Play Games 🎮'</b> to start playing!"
+        f"• Tap <b>'Withdraw 💰'</b> to cash out Real Balance"
     )
     inline_kb = {
         "inline_keyboard": [
-            [{"text": f"🎮 Play Games ({total_playable:.2f} ETB)", "web_app": {"url": app_url}}],
+            [{"text": "🎮 Open Game & Check Balance | ሂሳብዎን ይመልከቱ", "web_app": {"url": app_url}}],
             [
                 {"text": "Deposit 💰", "callback_data": "deposit"},
                 {"text": "Withdraw 💰", "callback_data": "withdraw"}
@@ -2592,9 +2562,13 @@ def send_agent_dashboard(chat_id, user=None):
     })
 
 def send_agent_player_card(agent_chat_id, player_uid, player_data):
+    p_bal = fetch_live_cloud_balance(player_uid, player_data)
+    users = load_known_users()
+    if str(player_uid) in users:
+        player_data = users[str(player_uid)]
+        p_bal = float(player_data.get("balance", p_bal))
     p_name = f"{player_data.get('first_name', '')} {player_data.get('last_name', '')}".strip() or player_data.get("username", "Player")
     p_phone = player_data.get("phone", "N/A")
-    p_bal = float(player_data.get("balance", 0.0))
     p_bonus = float(player_data.get("bonus_balance", 0.0))
     
     agent = get_agent_record(agent_chat_id)
@@ -2633,8 +2607,12 @@ def send_agent_player_card(agent_chat_id, player_uid, player_data):
 def send_agent_amount_selector(agent_chat_id, player_uid, mode):
     users = load_known_users()
     player = users.get(str(player_uid), {})
+    p_bal = fetch_live_cloud_balance(player_uid, player)
+    users = load_known_users()
+    if str(player_uid) in users:
+        player = users[str(player_uid)]
+        p_bal = float(player.get("balance", p_bal))
     p_name = player.get("first_name", "Player")
-    p_bal = float(player.get("balance", 0.0))
     
     agent = get_agent_record(agent_chat_id)
     ag_bal = float(agent.get("balance", 0.0)) if agent else 0.0
@@ -3787,10 +3765,7 @@ def main():
 
     def _live_cloud_balance_sync_worker():
         """
-        Periodically polls the cloud relay for recent players' balances.
-        If a player's balance in the cloud differs from known_users, it updates the bot's
-        local database AND edits their active welcome photo caption & 'Play Games' button
-        so the Telegram chat message dynamically tracks gameplay in real time!
+        Periodically syncs recent active players' balances from local/cloud state into known_users.
         """
         while True:
             try:
@@ -3803,48 +3778,10 @@ def main():
                 ]
                 for uid, udata in active_users:
                     try:
-                        last_dep = float(udata.get("last_deposit_time") or 0)
-                        # Only wait 10 seconds after a deposit/approval to give push_balance_to_cloud time to hit cloud
-                        if now - last_dep < 10:
-                            continue
-
-                        req = urllib.request.Request(
-                            f"https://africa-bingo.ethiodeploy.com/api/me?_t={int(now)}",
-                            headers={
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                                "X-Telegram-User-Id": str(uid),
-                                "X-Telegram-User-Name": udata.get("username", "") or "",
-                                "Accept": "application/json"
-                            }
-                        )
-                        with urllib.request.urlopen(req, timeout=3.0) as resp:
-                            data = json.loads(resp.read().decode("utf-8"))
-                            if data and "balance" in data and isinstance(data["balance"], (int, float)):
-                                cloud_bal = round(float(data["balance"]), 2)
-                                cloud_bonus = round(float(data.get("bonus_balance", 0.0) or 0.0), 2)
-                                cur_bal = round(float(udata.get("balance", 0.0)), 2)
-                                cur_bonus = round(float(udata.get("bonus_balance", 0.0)), 2)
-                                # CRITICAL GUARD: If local bot has positive balance (e.g. approved deposit) and cloud returned 0.0,
-                                # NEVER zero out the local user! Instead re-push cur_bal to heal the cloud!
-                                if cur_bal > 0 and cloud_bal == 0.0:
-                                    logging.warning(f"[LiveSync] Cloud has 0.0 for {uid} but bot has {cur_bal:.2f}. Healing cloud!")
-                                    push_balance_to_cloud(uid, cur_bal, udata.get("username", ""), bonus_balance=cur_bonus)
-                                    continue
-                                bal_diff = abs(cloud_bal - cur_bal) >= 0.01
-                                bonus_diff = abs(cloud_bonus - cur_bonus) >= 0.01
-                                if bal_diff or bonus_diff:
-                                    logging.info(f"[LiveSync] Detected balance change for {uid}: bal {cur_bal}->{cloud_bal}, bonus {cur_bonus}->{cloud_bonus}")
-                                    users_all = load_known_users()
-                                    if str(uid) in users_all:
-                                        users_all[str(uid)]["balance"] = cloud_bal
-                                        users_all[str(uid)]["bonus_balance"] = cloud_bonus
-                                        save_all_users(users_all)
-                                        udata["balance"] = cloud_bal
-                                        udata["bonus_balance"] = cloud_bonus
-                                    update_live_welcome_message(int(uid), udata)
+                        fetch_live_cloud_balance(int(uid), udata)
                     except Exception:
                         pass
-            except Exception as e:
+            except Exception:
                 time.sleep(3)
 
     def _ledger_cloud_sync_worker():

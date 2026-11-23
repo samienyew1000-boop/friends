@@ -197,7 +197,7 @@
   // Live balance listeners: auto-sync home balance when returning from any game
   window.addEventListener('pageshow', () => {
     if (window.HabeshaWallet && typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
-      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay());
+      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay(), true);
     } else {
       updateBalanceDisplay();
     }
@@ -1392,7 +1392,7 @@
       updateBalanceDisplay();
     });
     if (typeof window.HabeshaWallet.fetchBalanceFromCloud === 'function') {
-      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay());
+      window.HabeshaWallet.fetchBalanceFromCloud(() => updateBalanceDisplay(), true);
       // Fast periodic balance check every 2.5s while viewing lobby
       setInterval(() => {
         if (!document.hidden) {

@@ -657,9 +657,9 @@
             try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
           }
 
-          // NEVER wipe out a positive local balance if cloud returns 0.0! Heal the cloud!
-          if (localReal > 0 && cloudBal === 0.0) {
-            console.log('[HabeshaWallet] Cloud returned 0.0 but local has', localReal, '. Healing cloud!');
+          // Protect active local funds only if not forced and recently modified
+          if (!force && localReal > 0 && cloudBal === 0.0 && (timeSinceMod < 15000 || isPending)) {
+            console.log('[HabeshaWallet] Cloud returned 0.0 but local has active recent funds', localReal, '. Healing cloud!');
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
@@ -1167,9 +1167,9 @@
   global.HabeshaWallet = HabeshaWallet;
   global.FriendesWallet = HabeshaWallet;
 
-  // Initialize and synchronize immediately
+  // Initialize and synchronize immediately from authoritative cloud
   const initialBal = get();
   syncLegacyStorages(initialBal);
-  fetchBalanceFromCloud();
+  fetchBalanceFromCloud(null, true);
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
