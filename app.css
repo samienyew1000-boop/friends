@@ -49,8 +49,41 @@ body {
 /* Game Card Hover & Glow */
 .game-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: #0e1420;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
   will-change: transform;
+}
+
+.game-card > div:first-child {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 105px;
+  background-color: #0a0f18;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-card img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  background-color: #0a0f18;
+  transition: transform 0.3s ease;
+}
+
+.game-card[data-game="habitam_bet"] img,
+.game-card[data-game="tower_trash"] img {
+  object-fit: contain !important;
 }
 
 .game-card:hover {
@@ -87,11 +120,21 @@ body {
   display: flex;
   transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform;
+  min-height: 140px;
 }
 
 .carousel-slide {
   flex: 0 0 100%;
   width: 100%;
+  min-height: 140px;
+  background-color: #0d1520;
+}
+
+.carousel-slide img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 /* Pulse animation for live games */

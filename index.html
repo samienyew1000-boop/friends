@@ -70,9 +70,9 @@
   </script>
 
   <!-- Custom App Styles -->
-  <link rel="stylesheet" href="app.css?v=4.0" />
-  <link rel="stylesheet" href="assets/game-loader.css?v=4.0" />
-  <script src="assets/game-loader.js?v=4.0"></script>
+  <link rel="stylesheet" href="app.css?v=5.0" />
+  <link rel="stylesheet" href="assets/game-loader.css?v=5.0" />
+  <script src="assets/game-loader.js?v=5.0"></script>
   <script>
     // Instant loader dismissal: zero loading delay
     if (window.hideGameLoader) window.hideGameLoader(0);
@@ -200,11 +200,11 @@
         <div id="carouselTrack" class="carousel-track h-full">
           <!-- Slide 1 (Friendes Game Victory Banner) -->
           <div class="carousel-slide relative h-full">
-            <img src="assets/hero_banner_1.jpg" alt="Friendes Game Hero Banner" class="w-full h-full object-cover" />
+            <img src="assets/hero_banner_1.jpg" alt="Friendes Game Hero Banner" class="w-full h-full object-cover" loading="eager" />
           </div>
           <!-- Slide 2 -->
           <div class="carousel-slide relative h-full">
-            <img src="assets/banner_2.jpg" alt="Friendes Game Tournament" class="w-full h-full object-cover" />
+            <img src="assets/banner_2.jpg" alt="Friendes Game Tournament" class="w-full h-full object-cover" loading="eager" />
           </div>
         </div>
 
@@ -259,7 +259,7 @@
           <!-- Card 1: Habtam Bet (folder: game/habitam bet) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="habitam_bet" data-category="sports">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18] flex items-center justify-center p-2">
-              <img src="assets/game_habtam_bet.png" alt="Habtam Bet" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
+              <img src="assets/game_habtam_bet.png" alt="Habtam Bet" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" loading="eager" />
               <!-- Favorite Star Badge (Top-Left) -->
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -278,7 +278,7 @@
           <!-- Card 2: Aviator (folder: game/aviator) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="aviator" data-category="crash">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18]">
-              <img src="assets/game_aviator.jpg" alt="Aviator" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img src="assets/game_aviator.jpg" alt="Aviator" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="eager" />
               <!-- Favorite Star Badge (Top-Left) -->
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -297,7 +297,7 @@
           <!-- Card 2: Fast Keno (folder: game/fast keno) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="fast_keno" data-category="instant">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18]">
-              <img src="assets/game_fast_keno.jpg" alt="Fast Keno" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img src="assets/game_fast_keno.jpg" alt="Fast Keno" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="eager" />
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -313,7 +313,7 @@
           <!-- Card 3: Chicken Road (folder: game/chicken road) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="chicken_road" data-category="instant">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18]">
-              <img src="assets/game_chicken_road.jpg" alt="Chicken Road" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img src="assets/game_chicken_road.jpg" alt="Chicken Road" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="eager" />
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -329,7 +329,7 @@
           <!-- Card 3b: Chicken Crash (folder: game/chicken-crash-game) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="chicken_crash" data-category="instant">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18]">
-              <img src="game/chicken-crash-game/public/img/gameLogo.webp" alt="Chicken Crash" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <img src="game/chicken-crash-game/public/img/gameLogo.webp" alt="Chicken Crash" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="eager" />
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -345,7 +345,7 @@
           <!-- Card 3c: Tower Dash (folder: game/tower-trash) -->
           <div class="game-card group cursor-pointer bg-[#0e1420] rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg flex flex-col hover:border-amber-400/50 transition-all active:scale-[0.98]" data-game="tower_trash" data-category="instant">
             <div class="relative aspect-square w-full overflow-hidden bg-[#0a0f18] flex items-center justify-center p-3">
-              <img src="game/tower-trash/assets/images/blocks/components_block1_1.png" alt="Tower Dash" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" />
+              <img src="game/tower-trash/assets/images/blocks/components_block1_1.png" alt="Tower Dash" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300" loading="eager" />
               <button class="star-btn absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 hover:text-amber-400 transition-colors z-10" title="Add to favorites">
                 <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -1048,9 +1048,9 @@
   </div>
 
   <!-- Unified Shared Balance Engine -->
-  <script src="game/shared-balance.js?v=4.0"></script>
+  <script src="game/shared-balance.js?v=5.0"></script>
 
   <!-- App JavaScript Engine -->
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=5.0"></script>
 </body>
 </html>

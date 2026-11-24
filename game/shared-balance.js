@@ -657,9 +657,9 @@
             try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
           }
 
-          // Protect active local funds only if not forced and recently modified
-          if (!force && localReal > 0 && cloudBal === 0.0 && (timeSinceMod < 15000 || isPending)) {
-            console.log('[HabeshaWallet] Cloud returned 0.0 but local has active recent funds', localReal, '. Healing cloud!');
+          // Protect active local funds: NEVER EVER overwrite positive local funds with 0.00 from cloud!
+          if (localReal > 0 && cloudBal === 0.0) {
+            console.log('[HabeshaWallet] Cloud returned 0.0 but local has active funds', localReal, '. Healing cloud!');
             syncLiveBalanceToCloud(true);
             if (typeof callback === 'function') callback(localReal);
             return;
