@@ -79,12 +79,6 @@
       setTimeout(doHide, delay);
     }
   };
-    if (delay <= 0) {
-      doHide();
-    } else {
-      setTimeout(doHide, delay);
-    }
-  };
 
   // Auto-run loading screen dismissal (instantaneous - zero artificial delay)
   injectStyles();
@@ -96,6 +90,7 @@
     window.hideGameLoader(0);
   }
 
+  handleDismiss();
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     handleDismiss();
   } else {

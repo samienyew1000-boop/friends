@@ -791,9 +791,6 @@
         }
       }
     });
-        fetchBalanceFromCloud();
-      }
-    });
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('pagehide', () => {

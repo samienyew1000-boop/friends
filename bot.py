@@ -411,7 +411,7 @@ def get_user_webapp_url(chat_id, user=None):
     clean_phone = urllib.parse.quote(phone)
     clean_name = urllib.parse.quote(full_name)
     clean_uname = urllib.parse.quote(username)
-    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=4.2"
+    return f"{WEBAPP_URL}?phone={clean_phone}&uid={chat_id}&name={clean_name}&username={clean_uname}&v=4.3"
 
 def get_main_reply_keyboard(chat_id, user=None):
     """
