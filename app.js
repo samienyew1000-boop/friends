@@ -535,11 +535,23 @@
   // Deposit confirmation
   const confirmDepositBtn = document.getElementById('confirmDepositBtn');
   confirmDepositBtn.addEventListener('click', () => {
-    const phone = document.getElementById('depositPhoneInput').value.trim();
+    const phoneInput = document.getElementById('depositPhoneInput');
+    const phone = (phoneInput ? phoneInput.value : '').trim();
     if (!phone || phone.length < 8) {
       showToast('እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ', 'error');
+      if (phoneInput) phoneInput.focus();
       return;
     }
+
+    // Exclude company receiver numbers to prevent attribution errors
+    const cleanDigits = phone.replace(/[\s\-\+]/g, '');
+    const blockedReceiverNumbers = ['0928233032', '251928233032', '928233032', '0717482251', '251717482251', '717482251'];
+    if (blockedReceiverNumbers.some(bp => cleanDigits === bp || cleanDigits.endsWith(bp.slice(-8)))) {
+      showToast('እባክዎ ገንዘቡን የላኩበትን የእርስዎን የግል ስልክ ቁጥር ያስገቡ! የድርጅቱን መቀበያ ቁጥር አያስገቡ።', 'error');
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+
     const amount = state.selectedAmount;
     if (amount <= 0) {
       showToast('እባክዎ ከ 0 ብር በላይ የሆነ መጠን ያስገቡ', 'error');
@@ -568,8 +580,9 @@
       const qUid = params.get('uid');
       const tgUid = window.Telegram?.WebApp?.initDataUnsafe?.user?.id ? String(window.Telegram.WebApp.initDataUnsafe.user.id) : null;
       const user = window.HabeshaWallet ? window.HabeshaWallet.getUser() : null;
-      const rawUid = qUid || tgUid || (user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '') || localStorage.getItem('habesha_uid') || '';
-      const uid = /^\d+$/.test(rawUid) ? rawUid : '';
+      const storedUid = localStorage.getItem('habesha_uid') || '';
+      const rawUid = qUid || tgUid || (user?.id ? String(user.id).replace(/^TG-/i, '').replace(/^tg_/i, '') : '') || storedUid;
+      const uid = /^\d+$/.test(rawUid) ? rawUid : (storedUid && /^\d+$/.test(storedUid) ? storedUid : '');
       const pid = uid ? `TG-${uid}` : (user?.id ? (String(user.id).startsWith('TG-') ? user.id : `TG-${user.id}`) : 'TG-GUEST');
       const playerName = user?.name || user?.username || 'Player';
       const playerUsername = user?.username ? `@${user.username}` : '';
@@ -1151,7 +1164,18 @@
       sound.playClick();
       triggerHaptic('impact');
 
-      const isReg = window.HabeshaWallet ? window.HabeshaWallet.isRegistered() : false;
+      let isReg = window.HabeshaWallet ? window.HabeshaWallet.isRegistered() : false;
+      if (!isReg && window.Telegram?.WebApp?.initDataUnsafe?.user) {
+        const tg = window.Telegram.WebApp.initDataUnsafe.user;
+        if (window.HabeshaWallet && window.HabeshaWallet.registerTelegramUser) {
+          window.HabeshaWallet.registerTelegramUser({
+            id: String(tg.id),
+            username: tg.username || '',
+            name: tg.first_name + (tg.last_name ? ' ' + tg.last_name : '')
+          });
+          isReg = true;
+        }
+      }
 
       if (!isReg) {
         // Prompt user to register because real balance is funded through Telegram

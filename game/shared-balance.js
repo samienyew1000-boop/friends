@@ -14,6 +14,7 @@
   const DEFAULT_DEMO_BALANCE = 1000.0;
   const DEFAULT_REAL_BALANCE = 0.0;
   const DEFAULT_BONUS_BALANCE = 0.0;
+  const CLOUD_API_BASE = 'https://konjobetcom.et/bingo';
 
   // Auto-detect mode from URL param (?mode=demo or ?mode=real).
   // IMPORTANT: If mode is not present in URL (e.g. Back button or Lobby link), preserve the existing user mode!
@@ -452,7 +453,7 @@
       const batchToSync = { ...pendingBetBatch, items: [...pendingBetBatch.items] };
       pendingBetBatch = { stakes: 0, wins: 0, count: 0, items: [] };
 
-      fetch('https://africa-bingo.ethiodeploy.com/api/settings', {
+      fetch(`${CLOUD_API_BASE}/api/settings`, {
         headers: { 'Accept': 'application/json' }
       })
         .then(r => r.json())
@@ -470,7 +471,7 @@
           const newCount = (Number(ledger.total_bets) || 0) + batchToSync.count;
           const mergedRecent = [...batchToSync.items, ...(Array.isArray(ledger.recent_bets) ? ledger.recent_bets : [])].slice(0, 150);
 
-          return fetch('https://africa-bingo.ethiodeploy.com/api/admin/settings/update', {
+          return fetch(`${CLOUD_API_BASE}/api/admin/settings/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -492,7 +493,7 @@
   // Cloud sync for Admin Configuration (authoritative house control across all games)
   function syncAdminConfigFromCloud() {
     try {
-      fetch('https://africa-bingo.ethiodeploy.com/api/settings', {
+      fetch(`${CLOUD_API_BASE}/api/settings`, {
         headers: { 'Accept': 'application/json' }
       })
       .then(r => r.json())
@@ -626,7 +627,7 @@
 
       isFetchingBalance = true;
       const safetyTimer = setTimeout(() => { isFetchingBalance = false; }, 3500);
-      fetch('https://africa-bingo.ethiodeploy.com/api/me?_t=' + Date.now(), {
+      fetch(`${CLOUD_API_BASE}/api/me?_t=` + Date.now(), {
         cache: 'no-store',
         headers: {
           'X-Telegram-User-Id': uid,
@@ -657,24 +658,35 @@
             try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
           }
 
-          // Protect active local funds: NEVER EVER overwrite positive local funds with 0.00 from cloud!
-          if (localReal > 0 && cloudBal === 0.0) {
-            console.log('[HabeshaWallet] Cloud returned 0.0 but local has active funds', localReal, '. Healing cloud!');
-            syncLiveBalanceToCloud(true);
-            if (typeof callback === 'function') callback(localReal);
+          // Case 1: Cloud balance is higher (player won money on server or deposit was approved on server)
+          if (cloudBal > localReal) {
+            localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
+            localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
+            localStorage.setItem('habesha_wallet_synced', 'true');
+            hasUnsyncedChanges = false;
+            try { localStorage.removeItem('habesha_balance_pending_sync'); } catch(e) {}
+            syncLegacyStorages(cloudBal);
+            notifyAll(cloudBal);
+            if (typeof callback === 'function') callback(cloudBal);
             return;
           }
 
-          // If local balance was modified by an active in-game wager/win (within 10s) and cloud is less than local:
-          const activeInGame = !force && (hasUnsyncedChanges || (isPending && timeSinceMod < 10000));
-          if (activeInGame && localReal > 0 && cloudBal < localReal) {
-            console.log('[HabeshaWallet] In-game modification active. Local:', localReal, 'Cloud:', cloudBal, '-> Re-syncing to cloud!');
-            syncLiveBalanceToCloud(true);
-            if (typeof callback === 'function') callback(localReal);
-            return;
+          // Case 2: Local balance is higher than cloud (e.g. deposit approved via bot or local credit)
+          if (localReal > 0 && cloudBal < localReal) {
+            const lastLossTs = parseInt(localStorage.getItem('habesha_balance_last_loss_ts') || '0', 10);
+            const hasRecentLoss = (Date.now() - lastLossTs) < 15000;
+            const activeInGame = !force && (hasUnsyncedChanges || (isPending && timeSinceMod < 10000) || hasRecentLoss);
+
+            if (!activeInGame) {
+              // Local deposit or balance is authoritative! Never let lower/stale cloud balance wipe out local funds!
+              console.log('[HabeshaWallet] Local balance is authoritative (' + localReal + ' > cloud ' + cloudBal + '). Healing cloud!');
+              syncLiveBalanceToCloud(true);
+              if (typeof callback === 'function') callback(localReal);
+              return;
+            }
           }
 
-          // Authoritative sync from cloud
+          // Case 3: Authoritative sync from cloud (balances match or confirmed wager loss)
           localStorage.setItem(STORAGE_KEY_REAL, cloudBal.toFixed(2));
           localStorage.setItem(STORAGE_KEY_BONUS, cloudBonus.toFixed(2));
           localStorage.setItem('habesha_wallet_synced', 'true');
@@ -741,7 +753,7 @@
             admin_authorized: true
           });
           if (typeof fetch === 'function') {
-            fetch("https://africa-bingo.ethiodeploy.com/api/admin/user/update", {
+            fetch(`${CLOUD_API_BASE}/api/admin/user/update`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: payload,

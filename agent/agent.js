@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  const API_BASE = 'https://africa-bingo.ethiodeploy.com';
+  const API_BASE = 'https://konjobetcom.et/bingo';
 
   // --- Telegram WebApp Setup ---
   if (window.Telegram && window.Telegram.WebApp) {

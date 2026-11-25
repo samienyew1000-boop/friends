@@ -65,7 +65,7 @@ body {
   width: 100%;
   aspect-ratio: 1 / 1;
   min-height: 105px;
-  background-color: #0a0f18;
+  background: radial-gradient(circle at 50% 45%, #182335 0%, #0d1522 65%, #080d14 100%);
   overflow: hidden;
   display: flex;
   align-items: center;

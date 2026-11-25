@@ -28,7 +28,7 @@
     { id: 'TX-80287', playerId: 'TG-502981', player: 'Dawit Kassa', username: '@dawit_k', type: 'withdraw', method: 'CBE Birr', amount: 600, status: 'pending', time: 'Today, 10:18' },
     { id: 'TX-80286', playerId: 'TG-849204', player: 'Abebe Kebede', username: '@abebe_k', type: 'stake', method: 'Dallol Bingo', amount: 50, status: 'completed', time: 'Today, 10:12' }
   ];
-  const API_BASE = 'https://africa-bingo.ethiodeploy.com';
+  const API_BASE = 'https://konjobetcom.et/bingo';
   let cloudUsers = [];
   let cloudLedger = null;
   let isFetchingCloud = false;

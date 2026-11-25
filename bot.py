@@ -705,7 +705,7 @@ def fetch_live_cloud_balance(chat_id, user):
         }
 
         data = None
-        for base_url in ["http://127.0.0.1:3005", "https://africa-bingo.ethiodeploy.com"]:
+        for base_url in ["http://127.0.0.1:3005", "https://konjobetcom.et/bingo"]:
             try:
                 req = urllib.request.Request(f"{base_url}/api/me?_t={int(now)}", headers=headers)
                 timeout_sec = 1.5 if "127.0.0.1" in base_url else 3.5
@@ -769,7 +769,7 @@ def push_balance_to_cloud(chat_id, new_balance, username="", bonus_balance=None)
             "Accept": "application/json"
         }
 
-        for base_url in ["http://127.0.0.1:3005", "https://africa-bingo.ethiodeploy.com"]:
+        for base_url in ["http://127.0.0.1:3005", "https://konjobetcom.et/bingo"]:
             try:
                 req = urllib.request.Request(
                     f"{base_url}/api/admin/user/update",
@@ -1504,17 +1504,22 @@ def sync_bot_ledger_to_cloud():
             "friends_bot_players": players_summary
         }).encode("utf-8")
 
-        req = urllib.request.Request(
-            "https://africa-bingo.ethiodeploy.com/api/admin/settings/update",
-            data=payload,
-            headers={
-                "User-Agent": "Mozilla/5.0",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=4.0) as resp:
-            pass
+        for b_url in ["http://127.0.0.1:3005", "https://konjobetcom.et/bingo"]:
+            try:
+                req = urllib.request.Request(
+                    f"{b_url}/api/admin/settings/update",
+                    data=payload,
+                    headers={
+                        "User-Agent": "Mozilla/5.0",
+                        "Content-Type": "application/json"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    if resp.status == 200:
+                        break
+            except Exception:
+                pass
     except Exception as ex:
         logging.warning(f"[SyncBotLedger] Error syncing ledger to cloud: {ex}")
 
@@ -1633,11 +1638,31 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
                         m_ph = re.search(r"(\+?251\d{9}|09\d{8}|07\d{8})", message_text)
                         if m_ph:
                             ph = m_ph.group(1)
+                            # EXCLUDE company receiver and admin phone numbers so deposits aren't credited to admin!
+                            admin_phones = [
+                                "0928233032", "+251928233032", "251928233032", "928233032",
+                                "0717482251", "+251717482251", "251717482251", "717482251"
+                            ]
                             all_users = load_known_users()
                             for uid_k, udata in all_users.items():
-                                if udata.get("phone", "").replace(" ", "") == ph or udata.get("phone", "").endswith(ph[-9:]):
-                                    target["chat_id"] = int(uid_k)
-                                    break
+                                try:
+                                    if int(uid_k) in ADMIN_USER_IDS:
+                                        p = udata.get("phone", "").replace(" ", "")
+                                        if p:
+                                            admin_phones.append(p)
+                                except Exception:
+                                    pass
+                            clean_ph = ph.replace(" ", "").replace("+", "")
+                            is_admin_phone = any(ap.replace("+", "") in clean_ph or clean_ph in ap.replace("+", "") for ap in admin_phones)
+                            if not is_admin_phone:
+                                for uid_k, udata in all_users.items():
+                                    try:
+                                        if int(uid_k) not in ADMIN_USER_IDS:
+                                            if udata.get("phone", "").replace(" ", "") == ph or udata.get("phone", "").endswith(ph[-9:]):
+                                                target["chat_id"] = int(uid_k)
+                                                break
+                                    except Exception:
+                                        pass
 
     # Resolve amount if explicit or from text
     if explicit_amount and float(explicit_amount) > 0:
@@ -1676,19 +1701,33 @@ def approve_deposit(dep_id, admin_id, explicit_chat_id=None, explicit_amount=Non
     cloud_bal = None
     try:
         req = urllib.request.Request(
-            "https://africa-bingo.ethiodeploy.com/api/me",
+            "http://127.0.0.1:3005/api/me",
             headers={
                 "User-Agent": "Mozilla/5.0",
                 "X-Telegram-User-Id": str(chat_id),
                 "X-Telegram-User-Name": users[uid_str].get("username", "") or ""
             }
         )
-        with urllib.request.urlopen(req, timeout=2.0) as resp:
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data and "balance" in data and isinstance(data["balance"], (int, float)):
                 cloud_bal = round(float(data["balance"]), 2)
     except Exception:
-        pass
+        try:
+            req = urllib.request.Request(
+                "https://konjobetcom.et/bingo/api/me",
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "X-Telegram-User-Id": str(chat_id),
+                    "X-Telegram-User-Name": users[uid_str].get("username", "") or ""
+                }
+            )
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if data and "balance" in data and isinstance(data["balance"], (int, float)):
+                    cloud_bal = round(float(data["balance"]), 2)
+        except Exception:
+            pass
 
     base_bal = current_known_bal
     if cloud_bal is not None and cloud_bal > base_bal:
