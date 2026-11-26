@@ -716,6 +716,10 @@
     withdrawCustomAmount.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value) || 0;
       selectedWithdrawAmount = val;
+      withdrawAmountPills.forEach((p) => {
+        p.classList.remove('bg-teal-500', 'text-white', 'font-bold');
+        p.classList.add('bg-slate-800', 'text-slate-300');
+      });
     });
   }
 
@@ -724,7 +728,8 @@
       sound.playClick();
       triggerHaptic('impact');
       const curBal = typeof window.HabeshaWallet !== 'undefined' ? window.HabeshaWallet.get() : state.balance;
-      const amount = selectedWithdrawAmount || parseFloat(withdrawCustomAmount.value) || 0;
+      const customVal = withdrawCustomAmount ? parseFloat(withdrawCustomAmount.value) : 0;
+      const amount = (!isNaN(customVal) && customVal > 0) ? customVal : (selectedWithdrawAmount || 0);
       const phone = withdrawPhoneInput ? withdrawPhoneInput.value.trim() : '';
 
       if (curBal < 200) {
@@ -815,8 +820,8 @@
           `ብር ወደ <code>${phone}</code> በቴሌብር ከላኩ በኋላ <b>'Approve'</b> ይጫኑ፦`;
 
         const roundAmt = Math.round(Number(amount));
-        const cbApprove = uid ? `with_approve:${uid}:${roundAmt}:${reqId}` : `with_approve:${reqId}`;
-        const cbReject = uid ? `with_reject:${uid}:${roundAmt}:${reqId}` : `with_reject:${reqId}`;
+        const cbApprove = uid ? `with_approve:${uid}:${roundAmt}:${reqId}:1` : `with_approve:${reqId}`;
+        const cbReject = uid ? `with_reject:${uid}:${roundAmt}:${reqId}:1` : `with_reject:${reqId}`;
 
         const inlineKeyboard = {
           inline_keyboard: [

@@ -1254,7 +1254,7 @@ def handle_withdraw_request(chat_id, user, amount_str):
 
     return True
 
-def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
+def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text="", is_already_deducted=None):
     withdrawals = load_withdrawals()
     target = None
     for w in withdrawals:
@@ -1262,13 +1262,15 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
             target = w
             break
 
+    # If target not found in withdrawals.json, it was initiated from WebApp.
+    # In WebApp, the balance is ALWAYS deducted upfront via HabeshaWallet.modify(-amount) upon submission.
     if not target:
         target = {
             "id": req_id,
             "status": "pending",
             "amount": float(explicit_amount) if explicit_amount else MIN_WITHDRAWAL_AMOUNT,
             "chat_id": int(explicit_chat_id) if explicit_chat_id else None,
-            "deducted": False
+            "deducted": True
         }
         withdrawals.append(target)
 
@@ -1278,7 +1280,12 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
     chat_id = target.get("chat_id") or explicit_chat_id
     amt = float(target.get("amount") or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
     phone = target.get("phone", "")
-    already_deducted = target.get("deducted", False)
+
+    # Check deduction status: Both WebApp and Telegram Bot deduct upfront at request time
+    if is_already_deducted is not None:
+        already_deducted = bool(is_already_deducted)
+    else:
+        already_deducted = target.get("deducted", True)
 
     target["status"] = "approved"
     target["approved_by"] = admin_id
@@ -1287,15 +1294,19 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
     save_withdrawals(withdrawals)
     threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
-    # Deduct balance if not previously deducted (e.g. from Mini App) & sync to cloud
+    # Determine remaining balance & sync to cloud
     new_bal = 0.0
     if chat_id:
         users = load_known_users()
         uid_str = str(chat_id)
         if uid_str in users:
             u = users[uid_str]
+            # Fetch fresh cloud balance
+            cur_bal = fetch_live_cloud_balance(chat_id, u)
+            cur_bal = float(users[uid_str].get("balance", cur_bal))
+
             if not already_deducted:
-                cur_bal = float(u.get("balance", 0.0))
+                # In the rare event that it was NOT deducted upfront
                 new_bal = round(max(0.0, cur_bal - amt), 2)
                 users[uid_str]["balance"] = new_bal
                 users[uid_str]["balance_updated"] = time.time()
@@ -1303,7 +1314,10 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
                 save_all_users(users)
                 u["balance"] = new_bal
             else:
-                new_bal = float(u.get("balance", 0.0))
+                # Normal case: Already deducted upfront! Remaining balance is cur_bal.
+                new_bal = round(max(0.0, cur_bal), 2)
+                users[uid_str]["balance"] = new_bal
+                save_all_users(users)
 
             push_balance_to_cloud(chat_id, new_bal, u.get("username", ""))
             update_live_welcome_message(chat_id, u)
@@ -1335,7 +1349,7 @@ def approve_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=
             "reply_markup": get_main_reply_keyboard(chat_id, users.get(uid_str, {}))
         })
 
-    return True, f"Approved! -{amt:.2f} ETB (Balance: {new_bal:.2f} ETB)"
+    return True, f"Approved! Payout {amt:.2f} ETB sent (Remaining Balance: {new_bal:.2f} ETB)"
 
 def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=None, message_text=""):
     withdrawals = load_withdrawals()
@@ -1352,12 +1366,21 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
     amt = float((target.get("amount") if target else None) or explicit_amount or MIN_WITHDRAWAL_AMOUNT)
     was_deducted = target.get("deducted", True) if target else True
 
-    if target:
-        target["status"] = "rejected"
-        target["rejected_by"] = admin_id
-        target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        save_withdrawals(withdrawals)
-        threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
+    if not target:
+        target = {
+            "id": req_id,
+            "status": "pending",
+            "amount": amt,
+            "chat_id": int(chat_id) if chat_id else None,
+            "deducted": was_deducted
+        }
+        withdrawals.append(target)
+
+    target["status"] = "rejected"
+    target["rejected_by"] = admin_id
+    target["rejected_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    save_withdrawals(withdrawals)
+    threading.Thread(target=sync_bot_ledger_to_cloud, daemon=True).start()
 
     # Refund amount back to user balance if it was deducted
     new_bal = 0.0
@@ -1365,7 +1388,9 @@ def reject_withdrawal(req_id, admin_id, explicit_chat_id=None, explicit_amount=N
         users = load_known_users()
         uid_str = str(chat_id)
         if uid_str in users:
-            new_bal = round(users[uid_str].get("balance", 0.0) + amt, 2)
+            cur_bal = fetch_live_cloud_balance(chat_id, users[uid_str])
+            cur_bal = float(users[uid_str].get("balance", cur_bal))
+            new_bal = round(cur_bal + amt, 2)
             users[uid_str]["balance"] = new_bal
             users[uid_str]["balance_updated"] = time.time()
             users[uid_str]["updated"] = time.time()
@@ -2862,7 +2887,8 @@ def handle_single_update(update):
                 w_parts = rest.split(":")
                 explicit_uid = None
                 explicit_amt = None
-                if len(w_parts) == 3:
+                is_deducted_param = None
+                if len(w_parts) >= 3:
                     try:
                         if w_parts[0] and w_parts[0] != "0":
                             explicit_uid = int(w_parts[0])
@@ -2870,6 +2896,8 @@ def handle_single_update(update):
                     except Exception:
                         pass
                     req_id = w_parts[2]
+                    if len(w_parts) >= 4 and w_parts[3] in ("1", "true", "deducted"):
+                        is_deducted_param = True
                 else:
                     req_id = rest
 
@@ -2881,7 +2909,8 @@ def handle_single_update(update):
                         caller_id,
                         explicit_chat_id=explicit_uid,
                         explicit_amount=explicit_amt,
-                        message_text=orig_text
+                        message_text=orig_text,
+                        is_already_deducted=is_deducted_param
                     )
                     if ok:
                         api_call("answerCallbackQuery", {
