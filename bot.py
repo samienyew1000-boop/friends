@@ -64,6 +64,10 @@ REQUIRED_GROUP_USERNAME = os.environ.get("REQUIRED_GROUP_USERNAME", "Habtam_bet6
 REQUIRED_GROUP_ID = int(os.environ.get("REQUIRED_GROUP_ID", "-1001332933972"))
 REQUIRED_GROUP_URL = os.environ.get("REQUIRED_GROUP_URL", f"https://t.me/{REQUIRED_GROUP_USERNAME}")
 
+# Referral Bonus Configuration (Turned OFF as requested by admin)
+REFERRAL_BONUS_ENABLED = False
+REFERRAL_BONUS_AMOUNT = 0.0
+
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)
@@ -1875,9 +1879,13 @@ def send_promo_info(chat_id, user):
 def send_referral_info(chat_id, user):
     main_kb = get_main_reply_keyboard(chat_id, user)
     ref_link = f"https://t.me/Friends64_BOT?start=ref_{chat_id}"
+    if REFERRAL_BONUS_ENABLED and REFERRAL_BONUS_AMOUNT > 0:
+        bonus_text = f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+{REFERRAL_BONUS_AMOUNT:.0f} ETB</b> ጉርሻ ያግኙ!\n\n"
+    else:
+        bonus_text = "የሪፈራል ጉርሻ (Referral Bonus) ፕሮግራም ለጊዜው ተዘግቷል (Off ተደርጓል)።\n\n"
     text = (
         f"🔗 <b>ጋብዝ እና አግኝ (Invite & Earn)</b>\n\n"
-        f"ጓደኞችዎን ይጋብዙ እና በእያንዳንዱ በሚያስመዘግቡት ሰው የ <b>+3 ETB</b> ጉርሻ ያግኙ!\n\n"
+        f"{bonus_text}"
         f"📌 <b>የእርስዎ የመጋበዣ ሊንክ (Referral Link)፦</b>\n"
         f"<code>{ref_link}</code>\n\n"
         f"ይህን ሊንክ ኮፒ በማድረግ ለጓደኞችዎ እና በግሩፖች ላይ ያጋሩ!"
@@ -3105,16 +3113,16 @@ def handle_single_update(update):
             user = save_known_user(user_obj, phone=phone)
             full_name = f"{c_first} {c_last}".strip()
 
-            # Award referral bonus if this user was referred by someone
+            # Award referral bonus if enabled (currently turned OFF by admin)
             referred_by = user.get("referred_by")
-            if referred_by and not user.get("referral_rewarded"):
+            if REFERRAL_BONUS_ENABLED and referred_by and not user.get("referral_rewarded"):
                 ref_str = str(referred_by)
-                if ref_str != str(chat_id):
+                if ref_str != str(chat_id) and REFERRAL_BONUS_AMOUNT > 0:
                     all_users = load_known_users()
                     if ref_str in all_users:
                         ref_user = all_users[ref_str]
                         cur_bonus = float(ref_user.get("bonus_balance", 0.0))
-                        ref_user["bonus_balance"] = round(cur_bonus + 3.0, 2)
+                        ref_user["bonus_balance"] = round(cur_bonus + REFERRAL_BONUS_AMOUNT, 2)
                         all_users[str(chat_id)]["referral_rewarded"] = True
                         save_all_users(all_users)
                         user["referral_rewarded"] = True
@@ -3124,13 +3132,20 @@ def handle_single_update(update):
                             "chat_id": int(ref_str),
                             "text": (
                                 f"🎁 <b>የሪፈራል ጉርሻ (Referral Bonus)!</b>\n\n"
-                                f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+3.00 ETB</b> ጉርሻ ወደ Bonus Balance ገቢ ተደርጓል!\n\n"
+                                f"ጓደኛዎ <b>{full_name}</b> በተጋባዥ ሊንክዎ ስለተመዘገበ/ች የ <b>+{REFERRAL_BONUS_AMOUNT:.2f} ETB</b> ጉርሻ ወደ Bonus Balance ገቢ ተደርጓል!\n\n"
                                 f"🎁 <b>የቦነስ ሂሳብዎ (Bonus Balance):</b> <b>{ref_user['bonus_balance']:.2f} ETB</b>\n"
                                 f"💵 <b>እውነተኛ ሂሳብዎ (Real Balance):</b> <b>{float(ref_user.get('balance', 0.0)):.2f} ETB</b>\n\n"
                                 f"<i>📌 ማስታወሻ፦ ቦነስ ባላንስ መጫወቻ ብቻ ሲሆን፣ በቦነስ ሲያሸንፉ አሸናፊው በቀጥታ ወደ Real Balance ገቢ ይደረጋል!</i>"
                             ),
                             "parse_mode": "HTML"
                         })
+            elif not REFERRAL_BONUS_ENABLED and referred_by:
+                # Mark as handled without awarding bonus so old accounts won't trigger later
+                all_users = load_known_users()
+                if str(chat_id) in all_users:
+                    all_users[str(chat_id)]["referral_rewarded"] = True
+                    save_all_users(all_users)
+                user["referral_rewarded"] = True
 
             # Notify admins
             ref_raw = user.get("referred_by")
