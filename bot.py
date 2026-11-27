@@ -344,6 +344,14 @@ def load_known_users():
                     return dict(_USERS_CACHE)
         except Exception as e:
             logging.error(f"Error loading known users: {e}")
+            bak_file = KNOWN_USERS_FILE.with_suffix(".json.bak")
+            if bak_file.exists():
+                try:
+                    with open(bak_file, "r", encoding="utf-8") as f_bak:
+                        _USERS_CACHE = json.load(f_bak)
+                        return dict(_USERS_CACHE)
+                except Exception:
+                    pass
         _USERS_CACHE = {"8474256363": {"id": 8474256363, "first_name": "Admin", "username": "Ninjaaj7", "phone": "+251912345678", "registered": True, "updated": time.time()}}
         return dict(_USERS_CACHE)
 
@@ -352,8 +360,17 @@ def save_all_users(users):
     with _USERS_CACHE_LOCK:
         _USERS_CACHE = dict(users)
         try:
-            with open(KNOWN_USERS_FILE, "w", encoding="utf-8") as f:
+            tmp_file = KNOWN_USERS_FILE.with_suffix(".json.tmp")
+            with open(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(users, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_file, KNOWN_USERS_FILE)
+            # Keep backup updated
+            bak_file = KNOWN_USERS_FILE.with_suffix(".json.bak")
+            try:
+                with open(bak_file, "w", encoding="utf-8") as f_bak:
+                    json.dump(users, f_bak, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
         except Exception as e:
             logging.error(f"Error saving known users: {e}")
 
