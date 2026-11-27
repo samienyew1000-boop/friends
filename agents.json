@@ -10,5 +10,29 @@
     "total_deposited": 0.0,
     "total_withdrawn": 0.0,
     "tx_count": 0
+  },
+  "6513507456": {
+    "id": 6513507456,
+    "phone": "+251984993265",
+    "name": "Sky",
+    "username": "heb1933",
+    "balance": 0.0,
+    "status": "active",
+    "created_at": "2026-11-27 17:58:00",
+    "total_deposited": 0.0,
+    "total_withdrawn": 0.0,
+    "tx_count": 0
+  },
+  "1124325056": {
+    "id": 1124325056,
+    "phone": "+251900519477",
+    "name": "SomeOne :(",
+    "username": "eiphe",
+    "balance": 0.0,
+    "status": "active",
+    "created_at": "2026-11-27 17:58:00",
+    "total_deposited": 0.0,
+    "total_withdrawn": 0.0,
+    "tx_count": 0
   }
 }

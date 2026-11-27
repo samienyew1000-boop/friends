@@ -324,7 +324,7 @@
   }
 
   function setAmount(amt) {
-    state.selectedAmount = Math.max(10, Number(amt));
+    state.selectedAmount = Math.max(15, Number(amt));
     amountInput.value = state.selectedAmount;
 
     amountChips.forEach(chip => {
@@ -356,8 +356,8 @@
     }
 
     const amt = Number(state.selectedAmount);
-    if (!amt || amt < 10) {
-      showToast('ዝቅተኛው መጠን 10 ብር ነው!', 'error');
+    if (!amt || amt < 15) {
+      showToast('ዝቅተኛው መጠን 15 ብር ነው!', 'error');
       amountInput.focus();
       return;
     }

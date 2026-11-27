@@ -16249,6 +16249,18 @@ function renderSlip() {
     modeBtn.textContent = count > 1 ? "MULTIPLE" : "SINGLE";
   }
 
+  const modeMulti = $("btn-mode-multi");
+  const modeSingle = $("btn-mode-single");
+  if (modeMulti && modeSingle) {
+    if (state.slipMode === "single") {
+      modeSingle.classList.add("is-active");
+      modeMulti.classList.remove("is-active");
+    } else {
+      modeMulti.classList.add("is-active");
+      modeSingle.classList.remove("is-active");
+    }
+  }
+
   document.querySelectorAll(".betslip-mode-btn").forEach((btn) => {
     const isMultiple = btn.dataset.mode === "multiple";
     btn.classList.toggle("is-on", btn.dataset.mode === state.slipMode);
@@ -16368,13 +16380,27 @@ function renderSlip() {
   if (btnPlace) {
     if (hasFinished) {
       btnPlace.disabled = true;
-      btnPlace.textContent = "Match Finished — Remove to Proceed";
+      btnPlace.textContent = "Match Finished";
     } else if (hasSuspended) {
       btnPlace.disabled = true;
-      btnPlace.textContent = "Market Suspended — Remove to Proceed";
+      btnPlace.textContent = "Market Suspended";
     } else {
       btnPlace.textContent = "PLACE BET";
       btnPlace.disabled = state.stake < MIN_STAKE || activeCount === 0 || hasExpired;
+    }
+  }
+
+  const btnFastBet = $("btn-fast-bet");
+  if (btnFastBet) {
+    if (hasFinished) {
+      btnFastBet.disabled = true;
+      btnFastBet.textContent = "Match Finished";
+    } else if (hasSuspended) {
+      btnFastBet.disabled = true;
+      btnFastBet.textContent = "Market Suspended";
+    } else {
+      btnFastBet.textContent = "FAST BET";
+      btnFastBet.disabled = state.stake < MIN_STAKE || activeCount === 0 || hasExpired;
     }
   }
 
@@ -17939,11 +17965,55 @@ function settleTicketLocal(ticket) {
   settleEndedTickets(ticket.id);
 }
 
+function fastBet() {
+  if (!state.slip || !state.slip.length) {
+    toast("Add selections to your betslip first", "err");
+    return;
+  }
+  const finishedBets = state.slip.filter((b) => getSlipBetStatus(b).isFinished);
+  if (finishedBets.length) {
+    toast("Match has already finished. Please remove it to proceed.", "err");
+    return;
+  }
+  const suspendedBets = state.slip.filter((b) => {
+    const st = getSlipBetStatus(b);
+    return st.isSuspended || (b.kickoff && isFixtureStarted(b.kickoff));
+  });
+  if (suspendedBets.length) {
+    toast("Match has already started / Odd is locked. Please remove it to proceed.", "err");
+    return;
+  }
+  if (state.slip.some(isSlipBetExpired)) {
+    toast("Match has already started / Odd is locked. Please remove it to proceed.", "err");
+    return;
+  }
+  const active = activeSlipBets();
+  if (!active.length) {
+    toast("Add valid selections to your betslip first", "err");
+    return;
+  }
+  if (state.stake < MIN_STAKE) {
+    toast(`Minimum stake is ${MIN_STAKE} ${CURRENCY}`, "err");
+    return;
+  }
+
+  // Open booking modal (generates 5-digit booking code, barcode, and saves to hope_booked_bets)
+  openShareModal();
+
+  toast(`Fast Bet Booked! Code: ${state.currentBookingCode}`, "ok");
+
+  // Clear slip after fast bet booking
+  state.slip = [];
+  save();
+  renderSlip();
+  refreshHomeAndBoard();
+}
+
 async function placeBet() {
   if (!state.slip.length) return;
   if (!isLoggedIn()) {
     openAuthModal("login");
-    toast("Please log in to place bets", "err");
+    toast("Please log in to place online bets with your balance", "err");
     return;
   }
   const finishedBets = state.slip.filter((b) => getSlipBetStatus(b).isFinished);
@@ -17990,9 +18060,15 @@ async function placeBet() {
       toast(`Insufficient player balance (${fmt(state.adminSelectedPlayer.balance || 0)} ETB)`, "err");
       return;
     }
-  } else if (!useApi() && state.balance < state.stake) {
-    toast("Insufficient balance", "err");
-    return;
+  } else {
+    const curBal = (window.HabeshaWallet && typeof window.HabeshaWallet.get === "function")
+      ? window.HabeshaWallet.get()
+      : (Number(state.balance) || 0);
+
+    if (curBal < state.stake) {
+      toast(`Insufficient balance (${fmt(curBal)} ETB). Please deposit.`, "err");
+      return;
+    }
   }
 
   if (useApi()) {
@@ -18085,21 +18161,43 @@ async function placeBet() {
   const seqNum = state.ticketSeq++;
   const id = "H" + String(seqNum).padStart(4, "0");
   const cashierCode = String(1000 + (seqNum - 1));
+  const tOdds = totalOdds();
+  const potWin = Math.min(Number((state.stake * tOdds).toFixed(2)), Number(state.settings?.max_win || (window.HABTAM_MAX_WIN || window.HOPE_MAX_WIN) || 500000));
   const ticket = {
     id,
     cashierCode,
     type: active.length > 1 ? "Multiple" : "Single",
     bets: [...active],
     stake: state.stake,
-    totalOdds: totalOdds(),
-    totalWin: Math.min(Number((state.stake * totalOdds()).toFixed(2)), Number(state.settings?.max_win || (window.HABTAM_MAX_WIN || window.HOPE_MAX_WIN) || 500000)),
-    potentialWin: Math.min(Number((state.stake * totalOdds()).toFixed(2)), Number(state.settings?.max_win || (window.HABTAM_MAX_WIN || window.HOPE_MAX_WIN) || 500000)),
+    totalOdds: tOdds,
+    totalWin: potWin,
+    potentialWin: potWin,
     status: "in-course",
     payout: 0,
     placedAt: new Date().toISOString(),
   };
 
-  state.balance -= state.stake;
+  // Deduct stake from HabeshaWallet & local state
+  if (window.HabeshaWallet && typeof window.HabeshaWallet.modify === "function") {
+    window.HabeshaWallet.modify(-state.stake, "Habtam Bet");
+    state.balance = window.HabeshaWallet.get();
+  } else {
+    state.balance = Math.max(0, (Number(state.balance) || 0) - state.stake);
+  }
+
+  if (window.HabeshaWallet && typeof window.HabeshaWallet.recordBet === "function") {
+    try {
+      window.HabeshaWallet.recordBet({
+        id: ticket.id,
+        game: "Habtam Bet",
+        stake: state.stake,
+        odds: ticket.totalOdds,
+        potentialWin: ticket.potentialWin,
+        type: ticket.type,
+      });
+    } catch (_) {}
+  }
+
   state.history.unshift(ticket);
   state.betPlacedSuccessTicket = ticket;
   state.slip = [];
@@ -21297,6 +21395,7 @@ document.addEventListener("click", (e) => {
   }, 15000);
 
   on($("btn-place"), "click", placeBet);
+  on($("btn-fast-bet"), "click", fastBet);
 
   on($("btn-clear-slip"), "click", () => {
     state.slip = [];
@@ -21304,6 +21403,39 @@ document.addEventListener("click", (e) => {
     renderSlip();
     refreshHomeAndBoard();
     if (isMobileLayout()) closeMobileDrawers();
+  });
+
+  on($("btn-stake-max"), "click", () => {
+    let maxStake = 1000;
+    if (window.HabeshaWallet && typeof window.HabeshaWallet.get === "function") {
+      const wBal = window.HabeshaWallet.get();
+      if (wBal > 0) {
+        maxStake = Math.floor(wBal);
+      }
+    } else if (state.balance && state.balance > 0) {
+      maxStake = Math.floor(state.balance);
+    }
+    state.stake = Math.max(MIN_STAKE, maxStake);
+    const stakeInput = $("stake-input");
+    if (stakeInput) stakeInput.value = state.stake;
+    save();
+    renderSlip();
+  });
+
+  on($("btn-betslip-collapse"), "click", () => {
+    if (typeof closeMobileDrawers === "function") closeMobileDrawers();
+  });
+
+  on($("btn-mode-multi"), "click", () => {
+    state.slipMode = "multiple";
+    save();
+    renderSlip();
+  });
+
+  on($("btn-mode-single"), "click", () => {
+    state.slipMode = "single";
+    save();
+    renderSlip();
   });
 
   function handleUserSignOut() {

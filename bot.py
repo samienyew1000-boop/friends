@@ -2433,6 +2433,8 @@ def find_player_by_query(query_str):
     return None, None
 
 def execute_agent_deposit(agent_id, player_uid, amount, agent_name=""):
+    if amount < 15:
+        return False, "ዝቅተኛው የዲፖዚት መጠን 15 ETB ነው!"
     agents = load_agents()
     agent = agents.get(str(agent_id))
     if not agent or agent.get("status") != "active":
@@ -2507,6 +2509,8 @@ def execute_agent_deposit(agent_id, player_uid, amount, agent_name=""):
     return True, tx_entry
 
 def execute_agent_withdraw(agent_id, player_uid, amount, agent_name=""):
+    if amount < 15:
+        return False, "ዝቅተኛው የወጪ መጠን 15 ETB ነው!"
     agents = load_agents()
     agent = agents.get(str(agent_id))
     if not agent or agent.get("status") != "active":
@@ -2720,7 +2724,7 @@ def send_agent_amount_selector(agent_chat_id, player_uid, mode):
         f"መጠኑን ይምረጡ ወይም ሌላ መጠን ለመጻፍ <b>'✏️ ሌላ መጠን'</b> ይጫኑ:"
     )
     
-    amounts = [50, 100, 200, 500, 1000, 2000]
+    amounts = [15, 50, 100, 200, 500, 1000]
     kb_rows = []
     for i in range(0, len(amounts), 3):
         row = []
@@ -3758,8 +3762,9 @@ def handle_single_update(update):
                         save_all_users(users_up)
                     try:
                         amt_val = float(clean_num)
-                        if amt_val <= 0:
-                            raise ValueError()
+                        if amt_val < 15:
+                            send_text_message(chat_id, "⚠️ ዝቅተኛው መጠን 15 ETB ነው!")
+                            return
                         mode, p_uid = target_info.split(":")
                         if mode == "dep":
                             ok, res = execute_agent_deposit(chat_id, p_uid, amt_val, agent_name=user.get("first_name", ""))
